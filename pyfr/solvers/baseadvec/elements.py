@@ -1,5 +1,6 @@
 from pyfr.solvers.base import BaseElements
 
+import numpy as np
 
 class BaseAdvectionElements(BaseElements):
     @property
@@ -82,6 +83,18 @@ class BaseAdvectionElements(BaseElements):
             dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
             rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, u=solnupts
         )
+
+        if self.cfg.getbool('solver', 'cbp'):
+            # Create monomial VDM
+            degs = self.basis.ubasis.degrees
+            upts = self.basis.upts
+            V = np.ones((self.nupts, self.nupts))
+
+            for i in range(self.nupts):
+                for j, dd in enumerate(degs[i]):
+                    V[i,:] *= upts[:,j]**dd
+            
+            self.moninvvdm = np.linalg.inv(V.T)
 
         # In-place solution filter
         if self.cfg.getint('soln-filter', 'nsteps', '0'):
