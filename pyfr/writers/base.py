@@ -34,7 +34,9 @@ class BaseWriter:
         self.nvars = next(iter(self.soln_inf.values()))[1][1]
 
         # System and elements classes
-        self.systemscls = subclass_where(
-            BaseSystem, name=self.cfg.get('solver', 'system')
-        )
+        system = self.cfg.get('solver', 'system')
+        if system in ['advection', 'burgers', 'kpp']:
+            self.systemscls = subclass_where(BaseSystem, name='scalar')
+        else:
+            self.systemscls = subclass_where(BaseSystem, name=system)
         self.elementscls = self.systemscls.elementscls
