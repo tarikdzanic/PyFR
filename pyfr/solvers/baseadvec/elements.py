@@ -95,6 +95,9 @@ class BaseAdvectionElements(BaseElements):
                     V[i,:] *= upts[:,j]**dd
             
             self.moninvvdm = np.linalg.inv(V.T)
+            ub = self.basis.ubasis
+            self.meanwts = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+            self.upts_mat = self._be.const_matrix(upts)
 
         # In-place solution filter
         if self.cfg.getint('soln-filter', 'nsteps', '0'):

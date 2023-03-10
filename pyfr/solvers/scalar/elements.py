@@ -34,6 +34,7 @@ class ScalarElements(BaseAdvectionElements):
         # Register our flux kernels
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.tflux')
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.tfluxlin')
+        self._be.pointwise.register('pyfr.solvers.scalar.kernels.limiter')
 
         # Get system parameters
         system = self.cfg.get('solver', 'system')
@@ -85,4 +86,16 @@ class ScalarElements(BaseAdvectionElements):
                 'tfluxlin', tplargs=tplargs, dims=[self.nqpts, r[l]],
                 u=s(self._scal_qpts, l), f=s(self._vect_qpts, l),
                 verts=self.ploc_at('linspts', l), upts=self.qpts
+            )
+        
+        if self.cfg.getbool('solver', 'cbp'):
+            tplargs['invvdm'] = self.moninvvdm 
+            tplargs['meanwts'] = self.meanwts
+            tplargs['nupts'] = self.nupts
+            tplargs['mdegs'] = self.basis.ubasis.degrees
+            tplargs['gbnds'] = self.cfg.getliteral('solver', 'global-bounds')
+
+            self.kernels['limiter'] = lambda uin: self._be.kernel(
+                'limiter', tplargs=tplargs,
+                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat
             )
