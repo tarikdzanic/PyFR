@@ -98,6 +98,7 @@ class BaseAdvectionElements(BaseElements):
             ub = self.basis.ubasis
             self.meanwts = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
             self.upts_mat = self._be.const_matrix(upts)
+            assert self.ndims == 2, "Newton's method only implemented for 2D."
 
         # In-place solution filter
         if self.cfg.getint('soln-filter', 'nsteps', '0'):

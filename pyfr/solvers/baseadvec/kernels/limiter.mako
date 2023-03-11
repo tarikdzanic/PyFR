@@ -1,7 +1,7 @@
 <%inherit file='base'/>
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
-<% eps = 1E-8 %>
+<% eps = 1E-4 %>
 <% niters = 10 %>
 <% gamma = 1 %>
 <%pyfr:macro name='eval_monomial' params='um, x, ui'>
@@ -56,27 +56,55 @@
 
     // Optimize cost function to find minimum in element
     fpdtype_t ui2[${nvars}], x2[${ndims}];
-    fpdtype_t J[${ndims}];
+    fpdtype_t J[${ndims}], H[${ndims}][${ndims}];
+    fpdtype_t invH[${ndims}][${ndims}], invdet, dx[${ndims}];
+    % if ndims == 2:
+    fpdtype_t dalpha[3][3];
+    % elif ndims == 3:
+    fpdtype_t dalpha[3][3][3];
+    % endif
+
     for (int iter = 0; iter < ${niters}; iter++) {
         ${pyfr.expand('eval_monomial', 'um', 'xmin', 'ui')};
         !! CALL_COSTFUNCTION ['ui', 'uavg', 'alpha']
 
-        // Numerically compute Jacobian
-        % for i in range(ndims):
-        % for j in range(ndims):
-        x2[${j}] = xmin[${j}];
-        % endfor
-
-        x2[${i}] += ${eps};
+        // Numerically compute Jacobian/Hessian
+        % if ndims == 2:
+        // Compute perturbations 
+        % for i,j in pyfr.ndrange(3, 3):
+        x2[0] = xmin[0] + ${eps*(i-1)};
+        x2[1] = xmin[1] + ${eps*(j-1)};
         ${pyfr.expand('eval_monomial', 'um', 'x2', 'ui2')};
         !! CALL_COSTFUNCTION ['ui2', 'uavg', 'alpha2']
-
-        J[${i}] = (alpha2 - alpha)/${eps};
+        dalpha[${i}][${j}] = alpha2;
         % endfor
 
-        // Take gradient descent step
+        // Compute Jacobian
+        J[0] = (dalpha[2][1] - dalpha[0][1])/${2*eps};
+        J[1] = (dalpha[1][2] - dalpha[1][0])/${2*eps};
+
+        // Compute Hessian
+        H[0][0] = (dalpha[2][1] - 2*dalpha[1][1] + dalpha[0][1])/${eps**2};
+        H[1][1] = (dalpha[1][2] - 2*dalpha[1][1] + dalpha[1][0])/${eps**2};
+        H[0][1] = (dalpha[2][2] - dalpha[0][2] - dalpha[2][0] + dalpha[0][0])/${4*eps**2};
+        H[1][0] = H[0][1];
+
+        // Invert Hessian
+        invdet = 1.0/(H[0][0]*H[1][1] - H[0][1]*H[1][0]);
+        invH[0][0] =  invdet*H[1][1];
+        invH[0][1] = -invdet*H[0][1];
+        invH[1][0] = -invdet*H[1][0];
+        invH[1][1] =  invdet*H[0][0];
+        % endif
+
+        // Compute Newton search direction
         % for i in range(ndims):
-        xmin[${i}] -= ${gamma}*J[${i}];
+        dx[${i}] = ${' + '.join(f'invH[{i}][{j}]*J[{j}]' for j in range(ndims))};
+        % endfor
+
+        // Take Newton step
+        % for i in range(ndims):
+        xmin[${i}] -= ${gamma}*dx[${i}];
         % endfor
 
         // Limit to element bounds
