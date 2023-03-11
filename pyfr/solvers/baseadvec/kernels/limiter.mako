@@ -18,7 +18,7 @@
     % endfor
 </%pyfr:macro>
 
-<%pyfr:macro name='optimize' params='u, uavg, x, f'>
+<%pyfr:macro name='optimize' params='u, uavg, x, alpha'>
     // Create monomial basis
     fpdtype_t um[${nupts}][${nvars}];
     % for i,k in pyfr.ndrange(nupts, nvars):
@@ -27,7 +27,7 @@
     % endfor
 
     // Find discrete minima
-    fpdtype_t ui[${nvars}], xmin[${ndims}], f2;
+    fpdtype_t ui[${nvars}], xmin[${ndims}], alpha2;
 
     % for i in range(nvars):
     ui[${i}] = u[0][${i}];
@@ -37,17 +37,17 @@
     xmin[${i}] = x[0][${i}];
     % endfor
 
-    ${pyfr.expand('cost', 'ui', 'uavg', 'f')};
+    !! CALL_COSTFUNCTION ['ui', 'uavg', 'alpha']
 
     for (int i = 1; i < ${nupts}; i++) {
         % for j in range(nvars):
         ui[${j}] = u[i][${j}];
         % endfor
 
-        ${pyfr.expand('cost', 'ui', 'uavg', 'f2')};
+        !! CALL_COSTFUNCTION ['ui', 'uavg', 'alpha2']
 
-        if (f2 < f) {
-            f = f2;
+        if (alpha2 < alpha) {
+            alpha = alpha2;
             % for j in range(ndims):
             xmin[${j}] = x[i][${j}];
             % endfor
@@ -59,7 +59,7 @@
     fpdtype_t J[${ndims}];
     for (int iter = 0; iter < ${niters}; iter++) {
         ${pyfr.expand('eval_monomial', 'um', 'xmin', 'ui')};
-        ${pyfr.expand('cost', 'ui', 'uavg', 'f')};
+        !! CALL_COSTFUNCTION ['ui', 'uavg', 'alpha']
 
         // Numerically compute Jacobian
         % for i in range(ndims):
@@ -69,9 +69,9 @@
 
         x2[${i}] += ${eps};
         ${pyfr.expand('eval_monomial', 'um', 'x2', 'ui2')};
-        ${pyfr.expand('cost', 'ui2', 'uavg', 'f2')};
+        !! CALL_COSTFUNCTION ['ui2', 'uavg', 'alpha2']
 
-        J[${i}] = (f2 - f)/${eps};
+        J[${i}] = (alpha2 - alpha)/${eps};
         % endfor
 
         // Take gradient descent step
@@ -87,7 +87,7 @@
 
     // Get location and cost function at minima
     ${pyfr.expand('eval_monomial', 'um', 'xmin', 'ui')};
-    ${pyfr.expand('cost', 'ui', 'uavg', 'f')};
+    !! CALL_COSTFUNCTION ['ui', 'uavg', 'alpha']
 </%pyfr:macro>
 
 <%pyfr:macro name='optimize_and_limit' params='u, x'>
@@ -99,13 +99,13 @@
     % endfor
 
     // Optimize function
-    fpdtype_t f;
-    ${pyfr.expand('optimize', 'u', 'uavg', 'x', 'f')};
+    fpdtype_t alpha;
+    ${pyfr.expand('optimize', 'u', 'uavg', 'x', 'alpha')};
 
     // Limit
-    f = fmin(1.0, fmax(0, -f));
+    alpha = fmin(1.0, fmax(0, -alpha));
     % for i,j in pyfr.ndrange(nupts, nvars):
-    u[${i}][${j}] = (1 - f)*u[${i}][${j}] + f*uavg[${j}];
+    u[${i}][${j}] = (1 - alpha)*u[${i}][${j}] + alpha*uavg[${j}];
     % endfor
     
 </%pyfr:macro>

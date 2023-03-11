@@ -115,8 +115,30 @@ def macro(context, name, params, externs=''):
 
 
 def expand(context, name, /, *args, **kwargs):
-    # Get the macro parameter list and the body
-    mparams, mexterns, body = context['_macros'][name]
+    # Treat optimization kernels specially
+    if 'optimize_and_limit' in name:
+        # Get cost function index
+        nc = int(name[-1])
+        name = 'optimize_and_limit'
+        # Get the macro parameter list and the body
+        mparams, mexterns, body = context['_macros'][name]
+        
+        cc = context['_macros'][f'cost{nc}']
+
+        newbody = ''
+        for line in body.splitlines():
+            if 'CALL_COSTFUNCTION' in line:
+                lspaces = line.split('!!')[0] # Get leading spaces
+                largs = eval(line.split('CALL_COSTFUNCTION')[-1]) # Get macro args
+                line = lspaces + cc[-1] # Get expanded macro
+                # Replace template args with macro args
+                for i, larg in enumerate(largs):
+                    line = line.replace(cc[0][i], larg)
+            newbody += line + '\n'
+        body = newbody
+    else:
+        # Get the macro parameter list and the body
+        mparams, mexterns, body = context['_macros'][name]
 
     # Parse the parameter list
     params = dict(zip(mparams, args))
