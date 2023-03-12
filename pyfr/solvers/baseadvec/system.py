@@ -67,8 +67,11 @@ class BaseAdvectionSystem(BaseSystem):
         k, _ = self._get_kernels(uinbank, None)
 
         def deps(dk, *names): return self._kdeps(k, dk, *names)
+        face_bounds = self.cfg.getbool('solver', 'face-bounds', False)
+        elem_bounds = self.cfg.getbool('solver', 'elem-bounds', False)
+        glob_bounds = self.cfg.getbool('solver', 'glob-bounds', False)
 
-        if self.cfg.getbool('solver', 'face-bounds'):
+        if face_bounds:
             g1 = self.backend.graph()
 
             # Interpolate the solution to the flux points
@@ -105,7 +108,7 @@ class BaseAdvectionSystem(BaseSystem):
                                                           k['bcint/comm_bounds'])
                 g1.commit()
                 return g1,
-        else:
+        elif elem_bounds:
             g1 = self.backend.graph()
             g1.add_mpi_reqs(m['bounds_l_fpts_recv'])
             g1.add_mpi_reqs(m['bounds_h_fpts_recv'])
@@ -156,6 +159,8 @@ class BaseAdvectionSystem(BaseSystem):
                                                           k['bcint/comm_bounds_h'])
                 g1.commit()
                 return g1,
+        else:
+            return []
 
     def postproc(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)

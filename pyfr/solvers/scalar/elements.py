@@ -101,14 +101,10 @@ class ScalarElements(BaseAdvectionElements):
             tplargs['nfaces'] = self.nfaces
             tplargs['nfptsperface'] = self.nfptsperface
 
-            face_bounds = self.cfg.getbool('solver', 'face-bounds')
-            tplargs['face_bounds'] = face_bounds
-
-            self.kernels['limiter'] = lambda uin: self._be.kernel(
-                'limiter', tplargs=tplargs,
-                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
-                bounds=self.bounds
-            )
+            face_bounds = self.cfg.getbool('solver', 'face-bounds', False)
+            elem_bounds = self.cfg.getbool('solver', 'elem-bounds', False)
+            glob_bounds = self.cfg.getbool('solver', 'glob-bounds', False)
+            assert face_bounds + elem_bounds + glob_bounds == 1, 'Only one bounding method must be enabled.'
 
             self.kernels['element_bounds'] = lambda uin: self._be.kernel(
                 'elementbounds', tplargs=tplargs,
@@ -123,10 +119,19 @@ class ScalarElements(BaseAdvectionElements):
                     dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
                     bounds=self.bounds
                 )
-            else:
+            elif elem_bounds:
                 self.kernels['compute_bounds'] = lambda : self._be.kernel(
                     'computeboundselem', tplargs=tplargs,
                     dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
                     bounds=self.bounds, bounds_l=self.bounds_l_int,
                     bounds_h=self.bounds_h_int
                 )
+            elif glob_bounds:
+                tplargs['global_bounds'] = glob_bounds
+                tplargs['gbnds'] = self.cfg.getliteral('solver', 'global-bounds')
+                            
+            self.kernels['limiter'] = lambda uin: self._be.kernel(
+                'limiter', tplargs=tplargs,
+                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
+                bounds=self.bounds
+            )
