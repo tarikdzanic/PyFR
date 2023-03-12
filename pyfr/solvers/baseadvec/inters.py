@@ -15,6 +15,7 @@ class BaseAdvectionIntInters(BaseInters):
         # Generate the left and right hand side view matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = self._scal_view(rhs, 'get_scal_fpts_for_inter')
+        self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         self._bounds_l_lhs = self._view(
             lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
         )
@@ -65,6 +66,7 @@ class BaseAdvectionMPIInters(BaseInters):
 
         # Generate the left hand view matrix and its dual
         self._scal_lhs = self._scal_xchg_view(lhs, 'get_scal_fpts_for_inter')
+        self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         self._scal_rhs = be.xchg_matrix_for_view(self._scal_lhs)
         self._bounds_l_lhs = self._xchg_view(
             lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
@@ -158,6 +160,7 @@ class BaseAdvectionBCInters(BaseInters):
         # LHS view and constant matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
+        self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         self._bounds_l_lhs = self._view(lhs, 'get_bounds_l_bc_fpts_for_inter')
         self._bounds_h_lhs = self._view(lhs, 'get_bounds_h_bc_fpts_for_inter')
 

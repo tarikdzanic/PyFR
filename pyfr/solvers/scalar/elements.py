@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 from pyfr.solvers.baseadvec import BaseAdvectionElements
 
@@ -40,8 +41,22 @@ class ScalarElements(BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.computeboundsface')
 
         # Get system parameters
+        ploc_in_vel = False
         system = self.cfg.get('solver', 'system')
-        if system in ['advection', 'burgers']:
+        if system == 'advection':
+            subs = self.cfg.items('constants')
+            subs |= dict(x='ploc[0]', y='ploc[1]', z='ploc[2]')
+            subs |= dict(abs='fabs', pi=math.pi)
+            vx = self.cfg.getexpr('solver', 'vx', subs=subs)
+            vy = self.cfg.getexpr('solver', 'vy', subs=subs)
+            if self.ndims == 3:
+                vz = self.cfg.getexpr('solver', 'vz', subs=subs)
+                v = [vx, vy, vz]
+            else:
+                v = [vx, vy]
+            ploc_in_vel = any('ploc' in vv for vv in v)
+            assert len(v) == self.ndims
+        elif system == 'burgers':
             v = self.cfg.getliteral('solver', 'v')
             assert len(v) == self.ndims
         elif system == 'kpp':
@@ -60,6 +75,9 @@ class ScalarElements(BaseAdvectionElements):
             'system': system,
             'v': v
         }
+        
+        ploc_upts = self.ploc_at('upts') if ploc_in_vel else None
+        ploc_qpts = self.ploc_at('qpts') if ploc_in_vel and self.antialias else None
 
         # Helpers
         c, l = 'curved', 'linear'
@@ -69,26 +87,28 @@ class ScalarElements(BaseAdvectionElements):
             self.kernels['tdisf_curved'] = lambda uin: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nupts, r[c]],
                 u=s(self.scal_upts[uin], c), f=s(self._vect_upts, c),
-                smats=self.curved_smat_at('upts')
+                smats=self.curved_smat_at('upts'), ploc=ploc_upts
             )
         elif c in r:
             self.kernels['tdisf_curved'] = lambda: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nqpts, r[c]],
                 u=s(self._scal_qpts, c), f=s(self._vect_qpts, c),
-                smats=self.curved_smat_at('qpts')
+                smats=self.curved_smat_at('qpts'), ploc=ploc_qpts
             )
 
         if l in r and 'flux' not in self.antialias:
             self.kernels['tdisf_linear'] = lambda uin: self._be.kernel(
                 'tfluxlin', tplargs=tplargs, dims=[self.nupts, r[l]],
                 u=s(self.scal_upts[uin], l), f=s(self._vect_upts, l),
-                verts=self.ploc_at('linspts', l), upts=self.upts
+                verts=self.ploc_at('linspts', l), upts=self.upts,
+                ploc=ploc_upts
             )
         elif l in r:
             self.kernels['tdisf_linear'] = lambda: self._be.kernel(
                 'tfluxlin', tplargs=tplargs, dims=[self.nqpts, r[l]],
                 u=s(self._scal_qpts, l), f=s(self._vect_qpts, l),
-                verts=self.ploc_at('linspts', l), upts=self.qpts
+                verts=self.ploc_at('linspts', l), upts=self.qpts,
+                ploc=ploc_qpts
             )
         
         if self.cfg.getbool('solver', 'cbp'):

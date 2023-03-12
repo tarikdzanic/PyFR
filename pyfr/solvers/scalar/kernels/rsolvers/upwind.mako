@@ -3,11 +3,11 @@
 
 <% tol = 1e-6 %>
 
-<%pyfr:macro name='rsolve' params='ul, ur, n, nf'>
+<%pyfr:macro name='rsolve' params='ul, ur, n, nf, ploc'>
     // Compute the left and right fluxes
     fpdtype_t fl[${ndims}][${nvars}], fr[${ndims}][${nvars}];
-    ${pyfr.expand('flux', 'ul', 'fl')};
-    ${pyfr.expand('flux', 'ur', 'fr')};
+    ${pyfr.expand('flux', 'ul', 'fl', 'ploc')};
+    ${pyfr.expand('flux', 'ur', 'fr', 'ploc')};
 
     // Get left and right normal fluxes
     fpdtype_t fnl = ${pyfr.dot('n[{i}]', 'fl[{i}][0]', i=ndims)};

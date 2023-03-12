@@ -1,12 +1,27 @@
 from pyfr.solvers.baseadvec import (BaseAdvectionIntInters,
                                     BaseAdvectionMPIInters,
                                     BaseAdvectionBCInters)
+import math
+
 class ScalarIntersMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.system = self.cfg.get('solver', 'system')
-        if self.system in ['advection', 'burgers']:
+        if self.system == 'advection':
+            subs = self.cfg.items('constants')
+            subs |= dict(x='ploc[0]', y='ploc[1]', z='ploc[2]')
+            subs |= dict(abs='fabs', pi=math.pi)
+            vx = self.cfg.getexpr('solver', 'vx', subs=subs)
+            vy = self.cfg.getexpr('solver', 'vy', subs=subs)
+            if self.ndims == 3:
+                vz = self.cfg.getexpr('solver', 'vz', subs=subs)
+                self.v = [vx, vy, vz]
+            else:
+                self.v = [vx, vy]
+            ploc_in_vel = any('ploc' in vv for vv in self.v)
+            assert len(self.v) == self.ndims
+        elif self.system == 'burgers':
             self.v = self.cfg.getliteral('solver', 'v')
             assert len(self.v) == self.ndims
         elif self.system == 'kpp':
@@ -27,7 +42,8 @@ class ScalarIntInters(ScalarIntersMixin, BaseAdvectionIntInters):
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
-            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs
+            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs,
+            ploc=self._ploc_at_fpts
         )
 
         self.kernels['comm_bounds'] = lambda: self._be.kernel(
@@ -60,7 +76,8 @@ class ScalarMPIInters(ScalarIntersMixin, BaseAdvectionMPIInters):
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', tplargs, dims=[self.ninterfpts],
-            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs
+            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs,
+            ploc=self._ploc_at_fpts
         )
 
         self.kernels['comm_bounds'] = lambda: self._be.kernel(
@@ -94,7 +111,7 @@ class ScalarBaseBCInters(ScalarIntersMixin, BaseAdvectionBCInters):
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'bccflux', tplargs=tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, ul=self._scal_lhs, nl=self._pnorm_lhs,
-            **self._external_vals
+            ploc=self._ploc_at_fpts, **self._external_vals
         )
 
         self.kernels['comm_bounds'] = lambda: self._be.kernel(

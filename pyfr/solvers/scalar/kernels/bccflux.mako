@@ -6,13 +6,14 @@
 
 <%pyfr:kernel name='bccflux' ndim='1'
               ul='inout view fpdtype_t[${str(nvars)}]'
-              nl='in fpdtype_t[${str(ndims)}]'>
+              nl='in fpdtype_t[${str(ndims)}]'
+              ploc='in fpdtype_t[${str(ndims)}]'>
     fpdtype_t mag_nl = sqrt(${pyfr.dot('nl[{i}]', i=ndims)});
     fpdtype_t norm_nl[] = ${pyfr.array('(1 / mag_nl)*nl[{i}]', i=ndims)};
 
     // Compute the RHS
     fpdtype_t ur[${nvars}];
-    ${pyfr.expand('bc_rsolve_state', 'ul', 'norm_nl', 'ur')};
+    ${pyfr.expand('bc_rsolve_state', 'ul', 'norm_nl', 'ur', 'ploc')};
 
     // Perform the Riemann solve
     fpdtype_t fn[${nvars}];

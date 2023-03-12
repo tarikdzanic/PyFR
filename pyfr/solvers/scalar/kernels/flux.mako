@@ -1,6 +1,6 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
-<%pyfr:macro name='flux' params='u, f'>
+<%pyfr:macro name='flux' params='u, f, ploc'>
     // Compute the flux
 % if system == 'advection':
     % for i in range(ndims):
