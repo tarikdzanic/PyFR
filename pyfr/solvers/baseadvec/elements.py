@@ -1,4 +1,5 @@
 from pyfr.solvers.base import BaseElements
+from pyfr.quadrules import get_quadrule
 
 import numpy as np
 
@@ -98,7 +99,31 @@ class BaseAdvectionElements(BaseElements):
             ub = self.basis.ubasis
             self.meanwts = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
             self.upts_mat = self._be.const_matrix(upts)
-            assert self.ndims == 2, "Newton's method only implemented for 2D."
+            assert self.ndims == 2, "Newton's method and face search only implemented for 2D."
+
+            # Setup LMP bounds
+            self.nfaces = len(self.nfacefpts)
+            assert all(nf == self.nfacefpts[0] for nf in self.nfacefpts), 'All faces must have same number of fpts.'
+            self.nfptsperface = self.nfacefpts[0]
+            rule = self.cfg.get('solver-interfaces-line', 'flux-pts')
+            npts = self.basis.npts_for_face['line'](self.basis.order)
+            x_fpts = np.array(get_quadrule('line', rule, npts).pts)
+            # Create monomial VDM for face solution
+            V = np.empty((len(x_fpts), len(x_fpts)))
+            for i in range(len(x_fpts)):
+                V[i,:] = x_fpts**i
+            self.facemoninvvdm = np.linalg.inv(V.T)
+            self.fpts_mat = self._be.const_matrix(np.atleast_2d(x_fpts).T)
+            self.bounds = self._be.matrix((2, self.neles),
+                                           extent=nonce + 'bounds',
+                                           tags={'align'})
+
+            self.bounds_l_int = self._be.matrix((self.nfaces, self.neles),
+                                                extent=nonce + 'bounds_l_int',
+                                                tags={'align'})
+            self.bounds_h_int = self._be.matrix((self.nfaces, self.neles),
+                                                extent=nonce + 'bounds_h_int',
+                                                tags={'align'})
 
         # In-place solution filter
         if self.cfg.getint('soln-filter', 'nsteps', '0'):
@@ -137,3 +162,17 @@ class BaseAdvectionElements(BaseElements):
     def get_entmin_bc_fpts_for_inter(self, eidx, fidx):
         nfp = self.nfacefpts[fidx]
         return (self.entmin_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp
+
+    def get_bounds_l_int_fpts_for_inter(self, eidx, fidx):
+        return (self.bounds_l_int.mid,), (fidx,), (eidx,)
+
+    def get_bounds_l_bc_fpts_for_inter(self, eidx, fidx):
+        nfp = self.nfacefpts[fidx]
+        return (self.bounds_l_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp
+
+    def get_bounds_h_int_fpts_for_inter(self, eidx, fidx):
+        return (self.bounds_h_int.mid,), (fidx,), (eidx,)
+
+    def get_bounds_h_bc_fpts_for_inter(self, eidx, fidx):
+        nfp = self.nfacefpts[fidx]
+        return (self.bounds_h_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp

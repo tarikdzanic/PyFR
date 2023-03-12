@@ -116,10 +116,10 @@ def macro(context, name, params, externs=''):
 
 def expand(context, name, /, *args, **kwargs):
     # Treat optimization kernels specially
-    if 'optimize_and_limit' in name:
+    if 'optimize' in name and name != 'optimize':
         # Get cost function index
-        nc = int(name[-1])
-        name = 'optimize_and_limit'
+        nc = name[-1]
+        name = name[:-2]
         # Get the macro parameter list and the body
         mparams, mexterns, body = context['_macros'][name]
         

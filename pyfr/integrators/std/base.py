@@ -24,8 +24,8 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
         self._idxcurr = 0
 
         # Pre-process solution if necessary
-        self.system.preproc(self.tcurr,
-                            self.system.ele_scal_upts(self._idxcurr))
+        # self.system.preproc(self.tcurr,
+        #                     self.system.ele_scal_upts(self._idxcurr))
 
         # Global degree of freedom count
         self._gndofs = self._get_gndofs()
@@ -38,11 +38,7 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
 
     @property
     def soln(self):
-        if not self._curr_soln:
-            self.system.postproc(self._idxcurr)
-            self._curr_soln = self.system.ele_scal_upts(self._idxcurr)
-
-        return self._curr_soln
+        return self.system.ele_scal_upts(self._idxcurr)
 
     @property
     def grad_soln(self):

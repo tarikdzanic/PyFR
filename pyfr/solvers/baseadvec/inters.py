@@ -15,6 +15,18 @@ class BaseAdvectionIntInters(BaseInters):
         # Generate the left and right hand side view matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = self._scal_view(rhs, 'get_scal_fpts_for_inter')
+        self._bounds_l_lhs = self._view(
+            lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_h_lhs = self._view(
+            lhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_l_rhs = self._view(
+            rhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_h_rhs = self._view(
+            rhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
+        )
 
         # Generate the additional view matrices for entropy filtering
         if cfg.get('solver', 'shock-capturing') == 'entropy-filter':
@@ -54,7 +66,40 @@ class BaseAdvectionMPIInters(BaseInters):
         # Generate the left hand view matrix and its dual
         self._scal_lhs = self._scal_xchg_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = be.xchg_matrix_for_view(self._scal_lhs)
-
+        self._bounds_l_lhs = self._xchg_view(
+            lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_h_lhs = self._xchg_view(
+            lhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_l_rhs = be.xchg_matrix_for_view(self._bounds_l_lhs)
+        self._bounds_h_rhs = be.xchg_matrix_for_view(self._bounds_h_lhs)
+        self.kernels['bounds_l_fpts_pack'] = lambda: be.kernel(
+            'pack', self._bounds_l_lhs
+        )
+        self.kernels['bounds_h_fpts_pack'] = lambda: be.kernel(
+            'pack', self._bounds_h_lhs
+        )
+        self.kernels['bounds_l_fpts_unpack'] = lambda: be.kernel(
+            'unpack', self._bounds_l_rhs
+        )
+        self.kernels['bounds_h_fpts_unpack'] = lambda: be.kernel(
+            'unpack', self._bounds_h_rhs
+        )
+        bounds_l_fpts_tag = next(self._mpi_tag_counter)
+        self.mpireqs['bounds_l_fpts_send'] = lambda: self._bounds_l_lhs.sendreq(
+            self._rhsrank, bounds_l_fpts_tag
+        )
+        self.mpireqs['bounds_l_fpts_recv'] = lambda: self._bounds_l_rhs.recvreq(
+            self._rhsrank, bounds_l_fpts_tag
+        )
+        bounds_h_fpts_tag = next(self._mpi_tag_counter)
+        self.mpireqs['bounds_h_fpts_send'] = lambda: self._bounds_h_lhs.sendreq(
+            self._rhsrank, bounds_h_fpts_tag
+        )
+        self.mpireqs['bounds_h_fpts_recv'] = lambda: self._bounds_h_rhs.recvreq(
+            self._rhsrank, bounds_h_fpts_tag
+        )
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
 
         # Kernels
@@ -113,6 +158,8 @@ class BaseAdvectionBCInters(BaseInters):
         # LHS view and constant matrices
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
+        self._bounds_l_lhs = self._view(lhs, 'get_bounds_l_bc_fpts_for_inter')
+        self._bounds_h_lhs = self._view(lhs, 'get_bounds_h_bc_fpts_for_inter')
 
         # Make the simulation time available inside kernels
         self._set_external('t', 'scalar fpdtype_t')

@@ -35,6 +35,9 @@ class ScalarElements(BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.tflux')
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.tfluxlin')
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.limiter')
+        self._be.pointwise.register('pyfr.solvers.scalar.kernels.elementbounds')
+        self._be.pointwise.register('pyfr.solvers.scalar.kernels.computeboundselem')
+        self._be.pointwise.register('pyfr.solvers.scalar.kernels.computeboundsface')
 
         # Get system parameters
         system = self.cfg.get('solver', 'system')
@@ -90,12 +93,40 @@ class ScalarElements(BaseAdvectionElements):
         
         if self.cfg.getbool('solver', 'cbp'):
             tplargs['invvdm'] = self.moninvvdm 
+            tplargs['faceinvvdm'] = self.facemoninvvdm 
             tplargs['meanwts'] = self.meanwts
             tplargs['nupts'] = self.nupts
+            tplargs['nfpts'] = self.nfpts
             tplargs['mdegs'] = self.basis.ubasis.degrees
-            tplargs['gbnds'] = self.cfg.getliteral('solver', 'global-bounds')
+            tplargs['nfaces'] = self.nfaces
+            tplargs['nfptsperface'] = self.nfptsperface
+
+            face_bounds = self.cfg.getbool('solver', 'face-bounds')
+            tplargs['face_bounds'] = face_bounds
 
             self.kernels['limiter'] = lambda uin: self._be.kernel(
                 'limiter', tplargs=tplargs,
-                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat
+                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
+                bounds=self.bounds
             )
+
+            self.kernels['element_bounds'] = lambda uin: self._be.kernel(
+                'elementbounds', tplargs=tplargs,
+                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
+                bounds=self.bounds, bounds_l=self.bounds_l_int,
+                bounds_h=self.bounds_h_int
+            )
+
+            if face_bounds:
+                self.kernels['compute_bounds'] = lambda : self._be.kernel(
+                    'computeboundsface', tplargs=tplargs,
+                    dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
+                    bounds=self.bounds
+                )
+            else:
+                self.kernels['compute_bounds'] = lambda : self._be.kernel(
+                    'computeboundselem', tplargs=tplargs,
+                    dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
+                    bounds=self.bounds, bounds_l=self.bounds_l_int,
+                    bounds_h=self.bounds_h_int
+                )

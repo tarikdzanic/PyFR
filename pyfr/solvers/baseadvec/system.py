@@ -11,51 +11,31 @@ class BaseAdvectionSystem(BaseSystem):
         def deps(dk, *names): return self._kdeps(k, dk, *names)
 
         g1 = self.backend.graph()
-        g1.add_mpi_reqs(m['scal_fpts_recv'] + m['ent_fpts_recv'])
-
-        # Perform post-processing of the previous solution stage
-        g1.add_all(k['eles/entropy_filter'])
-        g1.add_all(k['eles/limiter'])
+        g1.add_mpi_reqs(m['scal_fpts_recv'])
 
         # # Interpolate the solution to the flux points
-        for l in k['eles/disu']:
-            g1.add(l, deps=deps(l, 'eles/entropy_filter', 'eles/limiter'))
+        g1.add_all(k['eles/disu'])
 
         # Pack and send these interpolated solutions to our neighbours
         g1.add_all(k['mpiint/scal_fpts_pack'], deps=k['eles/disu'])
         for send, pack in zip(m['scal_fpts_send'], k['mpiint/scal_fpts_pack']):
             g1.add_mpi_req(send, deps=[pack])
 
-        # If entropy filtering, pack and send the entropy values to neighbors
-        g1.add_all(k['mpiint/ent_fpts_pack'], deps=k['eles/entropy_filter'])
-        for send, pack in zip(m['ent_fpts_send'], k['mpiint/ent_fpts_pack']):
-            g1.add_mpi_req(send, deps=[pack])
-
-        # Compute common entropy minima at internal/boundary interfaces
-        g1.add_all(k['iint/comm_entropy'],
-                   deps=k['eles/entropy_filter'] + k['mpiint/ent_fpts_pack'])
-        g1.add_all(k['bcint/comm_entropy'],
-                   deps=k['eles/disu'])
-
         # Compute the common normal flux at our internal/boundary interfaces
         g1.add_all(k['iint/comm_flux'],
                    deps=k['eles/disu'] + k['mpiint/scal_fpts_pack'])
-        g1.add_all(k['bcint/comm_flux'],
-                   deps=k['eles/disu'] + k['bcint/comm_entropy'])
+        g1.add_all(k['bcint/comm_flux'], deps=k['eles/disu'])
 
         # Make a copy of the solution (if used by source terms)
-        g1.add_all(k['eles/copy_soln'], deps=k['eles/entropy_filter'] +
-                                             k['eles/limiter'])
+        g1.add_all(k['eles/copy_soln'])
 
         # Interpolate the solution to the quadrature points
-        g1.add_all(k['eles/qptsu'], deps=k['eles/entropy_filter'] +
-                                         k['eles/limiter'])
+        g1.add_all(k['eles/qptsu'])
 
         # Compute the transformed flux
         for l in k['eles/tdisf_curved'] + k['eles/tdisf_linear']:
             ldeps = deps(l, 'eles/qptsu')
-            g1.add(l, deps=ldeps + k['eles/entropy_filter'] +
-                                   k['eles/limiter'])
+            g1.add(l, deps=ldeps)
 
         # Compute the transformed divergence of the partially corrected flux
         for l in k['eles/tdivtpcorf']:
@@ -70,11 +50,6 @@ class BaseAdvectionSystem(BaseSystem):
         g2.add_all(k['mpiint/scal_fpts_unpack'])
         for l in k['mpiint/comm_flux']:
             g2.add(l, deps=deps(l, 'mpiint/scal_fpts_unpack'))
-
-        # Compute common entropy minima at MPI interfaces
-        g2.add_all(k['mpiint/ent_fpts_unpack'])
-        for l in k['mpiint/comm_entropy']:
-            g2.add(l, deps=deps(l, 'mpiint/ent_fpts_unpack'))
 
         # Compute the transformed divergence of the corrected flux
         g2.add_all(k['eles/tdivtconf'], deps=k['mpiint/comm_flux'])
@@ -93,41 +68,96 @@ class BaseAdvectionSystem(BaseSystem):
 
         def deps(dk, *names): return self._kdeps(k, dk, *names)
 
-        g1 = self.backend.graph()
-        g1.add_mpi_reqs(m['ent_fpts_recv'])
+        if self.cfg.getbool('solver', 'face-bounds'):
+            g1 = self.backend.graph()
 
-        # Interpolate the solution to the flux points
-        if 'eles/local_entropy' in k:
-            g1.add_all(k['eles/disu'])
+            # Interpolate the solution to the flux points
+            if 'eles/element_bounds' in k:
+                g1.add_all(k['eles/disu'])
 
-        # Compute local minimum entropy within element
-        g1.add_all(k['eles/local_entropy'])
+            # Compute local bounds within element
+            g1.add_all(k['eles/element_bounds'])
 
-        # Pack and send the entropy values to neighbors
-        g1.add_all(k['mpiint/ent_fpts_pack'], deps=k['eles/local_entropy'])
-        for send, pack in zip(m['ent_fpts_send'], k['mpiint/ent_fpts_pack']):
-            g1.add_mpi_req(send, deps=[pack])
+            # Pack and send the bounds values to neighbors
+            g1.add_all(k['mpiint/bounds_fpts_pack'], deps=k['eles/disu'])
+            for send, pack in zip(m['bounds_fpts_send'], k['mpiint/bounds_fpts_pack']):
+                g1.add_mpi_req(send, deps=[pack])
 
-        # Compute common entropy minima at internal/boundary interfaces
-        g1.add_all(k['iint/comm_entropy'], deps=k['eles/local_entropy'])
-        g1.add_all(k['bcint/comm_entropy'],
-                   deps=k['eles/local_entropy'] + k['eles/disu'])
-        g1.commit()
+            # Compute common bounds at internal/boundary interfaces
+            g1.add_all(k['iint/comm_bounds'], deps=k['eles/disu'])
+            g1.add_all(k['bcint/comm_bounds'], deps=k['eles/disu'])
 
-        if 'mpiint/comm_entropy' in k:
-            # Compute common entropy minima at MPI interfaces
-            g2 = self.backend.graph()
+            if 'mpiint/comm_bounds' in k:
+                # Compute common entropy minima at MPI interfaces
+                g2 = self.backend.graph()
 
-            g2.add_all(k['mpiint/ent_fpts_unpack'])
-            for l in k['mpiint/comm_entropy']:
-                g2.add(l, deps=deps(l, 'mpiint/ent_fpts_unpack'))
-            g2.commit()
+                g2.add_all(k['mpiint/bounds_fpts_unpack'])
+                for l in k['mpiint/comm_bounds']:
+                    g2.add(l, deps=deps(l, 'mpiint/bounds_fpts_unpack'))
 
-            return g1, g2
+                g2.add_all(k['eles/compute_bounds'], deps=k['mpiint/comm_bounds'])
+                g2.commit()
+
+                return g1, g2
+            else:
+                g1.add_all(k['eles/compute_bounds'], deps=k['eles/element_bounds'] +
+                                                          k['iint/comm_bounds'] +
+                                                          k['bcint/comm_bounds'])
+                g1.commit()
+                return g1,
         else:
-            return g1,
+            g1 = self.backend.graph()
+            g1.add_mpi_reqs(m['bounds_l_fpts_recv'])
+            g1.add_mpi_reqs(m['bounds_h_fpts_recv'])
+
+            # Interpolate the solution to the flux points
+            if 'eles/element_bounds' in k:
+                g1.add_all(k['eles/disu'])
+
+            # Compute local bounds within element
+            g1.add_all(k['eles/element_bounds'])
+
+            # Pack and send the bounds values to neighbors
+            g1.add_all(k['mpiint/bounds_l_fpts_pack'], deps=k['eles/element_bounds'])
+            for send, pack in zip(m['bounds_l_fpts_send'], k['mpiint/bounds_l_fpts_pack']):
+                g1.add_mpi_req(send, deps=[pack])
+            g1.add_all(k['mpiint/bounds_h_fpts_pack'], deps=k['eles/element_bounds'])
+            for send, pack in zip(m['bounds_h_fpts_send'], k['mpiint/bounds_h_fpts_pack']):
+                g1.add_mpi_req(send, deps=[pack])
+
+            # Compute common entropy minima at internal/boundary interfaces
+            g1.add_all(k['iint/comm_bounds_l'], deps=k['eles/element_bounds'])
+            g1.add_all(k['iint/comm_bounds_h'], deps=k['eles/element_bounds'])
+            g1.add_all(k['bcint/comm_bounds_l'],
+                    deps=k['eles/element_bounds'] + k['eles/disu'])
+            g1.add_all(k['bcint/comm_bounds_h'],
+                    deps=k['eles/element_bounds'] + k['eles/disu'])
+
+            if 'mpiint/comm_bounds_l' in k:
+                # Compute common entropy minima at MPI interfaces
+                g2 = self.backend.graph()
+
+                g2.add_all(k['mpiint/bounds_l_fpts_unpack'])
+                for l in k['mpiint/comm_bounds_l']:
+                    g2.add(l, deps=deps(l, 'mpiint/bounds_l_fpts_unpack'))
+                g2.add_all(k['mpiint/bounds_h_fpts_unpack'])
+                for l in k['mpiint/comm_bounds_h']:
+                    g2.add(l, deps=deps(l, 'mpiint/bounds_h_fpts_unpack'))
+
+                g2.add_all(k['eles/compute_bounds'], deps=k['mpiint/comm_bounds_l'] +
+                                                          k['mpiint/comm_bounds_h'])
+                g2.commit()
+
+                return g1, g2
+            else:
+                g1.add_all(k['eles/compute_bounds'], deps=k['iint/comm_bounds_l'] +
+                                                          k['iint/comm_bounds_h'] +
+                                                          k['bcint/comm_bounds_l'] +
+                                                          k['bcint/comm_bounds_h'])
+                g1.commit()
+                return g1,
 
     def postproc(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)
 
-        self.backend.run_kernels(k['eles/entropy_filter'])
+        self.backend.run_kernels(k['eles/limiter'])

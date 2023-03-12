@@ -2,7 +2,7 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
 <% eps = 1E-4 %>
-<% niters = 10 %>
+<% niters = 3 %>
 <% gamma = 1 %>
 <%pyfr:macro name='eval_monomial' params='um, x, ui'>
     fpdtype_t tmp;
@@ -135,5 +135,4 @@
     % for i,j in pyfr.ndrange(nupts, nvars):
     u[${i}][${j}] = (1 - alpha)*u[${i}][${j}] + alpha*uavg[${j}];
     % endfor
-    
 </%pyfr:macro>
