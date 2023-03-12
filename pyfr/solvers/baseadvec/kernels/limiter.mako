@@ -2,8 +2,6 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
 <% eps = 1E-4 %>
-<% niters = 3 %>
-<% gamma = 1 %>
 <%pyfr:macro name='eval_monomial' params='um, x, ui'>
     fpdtype_t tmp;
     % for i in range(nvars):
@@ -104,7 +102,7 @@
 
         // Take Newton step
         % for i in range(ndims):
-        xmin[${i}] -= ${gamma}*dx[${i}];
+        xmin[${i}] -= dx[${i}];
         % endfor
 
         // Limit to element bounds

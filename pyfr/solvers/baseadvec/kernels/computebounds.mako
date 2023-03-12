@@ -69,7 +69,7 @@
         dx = J/H;
 
         // Take Newton step
-        xmin -= ${gamma}*dx;
+        xmin -= dx;
 
         // Limit to element bounds
         xmin = fmin(1.0, fmax(xmin, -1.0));

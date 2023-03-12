@@ -100,6 +100,7 @@ class ScalarElements(BaseAdvectionElements):
             tplargs['mdegs'] = self.basis.ubasis.degrees
             tplargs['nfaces'] = self.nfaces
             tplargs['nfptsperface'] = self.nfptsperface
+            tplargs['niters'] = self.cfg.getint('solver', 'niters', 3)
 
             face_bounds = self.cfg.getbool('solver', 'face-bounds', False)
             elem_bounds = self.cfg.getbool('solver', 'elem-bounds', False)
