@@ -21,5 +21,8 @@
 
     ${pyfr.expand('optimize_face_h', 'ufi' ,'xf', 'alpha')};
     bounds[1] = fmax(bounds[1], -alpha);
+
+    ${pyfr.expand('optimize_face_e', 'ufi' ,'xf', 'alpha')};
+    bounds[2] = fmin(bounds[2], alpha);
     % endfor
 </%pyfr:kernel>

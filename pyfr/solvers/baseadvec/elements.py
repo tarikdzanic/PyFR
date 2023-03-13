@@ -114,7 +114,7 @@ class BaseAdvectionElements(BaseElements):
                 V[i,:] = x_fpts**i
             self.facemoninvvdm = np.linalg.inv(V.T)
             self.fpts_mat = self._be.const_matrix(np.atleast_2d(x_fpts).T)
-            self.bounds = self._be.matrix((2, self.neles),
+            self.bounds = self._be.matrix((3, self.neles),
                                            extent=nonce + 'bounds',
                                            tags={'align'})
 
