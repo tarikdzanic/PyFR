@@ -13,12 +13,19 @@
     fpdtype_t fnl = ${pyfr.dot('n[{i}]', 'fl[{i}][0]', i=ndims)};
     fpdtype_t fnr = ${pyfr.dot('n[{i}]', 'fr[{i}][0]', i=ndims)};
 
-    // Get the left and right wavespeeds
-    fpdtype_t laml = abs(ul[0]) > ${tol} ? abs(fnl/ul[0]) : ${tol};
-    fpdtype_t lamr = abs(ur[0]) > ${tol} ? abs(fnr/ur[0]) : ${tol};
+    % if system == 'advection':
+    fpdtype_t laml = ${' + '.join(f'n[{j}]*{v[j]}' for j in range(ndims))};
+    fpdtype_t lamr = laml;
+    % elif system == 'burgers':
+    fpdtype_t laml = ${' + '.join(f'n[{j}]*ul[{j}]' for j in range(ndims))};
+    fpdtype_t lamr = ${' + '.join(f'n[{j}]*ur[{j}]' for j in range(ndims))};
+    % elif system == 'kpp':
+    fpdtype_t laml = n[0]*cos(ul[0]) + n[1]*sin(ul[0]);
+    fpdtype_t lamr = n[0]*cos(ur[0]) + n[1]*sin(ur[0]);
+    % endif
 
-    // Estimate the maximum wave speed / 2
-    fpdtype_t lam = fmax(laml, lamr);
+    // Estimate the maximum wave speed 
+    fpdtype_t lam = fmax(abs(laml), abs(lamr));
 
     // Output
 % for i in range(nvars):
