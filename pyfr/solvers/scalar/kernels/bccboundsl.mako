@@ -6,5 +6,5 @@
 <%pyfr:kernel name='bccboundsl' ndim='1'
               ul='in view fpdtype_t[${str(nvars)}]'
               nl='in fpdtype_t[${str(ndims)}]'
-              boundS_l_lhs='inout view reduce(min_pos) fpdtype_t'>
+              bounds_l_lhs='inout view fpdtype_t'>
 </%pyfr:kernel>
