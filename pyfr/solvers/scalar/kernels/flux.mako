@@ -8,7 +8,7 @@
     % endfor
 % elif system == 'burgers':
     % for i in range(ndims):
-    f[${i}][0] = ${v[i]}*u[0]*u[0];
+    f[${i}][0] = ${0.5*v[i]}*u[0]*u[0];
     % endfor
 % elif system == 'kpp':
     f[0][0] = sin(u[0]);
