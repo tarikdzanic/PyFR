@@ -20,6 +20,6 @@
     bounds[0] = fmin(bounds[0], alpha);
 
     ${pyfr.expand('optimize_face_h', 'ufi' ,'xf', 'alpha')};
-    bounds[1] = fmin(bounds[1], -alpha);
+    bounds[1] = fmax(bounds[1], -alpha);
     % endfor
 </%pyfr:kernel>
