@@ -22,11 +22,17 @@ class BaseAdvectionIntInters(BaseInters):
         self._bounds_h_lhs = self._view(
             lhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
         )
+        self._bounds_e_lhs = self._view(
+            lhs, 'get_bounds_e_int_fpts_for_inter', with_perm=False
+        )
         self._bounds_l_rhs = self._view(
             rhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
         )
         self._bounds_h_rhs = self._view(
             rhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
+        )
+        self._bounds_e_rhs = self._view(
+            rhs, 'get_bounds_e_int_fpts_for_inter', with_perm=False
         )
 
         # Generate the additional view matrices for entropy filtering
@@ -74,19 +80,29 @@ class BaseAdvectionMPIInters(BaseInters):
         self._bounds_h_lhs = self._xchg_view(
             lhs, 'get_bounds_h_int_fpts_for_inter', with_perm=False
         )
+        self._bounds_e_lhs = self._xchg_view(
+            lhs, 'get_bounds_e_int_fpts_for_inter', with_perm=False
+        )
         self._bounds_l_rhs = be.xchg_matrix_for_view(self._bounds_l_lhs)
         self._bounds_h_rhs = be.xchg_matrix_for_view(self._bounds_h_lhs)
+        self._bounds_e_rhs = be.xchg_matrix_for_view(self._bounds_e_lhs)
         self.kernels['bounds_l_fpts_pack'] = lambda: be.kernel(
             'pack', self._bounds_l_lhs
         )
         self.kernels['bounds_h_fpts_pack'] = lambda: be.kernel(
             'pack', self._bounds_h_lhs
         )
+        self.kernels['bounds_e_fpts_pack'] = lambda: be.kernel(
+            'pack', self._bounds_e_lhs
+        )
         self.kernels['bounds_l_fpts_unpack'] = lambda: be.kernel(
             'unpack', self._bounds_l_rhs
         )
         self.kernels['bounds_h_fpts_unpack'] = lambda: be.kernel(
             'unpack', self._bounds_h_rhs
+        )
+        self.kernels['bounds_e_fpts_unpack'] = lambda: be.kernel(
+            'unpack', self._bounds_e_rhs
         )
         bounds_l_fpts_tag = next(self._mpi_tag_counter)
         self.mpireqs['bounds_l_fpts_send'] = lambda: self._bounds_l_lhs.sendreq(
@@ -101,6 +117,13 @@ class BaseAdvectionMPIInters(BaseInters):
         )
         self.mpireqs['bounds_h_fpts_recv'] = lambda: self._bounds_h_rhs.recvreq(
             self._rhsrank, bounds_h_fpts_tag
+        )
+        bounds_e_fpts_tag = next(self._mpi_tag_counter)
+        self.mpireqs['bounds_e_fpts_send'] = lambda: self._bounds_e_lhs.sendreq(
+            self._rhsrank, bounds_e_fpts_tag
+        )
+        self.mpireqs['bounds_e_fpts_recv'] = lambda: self._bounds_e_rhs.recvreq(
+            self._rhsrank, bounds_e_fpts_tag
         )
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
 
@@ -163,6 +186,7 @@ class BaseAdvectionBCInters(BaseInters):
         self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         self._bounds_l_lhs = self._view(lhs, 'get_bounds_l_bc_fpts_for_inter')
         self._bounds_h_lhs = self._view(lhs, 'get_bounds_h_bc_fpts_for_inter')
+        self._bounds_e_lhs = self._view(lhs, 'get_bounds_e_bc_fpts_for_inter')
 
         # Make the simulation time available inside kernels
         self._set_external('t', 'scalar fpdtype_t')

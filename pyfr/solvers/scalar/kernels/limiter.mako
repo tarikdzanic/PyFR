@@ -25,7 +25,7 @@
               x='in broadcast fpdtype_t[${str(nupts)}][${str(ndims)}]'
               bounds='inout fpdtype_t[3]'>
 
-    ${pyfr.expand('optimize_and_limit_1', 'u' ,'x')};
-    ${pyfr.expand('optimize_and_limit_2', 'u' ,'x')};
     ${pyfr.expand('optimize_and_limit_3', 'u' ,'x')};
+    ${pyfr.expand('optimize_and_limit_2', 'u' ,'x')};
+    ${pyfr.expand('optimize_and_limit_1', 'u' ,'x')};
 </%pyfr:kernel>

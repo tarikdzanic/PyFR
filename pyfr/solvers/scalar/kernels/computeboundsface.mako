@@ -7,7 +7,7 @@
 <%pyfr:kernel name='computeboundsface' ndim='1'
               uf='in fpdtype_t[${str(nfpts)}][${str(nvars)}]'
               xf='in broadcast fpdtype_t[${str(nfptsperface)}][${str(ndims-1)}]'
-              bounds='inout fpdtype_t[2]'>
+              bounds='inout fpdtype_t[3]'>
 
     fpdtype_t ufi[${nfptsperface}][${nvars}], alpha;
     % for i in range(nfaces):

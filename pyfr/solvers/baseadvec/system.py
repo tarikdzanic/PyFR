@@ -112,6 +112,7 @@ class BaseAdvectionSystem(BaseSystem):
             g1 = self.backend.graph()
             g1.add_mpi_reqs(m['bounds_l_fpts_recv'])
             g1.add_mpi_reqs(m['bounds_h_fpts_recv'])
+            g1.add_mpi_reqs(m['bounds_e_fpts_recv'])
 
             # Interpolate the solution to the flux points
             if 'eles/element_bounds' in k:
@@ -127,13 +128,19 @@ class BaseAdvectionSystem(BaseSystem):
             g1.add_all(k['mpiint/bounds_h_fpts_pack'], deps=k['eles/element_bounds'])
             for send, pack in zip(m['bounds_h_fpts_send'], k['mpiint/bounds_h_fpts_pack']):
                 g1.add_mpi_req(send, deps=[pack])
+            g1.add_all(k['mpiint/bounds_e_fpts_pack'], deps=k['eles/element_bounds'])
+            for send, pack in zip(m['bounds_e_fpts_send'], k['mpiint/bounds_e_fpts_pack']):
+                g1.add_mpi_req(send, deps=[pack])
 
             # Compute common entropy minima at internal/boundary interfaces
             g1.add_all(k['iint/comm_bounds_l'], deps=k['eles/element_bounds'])
             g1.add_all(k['iint/comm_bounds_h'], deps=k['eles/element_bounds'])
+            g1.add_all(k['iint/comm_bounds_e'], deps=k['eles/element_bounds'])
             g1.add_all(k['bcint/comm_bounds_l'],
                     deps=k['eles/element_bounds'] + k['eles/disu'])
             g1.add_all(k['bcint/comm_bounds_h'],
+                    deps=k['eles/element_bounds'] + k['eles/disu'])
+            g1.add_all(k['bcint/comm_bounds_e'],
                     deps=k['eles/element_bounds'] + k['eles/disu'])
 
             if 'mpiint/comm_bounds_l' in k:
@@ -146,17 +153,23 @@ class BaseAdvectionSystem(BaseSystem):
                 g2.add_all(k['mpiint/bounds_h_fpts_unpack'])
                 for l in k['mpiint/comm_bounds_h']:
                     g2.add(l, deps=deps(l, 'mpiint/bounds_h_fpts_unpack'))
+                g2.add_all(k['mpiint/bounds_e_fpts_unpack'])
+                for l in k['mpiint/comm_bounds_e']:
+                    g2.add(l, deps=deps(l, 'mpiint/bounds_e_fpts_unpack'))
 
                 g2.add_all(k['eles/compute_bounds'], deps=k['mpiint/comm_bounds_l'] +
-                                                          k['mpiint/comm_bounds_h'])
+                                                          k['mpiint/comm_bounds_h'] +
+                                                          k['mpiint/comm_bounds_e'])
                 g2.commit()
 
                 return g1, g2
             else:
                 g1.add_all(k['eles/compute_bounds'], deps=k['iint/comm_bounds_l'] +
                                                           k['iint/comm_bounds_h'] +
+                                                          k['iint/comm_bounds_e'] +
                                                           k['bcint/comm_bounds_l'] +
-                                                          k['bcint/comm_bounds_h'])
+                                                          k['bcint/comm_bounds_h'] +
+                                                          k['bcint/comm_bounds_e'])
                 g1.commit()
                 return g1,
         else:

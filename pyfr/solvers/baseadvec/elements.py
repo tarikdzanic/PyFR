@@ -124,6 +124,9 @@ class BaseAdvectionElements(BaseElements):
             self.bounds_h_int = self._be.matrix((self.nfaces, self.neles),
                                                 extent=nonce + 'bounds_h_int',
                                                 tags={'align'})
+            self.bounds_e_int = self._be.matrix((self.nfaces, self.neles),
+                                                extent=nonce + 'bounds_e_int',
+                                                tags={'align'})
 
         # In-place solution filter
         if self.cfg.getint('soln-filter', 'nsteps', '0'):
@@ -176,3 +179,10 @@ class BaseAdvectionElements(BaseElements):
     def get_bounds_h_bc_fpts_for_inter(self, eidx, fidx):
         nfp = self.nfacefpts[fidx]
         return (self.bounds_h_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp
+
+    def get_bounds_e_int_fpts_for_inter(self, eidx, fidx):
+        return (self.bounds_e_int.mid,), (fidx,), (eidx,)
+
+    def get_bounds_e_bc_fpts_for_inter(self, eidx, fidx):
+        nfp = self.nfacefpts[fidx]
+        return (self.bounds_e_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp

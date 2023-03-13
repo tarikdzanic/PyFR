@@ -3,8 +3,8 @@
 
 <%include file='pyfr.solvers.scalar.kernels.bcs.${bctype}'/>
 
-<%pyfr:kernel name='bccboundsh' ndim='1'
+<%pyfr:kernel name='bccboundse' ndim='1'
               ul='in view fpdtype_t[${str(nvars)}]'
               nl='in fpdtype_t[${str(ndims)}]'
-              bounds_h_lhs='inout view fpdtype_t'>
+              bounds_e_lhs='inout view fpdtype_t'>
 </%pyfr:kernel>

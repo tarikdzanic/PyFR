@@ -19,7 +19,8 @@
               x='in broadcast fpdtype_t[${str(nupts)}][${str(ndims)}]'
               bounds='out fpdtype_t[3]'
               bounds_l='out fpdtype_t[${str(nfaces)}]'
-              bounds_h='out fpdtype_t[${str(nfaces)}]'>
+              bounds_h='out fpdtype_t[${str(nfaces)}]'
+              bounds_e='out fpdtype_t[${str(nfaces)}]'>
 
     fpdtype_t tmp, ulow, uhigh, ent;
     ${pyfr.expand('optimize_l', 'u', 'tmp', 'x', 'ulow')};
@@ -33,6 +34,7 @@
     % for i in range(nfaces):
     bounds_l[${i}] = bounds[0];
     bounds_h[${i}] = bounds[1];
+    bounds_e[${i}] = bounds[2];
     % endfor
     % endif
 </%pyfr:kernel>

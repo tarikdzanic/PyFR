@@ -131,7 +131,7 @@ class ScalarElements(BaseAdvectionElements):
                 'elementbounds', tplargs=tplargs,
                 dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
                 bounds=self.bounds, bounds_l=self.bounds_l_int,
-                bounds_h=self.bounds_h_int
+                bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
             )
 
             if face_bounds:
@@ -145,7 +145,7 @@ class ScalarElements(BaseAdvectionElements):
                     'computeboundselem', tplargs=tplargs,
                     dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
                     bounds=self.bounds, bounds_l=self.bounds_l_int,
-                    bounds_h=self.bounds_h_int
+                    bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
                 )
             elif glob_bounds:
                 tplargs['global_bounds'] = glob_bounds
