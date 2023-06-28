@@ -98,7 +98,6 @@ class SamplerPlugin(BasePlugin):
 
         # List of points to be sampled and format
         self.pts = self.cfg.getliteral(cfgsect, 'samp-pts')
-        self.fmt = self.cfg.get(cfgsect, 'format', 'primitive')
 
         # MPI info
         comm, rank, root = get_comm_rank_root()
@@ -136,10 +135,10 @@ class SamplerPlugin(BasePlugin):
         ptsplocs = comm.gather([pl for et, ei, pl, op in ourpts], root=root)
 
         if rank == root:
-            nvars = self.nvars
+            nvars = self.ndims + 2
 
             # Allocate a buffer to store the sampled points
-            self._ptsbuf = ptsbuf = np.empty((len(self.pts), self.nvars))
+            self._ptsbuf = ptsbuf = np.empty((len(self.pts), nvars))
 
             # Tally up how many points each rank is responsible for
             nptsrank = [len(ploc) for ploc in ptsplocs]
@@ -166,11 +165,7 @@ class SamplerPlugin(BasePlugin):
     @property
     def _header(self):
         colnames = ['t', 'x', 'y', 'z'][:self.ndims + 1]
-
-        if self.fmt == 'primitive':
-            colnames += self.elementscls.privarmap[self.ndims]
-        else:
-            colnames += self.elementscls.convarmap[self.ndims]
+        colnames += self.elementscls.privarmap[self.ndims]
 
         return ','.join(colnames)
 
@@ -230,8 +225,8 @@ class SamplerPlugin(BasePlugin):
         samps = np.array(samps)
 
         # If necessary then convert to primitive form
-        if self.fmt == 'primitive' and samps.size:
-            samps = self.elementscls.con_to_pri(samps.T, self.cfg)
+        if samps.size:
+            samps = self.elementscls.macrocon_to_macropri(samps.T, self.cfg)
             samps = np.array(samps).T
 
         return np.ascontiguousarray(samps, dtype=float)
@@ -245,7 +240,7 @@ class SamplerPlugin(BasePlugin):
         comm, rank, root = get_comm_rank_root()
 
         # Get the solution matrices
-        solns = intg.soln
+        solns = intg.macro_soln
 
         # Perform the sampling and interpolation
         samples = [op @ solns[et][:, :, ei] for et, ei, _, op in self._ourpts]
