@@ -361,7 +361,7 @@ class VTKWriter(BaseWriter):
     def __init__(self, args):
         super().__init__(args)
 
-        [self.u, self.PSint, self.moments] = setup_BGK(self.cfg, self.ndims)
+        [self.u, self.M, self.psi] = setup_BGK(self.cfg, self.ndims)
 
         self.dtype = np.dtype(args.precision).type
 
@@ -399,8 +399,7 @@ class VTKWriter(BaseWriter):
 
     def _pre_proc_fields_soln(self, name, mesh, soln):
         # Convert from conservative to primitive variables
-        # return np.repeat(np.sum(soln, axis=0)[np.newaxis,...], 5, axis=0)
-        return np.array(self.elementscls.con_to_vis(soln, self.cfg, self.PSint, self.u, self.ndims))
+        return np.array(self.elementscls.con_to_vis(soln, self.cfg, self.M, self.u, self.psi, self.ndims))
 
     def _pre_proc_fields_scal(self, name, mesh, soln):
         return soln

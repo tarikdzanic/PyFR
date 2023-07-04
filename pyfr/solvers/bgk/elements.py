@@ -148,7 +148,7 @@ class BGKElements(BaseAdvectionElements):
     def __init__(self, basiscls, eles, cfg):
         self.ndims = eles.shape[2]
 
-        [self.u, self.PSint, self.moments] = setup_BGK(cfg, self.ndims)
+        [self.u, self.M, self.psi] = setup_BGK(cfg, self.ndims)
         self.nvars = len(self.u)
         
         self.iterate_ICs = cfg.getbool('solver', 'iterate_ICs', True)
@@ -156,110 +156,52 @@ class BGKElements(BaseAdvectionElements):
 
         super().__init__(basiscls, eles, cfg)
 
-    # Initial Maxwellian state
+    # Compute Maxwellian state from primitive initial conditions
     def pri_to_con(self, pris, cfg):
-        rho, U, p = pris[0], pris[1:-1], pris[-1]
-        
-        # Multiply velocity components by rho
-        rhoUs = [rho*c for c in U]
+        # Convert primitive macroscopic state to conserved macroscopic state
+        cons = self.macropri_to_macrocon(pris, cfg)
 
-        # Compute the internal/total energy
+        # Allocate initial distribution function
+        f = np.zeros((self.nupts, self.nvars, self.neles))
         gamma = cfg.getfloat('constants', 'gamma')
-        E = p/(gamma - 1) + 0.5*rho*sum(c*c for c in U)
-        M = np.zeros((self.nupts, self.nvars, self.neles))
-        
-        # (nupts, _, nelems) = np.shape(M)
 
         niters = cfg.getint('solver', 'niters') if self.iterate_ICs else 0 # Large iteration count for ICs
         for uidx in range(self.nupts):
             for eidx in range(self.neles):
-                # Get local variables
-                rholoc = rho if np.isscalar(rho) else rho[uidx, eidx] 
-                rhouloc = rhoUs[0] if np.isscalar(rhoUs[0]) else rhoUs[0][uidx, eidx] 
-                rhovloc = rhoUs[1] if np.isscalar(rhoUs[1]) else rhoUs[1][uidx, eidx]
-                if self.ndims == 3:
-                    rhowloc = rhoUs[2] if np.isscalar(rhoUs[2]) else rhoUs[2][uidx, eidx]
-                Eloc = E if np.isscalar(E) else E[uidx, eidx]
-
-                if self.ndims == 2:
-                    Uloc = [rholoc, rhouloc, rhovloc, Eloc]
-                elif self.ndims == 3:
-                    Uloc = [rholoc, rhouloc, rhovloc, rhowloc, Eloc]
+                # Get local conserved state variables
+                cons_local = np.zeros(self.ndims+2)
+                for i in range(self.ndims+2):
+                    cons_local[i] = cons[i] if np.isscalar(cons[i]) else cons[i][uidx, eidx]
 
                 # Compute local Maxwellian
-                M[uidx, :, eidx] = iterate_DVM(Uloc, self.u, self.ndims, self.moments, self.PSint, gamma, niters, self.delta)
+                f[uidx, :, eidx] = iterate_DVM(cons_local, self.u, self.ndims, self.psi, self.M, gamma, niters, self.delta)
 
-        return M
+        return f
 
+    # Compute macroscopic primitive state variables (moments) from distribution function
     @staticmethod
-    def con_to_pri(cons, cfg, PSint, u, ndims):
-        f = cons
+    def con_to_pri(f, cfg, M, u, psi, ndims):
+        pris = []
+        for i in range(ndims+2):
+            pris.append(np.einsum('i,ijk->jk', M*psi[...,i], f))
 
-        rho = np.dot(PSint, f.swapaxes(0,1))
-
-        # Compute velocities
-        Vs = []
-        for i in range(ndims):
-            rhoU = np.dot(PSint, (f.swapaxes(0,2)*u[:,i]).swapaxes(1,2)).T
-            Vs.append(rhoU/rho)
-        
-        # Compute strains
-        if ndims == 2:
-            sxy = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,1]).swapaxes(1,2)).T
-            Ss = [sxy]
-        elif ndims == 3:
-            sxy = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,1]).swapaxes(1,2)).T
-            sxz = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,2]).swapaxes(1,2)).T
-            syz = np.dot(PSint, (f.swapaxes(0,2)*u[:,1]*u[:,2]).swapaxes(1,2)).T
-            Ss = [sxy, sxz, syz]
-
-        idofs = len(u.T) != ndims
-        if idofs:
-            E = np.dot(PSint, 0.5*(f.swapaxes(0,2)*np.linalg.norm(u[:,:-1], axis=1)**2).swapaxes(1,2)).T
-            E += np.dot(PSint, (f.swapaxes(0,2)*u[:,-1]).swapaxes(1,2)).T
-        else:
-            E = np.dot(PSint, 0.5*(f.swapaxes(0,2)*np.linalg.norm(u, axis=1)**2).swapaxes(1,2)).T
-
-        # Compute the pressure
-        gamma = cfg.getfloat('constants', 'gamma')
-        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in Vs))
-
-        return [rho] + Vs + [p]
+        return pris
     
     @staticmethod
-    def con_to_vis(cons, cfg, PSint, u, ndims):
-        f = cons
+    def con_to_vis(f, cfg, M, u, psi, ndims):
+        # Compute primitive variables
+        pris = BGKElements.con_to_pri(f, cfg, M, u, psi, ndims)
 
-        rho = np.dot(PSint, f.swapaxes(0,1))
-
-        # Compute velocities
-        Vs = []
-        for i in range(ndims):
-            rhoU = np.dot(PSint, (f.swapaxes(0,2)*u[:,i]).swapaxes(1,2)).T
-            Vs.append(rhoU/rho)
-        
-        # Compute strains
+        # Compute and append off-diagonal molecular stresses
         if ndims == 2:
-            sxy = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,1]).swapaxes(1,2)).T
-            Ss = [sxy]
+            psi2 = [u[:,0]*u[:,1]]
         elif ndims == 3:
-            sxy = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,1]).swapaxes(1,2)).T
-            sxz = np.dot(PSint, (f.swapaxes(0,2)*u[:,0]*u[:,2]).swapaxes(1,2)).T
-            syz = np.dot(PSint, (f.swapaxes(0,2)*u[:,1]*u[:,2]).swapaxes(1,2)).T
-            Ss = [sxy, sxz, syz]
+            psi2 = [u[:,0]*u[:,1], u[:,0]*u[:,2], u[:,1]*u[:,2]]
+ 
+        for i in range(len(psi2)):
+            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f))
 
-        idofs = len(u.T) != ndims
-        if idofs:
-            E = np.dot(PSint, 0.5*(f.swapaxes(0,2)*np.linalg.norm(u[:,:-1], axis=1)**2).swapaxes(1,2)).T
-            E += np.dot(PSint, (f.swapaxes(0,2)*u[:,-1]).swapaxes(1,2)).T
-        else:
-            E = np.dot(PSint, 0.5*(f.swapaxes(0,2)*np.linalg.norm(u, axis=1)**2).swapaxes(1,2)).T
-
-        # Compute the pressure
-        gamma = cfg.getfloat('constants', 'gamma')
-        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in Vs))
-
-        return [rho] + Vs + [p] + Ss
+        return pris
 
     @staticmethod
     def macrocon_to_macropri(cons, cfg):
@@ -299,7 +241,7 @@ class BGKElements(BaseAdvectionElements):
 
         # Setup solver matrices and parameters
         self.umat = self._be.const_matrix(self.u)
-        self.M = self._be.const_matrix(np.reshape(self.PSint, (1, -1)))
+        self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
         self.nmvars = self.ndims + 2
 
@@ -364,7 +306,7 @@ class BGKElements(BaseAdvectionElements):
             'negdivconfbgk', tplargs=tplargs,
             dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
             rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, f=self._scal_upts_cpy,
-            u=self.umat, M=self.M
+            u=self.umat, M=self.Mmat
         )
 
         # Positivity-preserving squeeze limiter
@@ -384,5 +326,5 @@ class BGKElements(BaseAdvectionElements):
         self.kernels['macrostate'] = lambda uin: self._be.kernel(
             'macrostate', tplargs=tplargs,
             dims=[self.nupts, self.neles], f=self.scal_upts[uin],
-            mvars=self.mvars, u=self.umat, M=self.M
+            mvars=self.mvars, u=self.umat, M=self.Mmat
         )

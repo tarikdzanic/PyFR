@@ -17,9 +17,9 @@ class BaseInters:
         self.elemap = elemap
         self.cfg = cfg
         self.u = next(iter(elemap.values())).u
-        self.PSint = next(iter(elemap.values())).PSint
-        self.umat = next(iter(elemap.values())).umat
         self.M = next(iter(elemap.values())).M
+        self.umat = next(iter(elemap.values())).umat
+        self.Mmat = next(iter(elemap.values())).Mmat
 
         # Get the number of dimensions and variables
         self.ndims = next(iter(elemap.values())).ndims

@@ -96,7 +96,7 @@ class IntegratePlugin(BasePlugin):
 
             # Save
             eleinfo.append((ploc, r.wts[:, None] / rcpdjacs, m0, m4, eset, emask,
-                            eles.PSint, eles.u))
+                            eles.M, eles.u, eles.psi))
 
     def _prepare_esetmask(self, intg):
         region = self.cfg.get(self.cfgsect, 'region', '*')
@@ -143,12 +143,12 @@ class IntegratePlugin(BasePlugin):
 
         # Iterate over each element type in the simulation
         for i, (soln, eleinfo) in enumerate(zip(intg.soln, self.eleinfo)):
-            plocs, wts, m0, m4, eset, emask, PSint, u = eleinfo
+            plocs, wts, m0, m4, eset, emask, M, u, psi = eleinfo
 
 
             # Subset and transpose the solution
             soln = soln[..., eset].swapaxes(0, 1)
-            soln = self.elementscls.con_to_pri(soln, self.cfg, PSint, u, self.ndims)
+            soln = self.elementscls.con_to_pri(soln, self.cfg, M, u, psi, self.ndims)
 
             # Interpolate the solution to the quadrature points
             if m0 is not None:

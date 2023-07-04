@@ -122,7 +122,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
             'bccflux', tplargs=tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, fl=self._scal_lhs,
             magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat, M=self.M, **self._external_vals
+            u=self.umat, M=self.Mmat, **self._external_vals
         )
 
 class BGKFreeBCInters(BGKBaseBCInters):
