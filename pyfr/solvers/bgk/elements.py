@@ -315,37 +315,32 @@ class BGKElements(BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.limiter')
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.macrostate')
 
-        ub = self.basis.ubasis
-        meanweights = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
-        self.niters = self.cfg.getint('solver', 'niters')
-
+        # Setup solver matrices and parameters
         self.umat = self._be.const_matrix(self.u)
         self.M = self._be.const_matrix(np.reshape(self.PSint, (1, -1)))
-        lam = 1.0/gamma_func(self.delta/2.0) if self.delta else 1.0
+        self.niters = self.cfg.getint('solver', 'niters')
+        self.nmvars = self.ndims + 2
 
+        # Get solver constants
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
         rho_ref = self.cfg.getfloat('constants', 'rho_ref')
         P_ref = self.cfg.getfloat('constants', 'P_ref')
         omega = self.cfg.getfloat('constants', 'omega')
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
+        lam = 1.0/gamma_func(self.delta/2.0) if self.delta else 1.0
         theta_ref = P_ref/rho_ref
 
-        self.nmvars = self.ndims + 2
-        
         # Template parameters for the flux kernels
         tplargs = {
             'ndims': self.ndims, 'nupts': self.nupts, 
             'nvars': self.nvars, 'nverts': len(self.basis.linspts), 
             'c': self.cfg.items_as('constants', float),
-            'jac_exprs': self.basis.jac_exprs, 
-            'u': self.u, 'moments': self.moments, 'PSint': self.PSint,
+            'jac_exprs': self.basis.jac_exprs,
             'srcex': self._src_exprs, 'pi': np.pi,
-            'niters': self.niters, 'wts': meanweights, 
-            'delta': self.delta, 'lam': lam,
+            'niters': self.niters, 'delta': self.delta, 'lam': lam,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega, 'Pr' : Pr,
-            'nmvars' : self.nmvars
+            'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars
         }
 
         # Helpers
@@ -391,7 +386,10 @@ class BGKElements(BaseAdvectionElements):
         )
 
         # Positivity-preserving squeeze limiter
-        if self.cfg.getbool('solver', 'limiter', False):
+        if self.cfg.getbool('solver', 'limiter', False) and self.basis.order != 0:
+            ub = self.basis.ubasis
+            tplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+
             self.kernels['limiter'] = lambda uin: self._be.kernel(
                 'limiter', tplargs=tplargs,
                 dims=[self.neles], f=self.scal_upts[uin]
