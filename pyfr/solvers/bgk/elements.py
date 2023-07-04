@@ -49,61 +49,41 @@ def setup_BGK(cfg, ndims):
         psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
 
     return [u, M, psi]
-    
-def iterate_DVM(Uloc, u, ndims, moments, PSint, gamma, niters, delta):
-    if delta != 0:
-        def compute_discrete_maxwellian(alpha):
-            # Compute the macro/micro velocity defect
-            dv2 =  (u[...,0] - alpha[2])**2
-            dv2 += (u[...,1] - alpha[3])**2
-            if ndims == 3:
-                dv2 += (u[...,2] - alpha[4])**2
 
-            Mv = (alpha[0]*np.exp(-alpha[1]*dv2))
+# Computes discretely conservative Maxwellian for a macroscopic solution U using discrete velocity model
+def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
+    def compute_discrete_maxwellian(alpha):
+        # Compute the macro/micro velocity defect
+        dv2 = 0
+        for i in range(ndims):
+            dv2 += (u[...,i] - alpha[i+2])**2
 
+        # Compute Maxwellian (monatomic)
+        M = (alpha[0]*np.exp(-alpha[1]*dv2))
+
+        # Modify Maxwellian with internal energy effects (if needed)
+        if delta:
             theta = 1.0/(2.0*alpha[1])
             zeta = u[...,-1]
             lam = 1.0/gamma_func(delta/2.0)
-            Me = lam*(zeta/theta)**(0.5*delta - 1.)*(1./theta)*np.exp(-zeta/theta)
 
-            M = Mv*Me
+            M *= lam*(zeta/theta)**(0.5*delta - 1.)*(1./theta)*np.exp(-zeta/theta)
 
-            return M
-    else:
-        def compute_discrete_maxwellian(alpha):
-            # Compute the macro/micro velocity defect
-            dv2 =  (u[...,0] - alpha[2])**2
-            dv2 += (u[...,1] - alpha[3])**2
-            if ndims == 3:
-                dv2 += (u[...,2] - alpha[4])**2
+        return M
 
-            M = (alpha[0]*np.exp(-alpha[1]*dv2))
-            return M
-    
     # Change local variables into alpha vector
-    if ndims == 2:
-        [rholoc, rhouloc, rhovloc, Eloc] = Uloc
-        p = (gamma - 1.)*(Eloc - 0.5*(rhouloc**2 + rhovloc**2)/rholoc)
-        theta = p/rholoc
-        alpha = np.zeros(ndims+2)
+    rho, E = U[0], U[-1]
+    vs = [rhov/rho for rhov in U[1:-1]]
+    theta = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs))/rho
 
-        alpha[0] = rholoc/(2*np.pi*theta)**(ndims/2.0) # A
-        alpha[1] = 1.0/(2*theta) # B
-        alpha[2] = rhouloc/rholoc # C,D,E
-        alpha[3] = rhovloc/rholoc # C,D,E
-    elif ndims == 3:
-        [rholoc, rhouloc, rhovloc, rhowloc, Eloc] = Uloc
-        p = (gamma - 1.)*(Eloc - 0.5*(rhouloc**2 + rhovloc**2 + rhowloc**2)/rholoc)
-        theta = p/rholoc
-        alpha = np.zeros(ndims+2)
+    alpha = np.empty(ndims+2)
+    alpha[0] = rho/(2*np.pi*theta)**(ndims/2.0)
+    alpha[1] = 1.0/(2*theta)
+    for i in range(ndims):
+        alpha[i+2] = vs[i]
 
-        alpha[0] = rholoc/(2*np.pi*theta)**(ndims/2.0) # A
-        alpha[1] = 1.0/(2*theta) # B
-        alpha[2] = rhouloc/rholoc # C,D,E
-        alpha[3] = rhovloc/rholoc # C,D,E
-        alpha[4] = rhowloc/rholoc # C,D,E
-
-    Mloc = compute_discrete_maxwellian(alpha)
+    # Compute initial guess for Maxwellian (analytic distribution)
+    g = compute_discrete_maxwellian(alpha)
 
     # Perform Newton iterations to find optimal Maxwellian
     F = [0.0]*(ndims+2)
@@ -111,31 +91,33 @@ def iterate_DVM(Uloc, u, ndims, moments, PSint, gamma, niters, delta):
         # Derivatives with respect to alpha
         Q = [None]*(ndims+2)
         Q[0] = 1.0/alpha[0]
-        if ndims == 2:
-            Q[1] = -((u[...,0] - alpha[2])**2 + (u[...,1] - alpha[3])**2)
-            Q[2] = 2*alpha[1]*(u[...,0] - alpha[2])
-            Q[3] = 2*alpha[1]*(u[...,1] - alpha[3])
-        elif ndims == 3:
-            Q[1] = -((u[...,0] - alpha[2])**2 + (u[...,1] - alpha[3])**2 + (u[...,2] - alpha[4])**2)
-            Q[2] = 2*alpha[1]*(u[...,0] - alpha[2])
-            Q[3] = 2*alpha[1]*(u[...,1] - alpha[3])
-            Q[4] = 2*alpha[1]*(u[...,2] - alpha[4])
-        
+        Q[1] = 0.0
+
+        for i in range(ndims):
+            Q[1] += -(u[...,i] - alpha[i+2])**2
+            Q[i+2] = 2*alpha[1]*(u[...,i] - alpha[i+2])
+
         if delta:
             Q[1] += (delta - 4*u[:,-1]*alpha[1])/(2*alpha[1])
-        
+
+        # Compute Jacobian
         J = np.zeros((ndims+2, ndims+2))
         for ivar in range(ndims+2):
-            psiM = moments[:,ivar]*Mloc
-            F[ivar] = np.dot(PSint, psiM) - Uloc[ivar]
-            for jvar in range(ndims+2):
-                J[ivar, jvar] = np.dot(PSint, Q[jvar]*psiM)
+            psig = psi[:,ivar]*g
+            F[ivar] = np.dot(M, psig) - U[ivar]
 
-        alpha = alpha - np.linalg.inv(J) @ F
-        Mloc = compute_discrete_maxwellian(alpha)
+            for jvar in range(ndims+2):
+                J[ivar, jvar] = np.dot(M, Q[jvar]*psig)
+
+        # Take Newton step and compute new discrete Maxwellian
+        alpha = alpha - np.linalg.solve(J, F)
+        g = compute_discrete_maxwellian(alpha)
+
+    # Print warning if macroscopic state residual exceeds 1e-6
     if np.max(F) > 1e-6:
-        print('Did not converge: ', F)
-    return Mloc
+        print(f'DVM did not converge for solution {U} with residual {F}.')
+
+    return g
 
 class BGKElements(BaseAdvectionElements):    
     formulations = ['std', 'dual']
