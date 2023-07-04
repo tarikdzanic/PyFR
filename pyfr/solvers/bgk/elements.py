@@ -82,8 +82,10 @@ def setup_BGK(cfg, ndims):
             PSint = w
 
     elif ndims == 3:
+        if delta:
+            raise ValueError('Internal DOFs not implemented for 3D.')
         nvars = Nx*Ny*Nz
-        u = np.zeros((nvars, ndims + 1))
+        u = np.zeros((nvars, ndims))
         w = np.zeros((nvars))
 
         ux = np.linspace(-1, 1, Nx)*vmax + u0
