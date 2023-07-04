@@ -2,132 +2,53 @@
 
 from ctypes.wintypes import PSIZE
 from pyfr.solvers.baseadvec import BaseAdvectionElements
-import numpy as np
+
+import functools
 from math import gamma as gamma_func
+import numpy as np
 
+# Setup velocity space and integrator
 def setup_BGK(cfg, ndims):
-    Nx = cfg.getint('solver', 'Nx')
-    Ny = cfg.getint('solver', 'Ny')
-    if ndims == 3:
-        Nz = cfg.getint('solver', 'Nz')
-
+    # Get number of velocity points and velocity offset per dimension
+    Ns = [cfg.getint('solver', N) for N in ['Nx', 'Ny', 'Nz'][:ndims]]
+    offsets = np.array([cfg.getfloat('solver', off) for off in ['u0', 'v0', 'w0'][:ndims]])
     vmax = cfg.getfloat('solver', 'vmax')
-    u0 = cfg.getfloat('solver', 'u0')
-    v0 = cfg.getfloat('solver', 'v0')
-    if ndims == 3:
-        w0 = cfg.getfloat('solver', 'w0')
 
+    # Create velocity bounds
+    mins = list(offsets - vmax)
+    maxs = list(offsets + vmax)
+
+    # Append internal energy points and bounds
     delta = cfg.getint('solver', 'delta', 0)
     if delta != 0:
-        emax = cfg.getfloat('solver', 'emax')
-        Ne = cfg.getint('solver', 'Ne')
+        Ns.append(cfg.getint('solver', 'Ne'))
+        mins.append(cfg.getfloat('solver', 'emin'))
+        maxs.append(cfg.getfloat('solver', 'emax'))
 
-    if ndims == 2:
-        if delta:
-            nvars = Nx*Ny*Ne
-            u = np.zeros((nvars, ndims + 1))
-            w = np.zeros((nvars))
+    # Helper function to create 1D trapezoidal rule
+    linwts = lambda N, mass: (np.array([0.5] + list(np.ones(N)[1:-1]) + [0.5]))*mass/(N-1)
 
-            ux = np.linspace(-1, 1, Nx)*vmax + u0
-            uy = np.linspace(-1, 1, Ny)*vmax + v0
-            ue = np.linspace(0, 1, Ne)*emax
+    # Create velocity/integrator grid
+    ug = np.meshgrid(*[np.linspace(ul, uh, N) for ul, uh, N in zip(mins, maxs, Ns)], indexing='ij')
+    Mg = functools.reduce(np.multiply, np.ix_(*[linwts(N, uh - ul) for ul, uh, N in zip(mins, maxs, Ns)]))
 
-            [uxx, uyy, uee] = np.meshgrid(ux, uy, ue)
-            u[:,0] = np.reshape(uxx, (-1))
-            u[:,1] = np.reshape(uyy, (-1))
-            u[:,2] = np.reshape(uee, (-1))
+    # Reduce grids to 1D and 2D arrays
+    M = Mg.reshape(-1)
+    u = np.empty((np.prod(Ns), len(Ns)))
+    for i in range(len(Ns)):
+        u[:,i] = ug[i].reshape(-1)
 
-            wts_x = np.ones_like(ux)
-            wts_x[0] = 0.5
-            wts_x[-1] = 0.5
-            wts_x = wts_x/np.sum(wts_x)*2*vmax
+    # Compute collision invariants
+    psi = np.empty((len(u), ndims+2))
+    psi[:,0] = 1.0
+    for i in range(ndims):
+        psi[:,i+1] = u[:,i]
+    if delta:
+        psi[:,-1] = 0.5*np.linalg.norm(u[:,-1], axis=1)**2 + u[:,-1]
+    else:
+        psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
 
-            wts_y = np.ones_like(uy)
-            wts_y[0] = 0.5
-            wts_y[-1] = 0.5
-            wts_y = wts_y/np.sum(wts_y)*2*vmax
-
-            wts_e = np.ones_like(ue)
-            wts_e[0] = 0.5
-            wts_e[-1] = 0.5
-            wts_e = wts_e/np.sum(wts_e)*emax
-
-            wts = np.outer(wts_e, np.outer(wts_x, wts_y))
-            w = np.reshape(wts, (-1))
-            PSint = w
-        else:
-            nvars = Nx*Ny
-            u = np.zeros((nvars, ndims))
-            w = np.zeros((nvars))
-
-            ux = np.linspace(-1, 1, Nx)*vmax + u0
-            uy = np.linspace(-1, 1, Ny)*vmax + v0
-
-            [uxx, uyy] = np.meshgrid(ux, uy)
-            u[:,0] = np.reshape(uxx, (-1))
-            u[:,1] = np.reshape(uyy, (-1))
-
-            wts_x = np.ones_like(ux)
-            wts_x[0] = 0.5
-            wts_x[-1] = 0.5
-            wts_x = wts_x/np.sum(wts_x)*2*vmax
-
-            wts_y = np.ones_like(uy)
-            wts_y[0] = 0.5
-            wts_y[-1] = 0.5
-            wts_y = wts_y/np.sum(wts_y)*2*vmax
-
-            wts = np.outer(wts_x, wts_y)
-            w = np.reshape(wts, (-1))
-            PSint = w
-
-    elif ndims == 3:
-        if delta:
-            raise ValueError('Internal DOFs not implemented for 3D.')
-        nvars = Nx*Ny*Nz
-        u = np.zeros((nvars, ndims))
-        w = np.zeros((nvars))
-
-        ux = np.linspace(-1, 1, Nx)*vmax + u0
-        uy = np.linspace(-1, 1, Ny)*vmax + v0
-        uz = np.linspace(-1, 1, Nz)*vmax + w0
-
-        [uxx, uyy, uzz] = np.meshgrid(ux, uy, uz)
-        u[:,0] = np.reshape(uxx, (-1))
-        u[:,1] = np.reshape(uyy, (-1))
-        u[:,2] = np.reshape(uzz, (-1))
-
-        wts_x = np.ones_like(ux)
-        wts_x[0] = 0.5
-        wts_x[-1] = 0.5
-        wts_x = wts_x/np.sum(wts_x)*2*vmax
-
-        wts_y = np.ones_like(uy)
-        wts_y[0] = 0.5
-        wts_y[-1] = 0.5
-        wts_y = wts_y/np.sum(wts_y)*2*vmax
-
-        wts_z = np.ones_like(uz)
-        wts_z[0] = 0.5
-        wts_z[-1] = 0.5
-        wts_z = wts_z/np.sum(wts_z)*2*vmax
-
-        wts = np.outer(wts_z, np.outer(wts_x, wts_y))
-        w = np.reshape(wts, (-1))
-        PSint = w
-    
-    psi = np.zeros((nvars, ndims+2))
-    for i in range(nvars):
-        psi[i, 0] = 1
-        for j in range(ndims):
-            psi[i, 1+j] = u[i, j]
-
-        if delta != 0:
-            psi[i, -1] = 0.5*np.linalg.norm(u[i,:-1])**2 + u[i,-1]
-        else:
-            psi[i, -1] = 0.5*np.linalg.norm(u[i,:])**2
-    
-    return [u, PSint, psi]
+    return [u, M, psi]
     
 def iterate_DVM(Uloc, u, ndims, moments, PSint, gamma, niters, delta):
     if delta != 0:
