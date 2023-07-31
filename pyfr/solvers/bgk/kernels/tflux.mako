@@ -5,18 +5,33 @@
 <%pyfr:kernel name='tflux' ndim='2'
               f='in fpdtype_t[${str(nvars)}]'
               F='out fpdtype_t[${str(ndims)}][${str(nvars)}]'
-              smats='in fpdtype_t[${str(ndims)}][${str(ndims)}]'
-              u='in broadcast fpdtype_t[${str(nvars)}][${str(ndims)}]'>
+              smats='in fpdtype_t[${str(ndims)}][${str(ndims)}]'>
     // Compute and transform the fluxes
     fpdtype_t ftemp[${ndims}];
-for (int j = 0; j < ${nvars}; j++) {
-    % for i in range(ndims):
-    ftemp[${i}] = u[j][${i}]*f[j]; // Flux = u(x,y,t).f(x,y,t)
-    % endfor
+    fpdtype_t u[${ndims}];
+    int fidx;
 
-    % for i in range(ndims):
-    F[${i}][j] = ${' + '.join(f'smats[{i}][{k}]*ftemp[{k}]' for k in range(ndims))};
-    % endfor
-}
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
+
+            % if ndims == 3:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+                % for m in range(ndims):
+                F[${m}][fidx] = ${' + '.join(f'smats[{m}][{k}]*u[{k}]*f[fidx]' for k in range(ndims))};
+                % endfor
+            }
+            % else:
+            fidx = i*${N[1]} + j;
+            % for m in range(ndims):
+            F[${m}][fidx] = ${' + '.join(f'smats[{m}][{k}]*u[{k}]*f[fidx]' for k in range(ndims))};
+            % endfor
+            % endif
+        }
+    }
 </%pyfr:kernel>

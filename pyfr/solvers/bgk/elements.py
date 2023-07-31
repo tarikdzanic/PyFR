@@ -254,6 +254,15 @@ class BGKElements(BaseAdvectionElements):
         lam = 1.0/gamma_func(self.delta/2.0) if self.delta else 1.0
         theta_ref = P_ref/rho_ref
 
+        Ns = [self.cfg.getint('solver', N) for N in ['Nx', 'Ny', 'Nz'][:self.ndims]]
+        offsets = np.array([self.cfg.getfloat('solver', off) for off in ['u0', 'v0', 'w0'][:self.ndims]])
+        vmax = self.cfg.getfloat('solver', 'vmax')
+
+        # Create velocity bounds
+        ubounds = np.zeros((self.ndims, 2))
+        ubounds[:, 0] = offsets - vmax
+        ubounds[:, 1] = offsets + vmax
+
         # Template parameters for the flux kernels
         tplargs = {
             'ndims': self.ndims, 'nupts': self.nupts, 
@@ -264,7 +273,8 @@ class BGKElements(BaseAdvectionElements):
             'niters': self.niters, 'delta': self.delta, 'lam': lam,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars
+            'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars,
+            'N' : Ns, 'ubounds' : ubounds
         }
 
         # Helpers
