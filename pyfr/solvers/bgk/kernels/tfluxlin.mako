@@ -23,7 +23,12 @@
         for (int j = 0; j < ${N[1]}; j++) {
             u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
 
-            % if ndims == 3:
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
+            % for m in range(ndims):
+            F[${m}][fidx] = ${' + '.join(f'smats[{m}][{k}]*u[{k}]*f[fidx]' for k in range(ndims))};
+            % endfor
+            % else:
             for (int k = 0; k < ${N[2]}; k++) {
                 u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
 
@@ -32,11 +37,6 @@
                 F[${m}][fidx] = ${' + '.join(f'smats[{m}][{k}]*u[{k}]*f[fidx]' for k in range(ndims))};
                 % endfor
             }
-            % else:
-            fidx = i*${N[1]} + j;
-            % for m in range(ndims):
-            F[${m}][fidx] = ${' + '.join(f'smats[{m}][{k}]*u[{k}]*f[fidx]' for k in range(ndims))};
-            % endfor
             % endif
         }
     }
