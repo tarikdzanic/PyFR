@@ -15,10 +15,41 @@
     fpdtype_t fr[${nvars}];
     ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr', 'u', 'M')};
 
-    // Perform the Riemann solve
-    fpdtype_t Fn[${nvars}];
-    ${pyfr.expand('rsolve', 'fl', 'fr', 'nl', 'Fn', 'u')};
+    // Compute local velocity
+    fpdtype_t u[${ndims}], Fn, fli, fri;
+    int fidx;
 
-    // Scale and write out the common normal fluxes
-for (int i = 0; i < ${nvars}; i++) fl[i] = magnl*Fn[i];
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
+
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
+
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
+
+            // Compute the Riemann solve
+            fli = fl[fidx];
+            fri = fr[fidx];
+
+            ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+
+            // Scale and write out the common normal fluxes
+            fl[fidx] =  magnl*Fn;
+            % else:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                // Compute the Riemann solve
+                fli = fl[fidx];
+                fri = fr[fidx];
+
+                ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+
+                // Scale and write out the common normal fluxes
+                fl[fidx] =  magnl*Fn;
+            }
+            % endif
+        }
+    }
 </%pyfr:kernel>
