@@ -25,15 +25,13 @@ def setup_BGK(cfg, ndims):
         mins.append(cfg.getfloat('solver', 'emin'))
         maxs.append(cfg.getfloat('solver', 'emax'))
 
-    # Helper function to create 1D trapezoidal rule
-    linwts = lambda N, mass: (np.array([0.5] + list(np.ones(N)[1:-1]) + [0.5]))*mass/(N-1)
-
-    # Create velocity/integrator grid
+    # Create velocity grid
     ug = np.meshgrid(*[np.linspace(ul, uh, N) for ul, uh, N in zip(mins, maxs, Ns)], indexing='ij')
-    Mg = functools.reduce(np.multiply, np.ix_(*[linwts(N, uh - ul) for ul, uh, N in zip(mins, maxs, Ns)]))
+    # Create integrator weight
+    # Constant weight, assume compactly supported so trapezoid rule endweights can be set equal
+    Mi = functools.reduce(np.multiply, [(uh - ul)/float(N) for ul, uh, N in zip(mins, maxs, Ns)])
 
     # Reduce grids to 1D and 2D arrays
-    M = Mg.reshape(-1)
     u = np.empty((np.prod(Ns), len(Ns)))
     for i in range(len(Ns)):
         u[:,i] = ug[i].reshape(-1)
@@ -48,7 +46,7 @@ def setup_BGK(cfg, ndims):
     else:
         psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
 
-    return [u, M, psi]
+    return [u, Mi, psi]
 
 # Computes discretely conservative Maxwellian for a macroscopic solution U using discrete velocity model
 def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
@@ -59,17 +57,9 @@ def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
             dv2 += (u[...,i] - alpha[i+2])**2
 
         # Compute Maxwellian (monatomic)
-        M = (alpha[0]*np.exp(-alpha[1]*dv2))
+        g = (alpha[0]*np.exp(-alpha[1]*dv2))
 
-        # Modify Maxwellian with internal energy effects (if needed)
-        if delta:
-            theta = 1.0/(2.0*alpha[1])
-            zeta = u[...,-1]
-            lam = 1.0/gamma_func(delta/2.0)
-
-            M *= lam*(zeta/theta)**(0.5*delta - 1.)*(1./theta)*np.exp(-zeta/theta)
-
-        return M
+        return g
 
     # Change local variables into alpha vector
     rho, E = U[0], U[-1]
@@ -104,10 +94,10 @@ def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
         J = np.zeros((ndims+2, ndims+2))
         for ivar in range(ndims+2):
             psig = psi[:,ivar]*g
-            F[ivar] = np.dot(M, psig) - U[ivar]
+            F[ivar] = np.sum(M*psig) - U[ivar]
 
             for jvar in range(ndims+2):
-                J[ivar, jvar] = np.dot(M, Q[jvar]*psig)
+                J[ivar, jvar] = np.sum(M*Q[jvar]*psig)
 
         # Take Newton step and compute new discrete Maxwellian
         alpha = alpha - np.linalg.solve(J, F)
@@ -240,8 +230,6 @@ class BGKElements(BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.macrostate')
 
         # Setup solver matrices and parameters
-        self.umat = self._be.const_matrix(self.u)
-        self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
         self.nmvars = self.ndims + 2
 
@@ -274,7 +262,7 @@ class BGKElements(BaseAdvectionElements):
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
             'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars,
-            'N' : Ns, 'ubounds' : ubounds
+            'N' : Ns, 'ubounds' : ubounds, 'M' : self.M
         }
 
         # Helpers
@@ -285,28 +273,26 @@ class BGKElements(BaseAdvectionElements):
             self.kernels['tdisf_curved'] = lambda uin: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nupts, r[c]],
                 f=s(self.scal_upts[uin], c), F=s(self._vect_upts, c),
-                smats=self.curved_smat_at('upts'), u=self.umat
+                smats=self.curved_smat_at('upts')
             )
         elif c in r:
             self.kernels['tdisf_curved'] = lambda: self._be.kernel(
                 'tflux', tplargs=tplargs, dims=[self.nqpts, r[c]],
                 f=s(self._scal_qpts, c), F=s(self._vect_qpts, c),
-                smats=self.curved_smat_at('qpts'), u=self.umat
+                smats=self.curved_smat_at('qpts')
             )
 
         if l in r and 'flux' not in self.antialias:
             self.kernels['tdisf_linear'] = lambda uin: self._be.kernel(
                 'tfluxlin', tplargs=tplargs, dims=[self.nupts, r[l]],
                 f=s(self.scal_upts[uin], l), F=s(self._vect_upts, l),
-                verts=self.ploc_at('linspts', l), upts=self.upts,
-                u=self.umat
+                verts=self.ploc_at('linspts', l), upts=self.upts
             )
         elif l in r:
             self.kernels['tdisf_linear'] = lambda: self._be.kernel(
                 'tfluxlin', tplargs=tplargs, dims=[self.nqpts, r[l]],
                 f=s(self._scal_qpts, l), F=s(self._vect_qpts, l),
-                verts=self.ploc_at('linspts', l), upts=self.qpts,
-                u=self.umat
+                verts=self.ploc_at('linspts', l), upts=self.qpts
             )
 
         plocsrc = self._ploc_in_src_exprs
@@ -315,8 +301,7 @@ class BGKElements(BaseAdvectionElements):
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconfbgk', tplargs=tplargs,
             dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
-            rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, f=self._scal_upts_cpy,
-            u=self.umat, M=self.Mmat
+            rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, f=self._scal_upts_cpy
         )
 
         # Positivity-preserving squeeze limiter
@@ -336,5 +321,5 @@ class BGKElements(BaseAdvectionElements):
         self.kernels['macrostate'] = lambda uin: self._be.kernel(
             'macrostate', tplargs=tplargs,
             dims=[self.nupts, self.neles], f=self.scal_upts[uin],
-            mvars=self.mvars, u=self.umat, M=self.Mmat
+            mvars=self.mvars
         )
