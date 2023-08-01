@@ -22,10 +22,6 @@
         w[3] += fm*u[i][2];
         w[4] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
     % endif
-
-    % if delta:
-        w[${ndims+1}] += fm*u[i][${ndims}];
-    % endif
     }
 </%pyfr:macro>
 
@@ -73,12 +69,6 @@
 
     // Compute monatomic Maxwellian
     g = alpha[0]*exp(-alpha[1]*dv2);
-
-    // Amend with internal energy terms if needed
-    % if delta:
-    // Using theta = 1.0/(2.0*alpha[1])
-    g *= ${lam}*pow(2*u[i][${ndims}]*alpha[1], ${0.5*delta - 1.})*(1./theta)*exp(-2*u[i][${ndims}]*alpha[1]);
-    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='compute_Shakov_heatflux' params='alpha, f, M, u, S'>
@@ -137,10 +127,6 @@
             mmnts[4] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
         % endif
 
-        % if delta:
-            mmnts[${ndims+1}] += M[0][i]*gm*u[i][${ndims}];
-        % endif 
-
         % for ivar in range(ndims+2):
             R[${ivar}] += mmnts[${ivar}];
 
@@ -156,10 +142,6 @@
                                              + (u[i][1]-alpha[3])*(u[i][1]-alpha[3])
                                              + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]) );
             J[${ivar}][4] += mmnts[${ivar}]*2*alpha[1]*(u[i][2] - alpha[4]);
-            % endif
-
-            % if delta:
-            J[${ivar}][1] += mmnts[${ivar}]*(${delta} - 4*u[i][${ndims}]*alpha[1])/(2*alpha[1]);
             % endif
         % endfor
         }
