@@ -108,7 +108,7 @@
             for (int j = 0; j < ${N[1]}; j++) {
                 u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
 
-            % if ndims == 2:
+                % if ndims == 2:
                 fidx = i*${N[1]} + j;
                 ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'gm')};
 
@@ -128,7 +128,7 @@
                 J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[0] - alpha[2]);
                 J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[1] - alpha[3]);
                 % endfor
-            % else:
+                % else:
                 for (int k = 0; k < ${N[2]}; k++) {
                     u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
 
