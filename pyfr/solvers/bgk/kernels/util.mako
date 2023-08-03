@@ -9,7 +9,7 @@
     w[${i}] = 0.0;
     % endfor
 
-    fpdtype_t u[${ndims}];
+    fpdtype_t u[${ndims}], fm;
     for (int i = 0; i < ${N[0]}; i++) {
         u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
