@@ -4,24 +4,40 @@
 
 <%include file='pyfr.solvers.bgk.kernels.matrices'/>
 
-<%pyfr:macro name='compute_moments' params='f, u, M, w'>
+<%pyfr:macro name='compute_moments' params='f, w'>
     % for i in range(ndims + 2):
     w[${i}] = 0.0;
     % endfor
 
-    fpdtype_t fm;
-    for (int i = 0; i < ${nvars}; i++) {
-        fm = f[i]*M[0][i];
+    fpdtype_t u[${ndims}], fm;
+    int fidx;
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
-        w[0] += fm;
-        w[1] += fm*u[i][0];
-        w[2] += fm*u[i][1];
-    % if ndims == 2:
-        w[3] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
-    % elif ndims == 3:
-        w[3] += fm*u[i][2];
-        w[4] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
-    % endif
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
+
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
+            fm = ${M}*f[fidx];
+            w[0] += fm;
+            w[1] += fm*u[0];
+            w[2] += fm*u[1];
+            w[3] += 0.5*fm*(u[0]*u[0] + u[1]*u[1]);
+            % else:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+                fm = ${M}*f[fidx];
+                w[0] += fm;
+                w[1] += fm*u[0];
+                w[2] += fm*u[1];
+                w[3] += fm*u[2];
+                w[4] += 0.5*fm*(u[0]*u[0] + u[1]*u[1] + u[2]*u[2]);
+            }
+            % endif
+        }
     }
 </%pyfr:macro>
 
@@ -58,94 +74,90 @@
     % endfor
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_equilibrium_distribution' params='alpha, u, i, g'>
+<%pyfr:macro name='compute_equilibrium_distribution' params='alpha, ui, g'>
     // Compute square of pecular velocity
-    fpdtype_t dv2;
     % if ndims == 2:
-    dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]);
+    fpdtype_t dv2 = (ui[0]-alpha[2])*(ui[0]-alpha[2]) + (ui[1]-alpha[3])*(ui[1]-alpha[3]);
     % elif ndims == 3:
-    dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]);
+    fpdtype_t dv2 = (ui[0]-alpha[2])*(ui[0]-alpha[2]) + (ui[1]-alpha[3])*(ui[1]-alpha[3]) + (ui[2]-alpha[4])*(ui[2]-alpha[4]);
     % endif
 
     // Compute monatomic Maxwellian
     g = alpha[0]*exp(-alpha[1]*dv2);
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_Shakov_heatflux' params='alpha, f, M, u, S'>
-    fpdtype_t c[${ndims}];
-    for (int i = 0; i < ${nvars}; i++) {
-        // Compute peculiar velocity (based on DVM velocity)
-        % for j in range(ndims):
-        c[${j}] = u[i][${j}] - alpha[${j+2}];
-        % endfor
-        fpdtype_t c2 = ${pyfr.dot('c[{j}]', j=ndims)};
-
-        % for j in range(ndims):
-        S[${j}] += f[i]*M[0][i]*c2*c[${j}];
-        % endfor
-    }
-</%pyfr:macro>
-
-<%pyfr:macro name='apply_Shakov_model' params='alpha, u, S, p, theta, Pr, i, g'>
-    fpdtype_t c[${ndims}];
-    % for j in range(ndims):
-    c[${j}] = u[i][${j}] - alpha[${j+2}];
-    % endfor
-    fpdtype_t c2 = ${pyfr.dot('c[{j}]', j=ndims)};
-    fpdtype_t Sc = ${pyfr.dot('S[{j}]', 'c[{j}]', j=ndims)};
-
-    g *= 1 + ((1.0 - Pr)/5.0)*Sc*(c2/(2*theta) - 2.5)/(p*theta);
-</%pyfr:macro>
-
-<%pyfr:macro name='iterate_DVM' params='alpha, w, u, M'>
+<%pyfr:macro name='iterate_DVM' params='alpha, w'>
     fpdtype_t R[${ndims+2}];
     fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
-    fpdtype_t mmnts[${ndims+2}];
+    fpdtype_t mmnts[${ndims+2}], u[${ndims}];
     fpdtype_t gm;
+    int fidx;
     
     for (int iter = 0; iter < ${niters}; iter++) {
         // Zero cost-function and Jacobian
-        % for ivar in range(ndims+2):
+    % for ivar in range(ndims+2):
         R[${ivar}] = 0; 
         % for jvar in range(ndims+2):
         J[${ivar}][${jvar}] = 0; 
         % endfor
-        % endfor
+    % endfor
 
-        // Compute discrete Maxwellian
-        for (int i = 0; i < ${nvars}; i++) {
-            ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'gm')};
+        for (int i = 0; i < ${N[0]}; i++) {
+            u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
-            // Precompute moment factors
-            mmnts[0] = M[0][i]*gm;
-            mmnts[1] = M[0][i]*gm*u[i][0];
-            mmnts[2] = M[0][i]*gm*u[i][1];
-        % if ndims == 2:
-            mmnts[3] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
-        % elif ndims == 3:
-            mmnts[3] = M[0][i]*gm*u[i][2];
-            mmnts[4] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
-        % endif
+            for (int j = 0; j < ${N[1]}; j++) {
+                u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
 
-        % for ivar in range(ndims+2):
-            R[${ivar}] += mmnts[${ivar}];
+                % if ndims == 2:
+                fidx = i*${N[1]} + j;
+                ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'gm')};
 
-            J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
-            J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[i][0] - alpha[2]);
-            J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[i][1] - alpha[3]);
+                // Precompute moment factors
+                fpdtype_t Mgm = ${M}*gm;
+                mmnts[0] = Mgm;
+                mmnts[1] = Mgm*u[0];
+                mmnts[2] = Mgm*u[1];
+                mmnts[3] = 0.5*Mgm*(u[0]*u[0] + u[1]*u[1]);
+  
+                % for ivar in range(ndims+2):
+                R[${ivar}] += mmnts[${ivar}];
 
-            % if ndims == 2:
-            J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
-                                             + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) );
-            % elif ndims == 3:
-            J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
-                                             + (u[i][1]-alpha[3])*(u[i][1]-alpha[3])
-                                             + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]) );
-            J[${ivar}][4] += mmnts[${ivar}]*2*alpha[1]*(u[i][2] - alpha[4]);
+                J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
+                J[${ivar}][1] += -mmnts[${ivar}]*( (u[0]-alpha[2])*(u[0]-alpha[2])
+                                                 + (u[1]-alpha[3])*(u[1]-alpha[3]) );
+                J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[0] - alpha[2]);
+                J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[1] - alpha[3]);
+                % endfor
+                % else:
+                for (int k = 0; k < ${N[2]}; k++) {
+                    u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                    fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+                    ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'gm')};
+
+                    // Precompute moment factors
+                    fpdtype_t Mgm = ${M}*gm;
+                    mmnts[0] = Mgm;
+                    mmnts[1] = Mgm*u[0];
+                    mmnts[2] = Mgm*u[1];
+                    mmnts[3] = Mgm*u[2];
+                    mmnts[4] = 0.5*Mgm*(u[0]*u[0] + u[1]*u[1] + u[2]*u[2]);
+      
+                    % for ivar in range(ndims+2):
+                    R[${ivar}] += mmnts[${ivar}];
+
+                    J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
+                    J[${ivar}][1] += -mmnts[${ivar}]*( (u[0]-alpha[2])*(u[0]-alpha[2])
+                                                     + (u[1]-alpha[3])*(u[1]-alpha[3])
+                                                     + (u[2]-alpha[4])*(u[2]-alpha[4]) );
+                    J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[0] - alpha[2]);
+                    J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[1] - alpha[3]);
+                    J[${ivar}][4] += mmnts[${ivar}]*2*alpha[1]*(u[2] - alpha[4]);
+                    % endfor
+                }
             % endif
-        % endfor
+            }
         }
-
 
         // Get defect
         % for var in range(ndims+2):

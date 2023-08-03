@@ -9,13 +9,11 @@
               tdivtconf='inout fpdtype_t[${str(nvars)}]'
               ploc='in fpdtype_t[${str(ndims)}]'
               f='in fpdtype_t[${str(nvars)}]'
-              rcpdjac='in fpdtype_t'
-              u='in broadcast fpdtype_t[${str(nvars)}][${str(ndims)}]'
-              M='in broadcast fpdtype_t[1][${str(nvars)}]'>
+              rcpdjac='in fpdtype_t'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
-    ${pyfr.expand('compute_moments', 'f', 'u', 'M', 'w')};
+    ${pyfr.expand('compute_moments', 'f', 'w')};
 
     // Convert to primitives
     fpdtype_t q[${ndims+2}] = {0};
@@ -26,33 +24,44 @@
     ${pyfr.expand('compute_alpha', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
+    ${pyfr.expand('iterate_DVM', 'alpha', 'w')};
 
     // Compute collision time based on viscosity model
     fpdtype_t p = q[${ndims+1}];
     fpdtype_t theta = p/q[0];
     fpdtype_t tau = ${tau_ref}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
 
-    // Precompute necessary data for Shakov model (for Prandtl number effects)
-    % if Pr != 1.0:
-    fpdtype_t S[${ndims}] = {0};
-    fpdtype_t Pr = ${Pr};
-    ${pyfr.expand('compute_Shakov_heatflux', 'alpha', 'f', 'M', 'u', 'S')};
-    % endif
+    // Compute the BGK source term
+    fpdtype_t u[${ndims}], g;
+    int fidx;
 
-    // Set source term
-    fpdtype_t g;
-    for (int i = 0; i < ${nvars}; i++) {
-        // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'g')};
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
-        // Apply Shakov model
-        % if Pr != 1.0:
-        ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'g')};
-        % endif
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
 
-        // Set source
-        tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
+
+            // Compute equilibrium distribution at fidx-th velocity point
+            ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'g')};
+
+            // Set source
+            tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;
+            % else:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+                // Compute equilibrium distribution at fidx-th velocity point
+
+                ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'g')};
+                
+                // Set source
+                tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;
+            }
+            % endif
+        }
     }
-
 </%pyfr:kernel>

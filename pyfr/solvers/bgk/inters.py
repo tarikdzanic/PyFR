@@ -49,44 +49,42 @@ def reflect3D(side, Nx, Ny, Nz):
 
     return pairs
 
-class BGKIntInters(BaseAdvectionIntInters):
+
+class TplargsMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
+        self._tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
+                             c=self.c, N=self.Ns, ubounds=self.ubounds, M=self.M)
+
+class BGKIntInters(TplargsMixin, BaseAdvectionIntInters):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.intcflux')
 
-
-        rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                       c=self.c)
-
         self.kernels['comm_flux'] = lambda: self._be.kernel(
-            'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
+            'intcflux', tplargs=self._tplargs, dims=[self.ninterfpts],
             fl=self._scal_lhs, fr=self._scal_rhs,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
         )
 
 
-class BGKMPIInters(BaseAdvectionMPIInters):
+class BGKMPIInters(TplargsMixin, BaseAdvectionMPIInters):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.mpicflux')
 
-        rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                       c=self.c)
-
         self.kernels['comm_flux'] = lambda: self._be.kernel(
-            'mpicflux', tplargs, dims=[self.ninterfpts],
+            'mpicflux', tplargs=self._tplargs, dims=[self.ninterfpts],
             fl=self._scal_lhs, fr=self._scal_rhs,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
         )
 
 
-class BGKBaseBCInters(BaseAdvectionBCInters):
+class BGKBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -111,17 +109,15 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
             self.Yidxs = reflect3D('y', Nx, Ny, Nz)
             self.Zidxs = reflect3D('z', Nx, Ny, Nz)
 
+        self._tplargs |= dict(bctype=self.type, niters=self.niters,
+                              pi=np.pi, delta=delta, Pr=Pr,
+                              Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
 
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                       c=self.c, u=self.u, bctype=self.type, niters=self.niters,
-                       pi=np.pi, delta=delta,lam=lam, Pr=Pr,
-                       Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
-        
         self.kernels['comm_flux'] = lambda: self._be.kernel(
-            'bccflux', tplargs=tplargs, dims=[self.ninterfpts],
+            'bccflux', tplargs=self._tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, fl=self._scal_lhs,
             magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat, M=self.Mmat, **self._external_vals
+            **self._external_vals
         )
 
 class BGKFreeBCInters(BGKBaseBCInters):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 <% ntol = 1e-6 %>
-<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr, u, M' externs='ploc, t'>
+<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr' externs='ploc, t'>
 
 % if ndims == 2:
 // If +/- X normal:
