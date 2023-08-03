@@ -239,7 +239,6 @@ class BGKElements(BaseAdvectionElements):
         P_ref = self.cfg.getfloat('constants', 'P_ref')
         omega = self.cfg.getfloat('constants', 'omega')
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
-        lam = 1.0/gamma_func(self.delta/2.0) if self.delta else 1.0
         theta_ref = P_ref/rho_ref
 
         self.Ns = [self.cfg.getint('solver', N) for N in ['Nx', 'Ny', 'Nz'][:self.ndims]]
@@ -258,7 +257,7 @@ class BGKElements(BaseAdvectionElements):
             'c': self.cfg.items_as('constants', float),
             'jac_exprs': self.basis.jac_exprs,
             'srcex': self._src_exprs, 'pi': np.pi,
-            'niters': self.niters, 'delta': self.delta, 'lam': lam,
+            'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
             'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars,
