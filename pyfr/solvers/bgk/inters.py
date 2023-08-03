@@ -63,8 +63,7 @@ class BGKIntInters(BaseAdvectionIntInters):
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
             fl=self._scal_lhs, fr=self._scal_rhs,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
         )
 
 
@@ -81,8 +80,7 @@ class BGKMPIInters(BaseAdvectionMPIInters):
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', tplargs, dims=[self.ninterfpts],
             fl=self._scal_lhs, fr=self._scal_rhs,
-            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat
+            magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs
         )
 
 
@@ -122,7 +120,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
             'bccflux', tplargs=tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, fl=self._scal_lhs,
             magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
-            u=self.umat, M=self.Mmat, **self._external_vals
+            **self._external_vals
         )
 
 class BGKFreeBCInters(BGKBaseBCInters):

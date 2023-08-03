@@ -8,9 +8,7 @@
 <%pyfr:kernel name='bccflux' ndim='1'
               fl='inout view fpdtype_t[${str(nvars)}]'
               nl='in fpdtype_t[${str(ndims)}]'
-              magnl='in fpdtype_t'
-              u='in broadcast fpdtype_t[${str(nvars)}][${str(ndims)}]'
-              M='in broadcast fpdtype_t[1][${str(nvars)}]'>
+              magnl='in fpdtype_t'>
     // Compute the RHS
     fpdtype_t fr[${nvars}];
     ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr', 'u', 'M')};
