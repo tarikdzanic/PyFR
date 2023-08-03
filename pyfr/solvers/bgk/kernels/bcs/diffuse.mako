@@ -3,10 +3,10 @@
 
 <%include file='pyfr.solvers.bgk.kernels.util'/>
 
-<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr, u, M' externs='ploc, t'>
+<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr' externs='ploc, t'>
     // Get LHS conserved state
     fpdtype_t wl[${ndims+2}] = {0};
-    ${pyfr.expand('compute_moments', 'fl', 'u', 'M', 'wl')};
+    ${pyfr.expand('compute_moments', 'fl', 'wl')};
 
     // Convert to primitives
     fpdtype_t ql[${ndims+2}] = {0};
@@ -30,43 +30,57 @@
     ${pyfr.expand('compute_alpha', 'q', 'alpha')};
     
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
-
-    // Precompute necessary data for Shakov model (for Prandtl number effects)
-    % if Pr != 1.0:
-    fpdtype_t p = q[${ndims+1}];
-    fpdtype_t theta = p/q[0];
-    fpdtype_t S[${ndims}] = {0};
-    fpdtype_t Pr = ${Pr};
-    ${pyfr.expand('compute_Shakov_heatflux', 'alpha', 'f', 'M', 'u', 'S')};
-    % endif
+    ${pyfr.expand('iterate_DVM', 'alpha', 'w')};
 
     // Compute mass-preserving scaling factor
-    fpdtype_t Mw[${nvars}];
+    fpdtype_t u[${ndims}];
     fpdtype_t un, eta1 = 0.0, eta2 = 0.0;
-    for (int i = 0; i < ${nvars}; i++) {
-        un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
+    int fidx;
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
-        // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'Mw[i]')};
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
 
-        // Apply Shakov model
-        % if Pr != 1.0:
-        ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'Mw[i]')};
-        % endif
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
 
-        // Balance mass flux
-        if (un > 0.0) {
-            eta1 += fl[i]*M[0][i]*abs(un);
-        }
-        else {
-            eta2 += Mw[i]*M[0][i]*abs(un);
+            // Compute equilibrium distribution at fidx-th velocity point
+            ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'fr[fidx]')};
+
+            // Balance mass flux
+            un = ${pyfr.dot('u[{i}]', 'nl[{i}]', i=ndims)};
+            if (un > 0.0) {
+                eta1 += ${M}*fl[fidx]*abs(un);
+            }
+            else {
+                eta2 += ${M}*fr[fidx]*abs(un);
+            }
+            % else:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+
+                // Compute equilibrium distribution at fidx-th velocity point
+                ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'fr[fidx]')};
+
+                // Balance mass flux
+                un = ${pyfr.dot('u[{i}]', 'nl[{i}]', i=ndims)};
+                if (un > 0.0) {
+                    eta1 += ${M}*fl[fidx]*abs(un);
+                }
+                else {
+                    eta2 += ${M}*fr[fidx]*abs(un);
+                }
+            }
+            % endif
         }
     }
 
-    // Scale RHS state to preserve zero mass flux
+    // Set RHS state to preserve zero mass flux
     fpdtype_t eta = eta1/eta2;
-    for (int i = 0; i < ${nvars}; i++) {
-        fr[i] = eta*Mw[i];
+    for (int fidx = 0; fidx < ${nvars}; fidx++) {
+        fr[fidx] *= eta;
     }
 </%pyfr:macro>

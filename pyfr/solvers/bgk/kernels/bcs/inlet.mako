@@ -3,10 +3,10 @@
 
 <%include file='pyfr.solvers.bgk.kernels.util'/>
 
-<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr, u, M' externs='ploc, t'>
+<%pyfr:macro name='bc_rsolve_state' params='fl, nl, fr' externs='ploc, t'>
     // Get LHS conserved state
     fpdtype_t wl[${ndims+2}] = {0};
-    ${pyfr.expand('compute_moments', 'fl', 'u', 'M', 'wl')};
+    ${pyfr.expand('compute_moments', 'fl', 'wl')};
 
     // Convert to primitives
     fpdtype_t ql[${ndims+2}] = {0};
@@ -30,23 +30,33 @@
     ${pyfr.expand('compute_alpha', 'q', 'alpha')};
     
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
-
-    % if Pr != 1.0:
-    fpdtype_t p = q[${ndims+1}];
-    fpdtype_t theta = p/q[0];
-    fpdtype_t S[${ndims}] = {0};
-    fpdtype_t Pr = ${Pr};
-    ${pyfr.expand('compute_Shakov_heatflux', 'alpha', 'f', 'M', 'u', 'S')};
-    % endif
+    ${pyfr.expand('iterate_DVM', 'alpha', 'w')};
 
     // Set RHS state
-    for (int i = 0; i < ${nvars}; i++) {
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
+    fpdtype_t u[${ndims}];
+    int fidx;
+    for (int i = 0; i < ${N[0]}; i++) {
+        u[0] = ${ubounds[0][0]} + ${(ubounds[0][1] - ubounds[0][0])/(N[0] - 1)}*i;
 
-        // Apply Shakov model
-        % if Pr != 1.0:
-        ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'fr[i]')};
-        % endif
+        for (int j = 0; j < ${N[1]}; j++) {
+            u[1] = ${ubounds[1][0]} + ${(ubounds[1][1] - ubounds[1][0])/(N[1] - 1)}*j;
+
+            % if ndims == 2:
+            fidx = i*${N[1]} + j;
+
+            // Compute equilibrium distribution at fidx-th velocity point
+            ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'fr[fidx]')};
+
+            % else:
+            for (int k = 0; k < ${N[2]}; k++) {
+                u[2] = ${ubounds[2][0]} + ${(ubounds[2][1] - ubounds[2][0])/(N[2] - 1)}*k;
+
+                fidx = i*${N[1]*N[2]} + j*${N[2]} + k;
+
+                // Compute equilibrium distribution at fidx-th velocity point
+                ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'fr[fidx]')};
+            }
+            % endif
+        }
     }
 </%pyfr:macro>

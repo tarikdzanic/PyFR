@@ -11,7 +11,7 @@
               magnl='in fpdtype_t'>
     // Compute the RHS
     fpdtype_t fr[${nvars}];
-    ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr', 'u', 'M')};
+    ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr')};
 
     // Compute local velocity
     fpdtype_t u[${ndims}], Fn, fli, fri;
