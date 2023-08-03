@@ -262,7 +262,7 @@ class BGKElements(BaseAdvectionElements):
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
             'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars,
-            'N' : Ns, 'ubounds' : ubounds, 'M' : self.M
+            'N' : self.Ns, 'ubounds' : self.ubounds, 'M' : self.M
         }
 
         # Helpers
