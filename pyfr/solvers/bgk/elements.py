@@ -18,15 +18,9 @@ def setup_BGK(cfg, ndims):
     mins = list(offsets - vmax)
     maxs = list(offsets + vmax)
 
-    # Append internal energy points and bounds
-    delta = cfg.getint('solver', 'delta', 0)
-    if delta != 0:
-        Ns.append(cfg.getint('solver', 'Ne'))
-        mins.append(cfg.getfloat('solver', 'emin'))
-        maxs.append(cfg.getfloat('solver', 'emax'))
-
     # Create velocity grid
     ug = np.meshgrid(*[np.linspace(ul, uh, N) for ul, uh, N in zip(mins, maxs, Ns)], indexing='ij')
+
     # Create integrator weight
     # Constant weight, assume compactly supported so trapezoid rule endweights can be set equal
     Mi = functools.reduce(np.multiply, [(uh - ul)/float(N) for ul, uh, N in zip(mins, maxs, Ns)])
@@ -41,9 +35,6 @@ def setup_BGK(cfg, ndims):
     psi[:,0] = 1.0
     for i in range(ndims):
         psi[:,i+1] = u[:,i]
-    if delta:
-        psi[:,-1] = 0.5*np.linalg.norm(u[:,-1], axis=1)**2 + u[:,-1]
-    else:
         psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
 
     return [u, Mi, psi]
@@ -86,9 +77,6 @@ def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
         for i in range(ndims):
             Q[1] += -(u[...,i] - alpha[i+2])**2
             Q[i+2] = 2*alpha[1]*(u[...,i] - alpha[i+2])
-
-        if delta:
-            Q[1] += (delta - 4*u[:,-1]*alpha[1])/(2*alpha[1])
 
         # Compute Jacobian
         J = np.zeros((ndims+2, ndims+2))
@@ -239,7 +227,6 @@ class BGKElements(BaseAdvectionElements):
         P_ref = self.cfg.getfloat('constants', 'P_ref')
         omega = self.cfg.getfloat('constants', 'omega')
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
-        lam = 1.0/gamma_func(self.delta/2.0) if self.delta else 1.0
         theta_ref = P_ref/rho_ref
 
         self.Ns = [self.cfg.getint('solver', N) for N in ['Nx', 'Ny', 'Nz'][:self.ndims]]
@@ -258,7 +245,7 @@ class BGKElements(BaseAdvectionElements):
             'c': self.cfg.items_as('constants', float),
             'jac_exprs': self.basis.jac_exprs,
             'srcex': self._src_exprs, 'pi': np.pi,
-            'niters': self.niters, 'delta': self.delta, 'lam': lam,
+            'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
             'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars,

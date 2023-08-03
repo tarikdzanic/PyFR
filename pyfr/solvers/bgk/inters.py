@@ -94,7 +94,6 @@ class BGKBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
         self.niters = self.cfg.getint('solver', 'niters')
         delta = self.cfg.getint('solver', 'delta')
         Pr = self.cfg.getfloat('solver', 'Pr', 1.0)
-        lam = 1.0/gamma_func(delta/2.0) if delta else 0.0
 
         # Get reflections for wall BCs
         Nx = self.cfg.getint('solver', 'Nx')
