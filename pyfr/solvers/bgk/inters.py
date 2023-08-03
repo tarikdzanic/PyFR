@@ -54,18 +54,9 @@ class TplargsMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        Ns = [self.cfg.getint('solver', N) for N in ['Nx', 'Ny', 'Nz'][:self.ndims]]
-        offsets = np.array([self.cfg.getfloat('solver', off) for off in ['u0', 'v0', 'w0'][:self.ndims]])
-        vmax = self.cfg.getfloat('solver', 'vmax')
-
-        # Create velocity bounds
-        ubounds = np.zeros((self.ndims, 2))
-        ubounds[:, 0] = offsets - vmax
-        ubounds[:, 1] = offsets + vmax
-
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         self._tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                             c=self.c, N=Ns, ubounds=ubounds)
+                             c=self.c, N=self.Ns, ubounds=self.ubounds, M=self.M)
 
 class BGKIntInters(TplargsMixin, BaseAdvectionIntInters):
     def __init__(self, *args, **kwargs):
