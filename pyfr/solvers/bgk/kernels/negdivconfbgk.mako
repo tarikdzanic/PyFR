@@ -13,7 +13,7 @@
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
-    ${pyfr.expand('compute_moments', 'f', 'u', 'M', 'w')};
+    ${pyfr.expand('compute_moments', 'f', 'w')};
 
     // Convert to primitives
     fpdtype_t q[${ndims+2}] = {0};
@@ -24,7 +24,7 @@
     ${pyfr.expand('compute_alpha', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
+    ${pyfr.expand('iterate_DVM', 'alpha', 'w')};
 
     // Compute collision time based on viscosity model
     fpdtype_t p = q[${ndims+1}];
