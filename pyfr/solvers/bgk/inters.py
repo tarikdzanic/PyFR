@@ -124,7 +124,7 @@ class BGKBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
                               Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
-            'bccflux', tplargs=tplargs, dims=[self.ninterfpts],
+            'bccflux', tplargs=self._tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, fl=self._scal_lhs,
             magnl=self._mag_pnorm_lhs, nl=self._norm_pnorm_lhs,
             **self._external_vals
