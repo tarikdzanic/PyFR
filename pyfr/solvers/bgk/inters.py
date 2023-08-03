@@ -110,7 +110,7 @@ class BGKBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
             self.Zidxs = reflect3D('z', Nx, Ny, Nz)
 
         self._tplargs |= dict(bctype=self.type, niters=self.niters,
-                              pi=np.pi, delta=delta,lam=lam, Pr=Pr,
+                              pi=np.pi, delta=delta, Pr=Pr,
                               Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
