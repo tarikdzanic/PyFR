@@ -24,6 +24,7 @@ class BaseInters:
         # Get the number of dimensions and variables
         self.ndims = next(iter(elemap.values())).ndims
         self.nvars = next(iter(elemap.values())).nvars
+        self.nuvars = next(iter(elemap.values())).nuvars
 
         # Get the number of interfaces
         self.ninters = len(lhs)

@@ -57,8 +57,8 @@ class BGKIntInters(BaseAdvectionIntInters):
 
 
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                       c=self.c)
+        tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
+                       rsolver=rsolver, c=self.c)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
@@ -75,8 +75,8 @@ class BGKMPIInters(BaseAdvectionMPIInters):
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.mpicflux')
 
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
-                       c=self.c)
+        tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
+                       rsolver=rsolver, c=self.c)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', tplargs, dims=[self.ninterfpts],
@@ -95,6 +95,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         self.niters = self.cfg.getint('solver', 'niters')
         delta = self.cfg.getint('solver', 'delta')
+        lam = 1.0/gamma_func(delta/2.0) if delta else 0.0
         Pr = self.cfg.getfloat('solver', 'Pr', 1.0)
 
         # Get reflections for wall BCs
@@ -112,9 +113,9 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
             self.Zidxs = reflect3D('z', Nx, Ny, Nz)
 
 
-        tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
+        tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
                        c=self.c, u=self.u, bctype=self.type, niters=self.niters,
-                       pi=np.pi, delta=delta, lam=lam, Pr=Pr,
+                       rsolver=rsolver, pi=np.pi, delta=delta, lam=lam, Pr=Pr,
                        Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
         
         self.kernels['comm_flux'] = lambda: self._be.kernel(

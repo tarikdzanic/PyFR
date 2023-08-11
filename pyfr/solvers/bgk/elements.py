@@ -144,9 +144,14 @@ class BGKElements(BaseAdvectionElements):
 
         # Allocate initial distribution function
         f = np.zeros((self.nupts, self.nuvars, self.neles))
-        gamma = cfg.getfloat('constants', 'gamma')
 
+        # Allocate temperature if necessary for internal DOFs
+        theta = np.zeros((self.nupts, self.neles))
+
+        gamma = cfg.getfloat('constants', 'gamma')
+        delta = cfg.getfloat('solver', 'delta')
         niters = cfg.getint('solver', 'niters') if self.iterate_ICs else 0 # Large iteration count for ICs
+
         for uidx in range(self.nupts):
             for eidx in range(self.neles):
                 # Get local conserved state variables
@@ -157,9 +162,14 @@ class BGKElements(BaseAdvectionElements):
                 # Compute local Maxwellian
                 f[uidx, :, eidx] = iterate_DVM(cons_local, self.u, self.ndims, self.psi, self.M, gamma, niters, self.delta)
 
+                # Get local temperature if necessary for internal DOFs
+                pri_local = BGKElements.macrocon_to_macropri(cons_local, cfg)
+                theta[uidx, eidx] = pri_local[-1]/pri_local[0]
+
         if self.delta:
             fg = np.zeros((self.nupts, self.nvars, self.neles))
-            fg[:,:self.nuvars,:] = f
+            fg[:,:self.nuvars,:] = f # Integral of F dzeta from 0 to infinity = f (because of gamma_func(delta/2) normalization factor)
+            fg[:,self.nuvars:,:] = f*theta*delta/2.0 # Integral of F*zeta dzeta from 0 to infinity = f*theta*delta/2
             return fg
         else:
             return f

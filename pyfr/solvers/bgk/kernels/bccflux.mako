@@ -24,14 +24,14 @@
 
         fli = fl[i];
         fri = fr[i];
-        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
 
         fl[i] = magnl*Fn;
 
         % if delta:
         fli = fl[i + ${nuvars}];
         fri = fr[i + ${nuvars}];
-        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
 
         fl[i + ${nuvars}] = magnl*Fn;
         % endif
