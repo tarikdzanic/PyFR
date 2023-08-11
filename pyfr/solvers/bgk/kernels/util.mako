@@ -104,7 +104,10 @@
     fpdtype_t R[${ndims+2}];
     fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
     fpdtype_t mmnts[${ndims+2}];
-    fpdtype_t gm;
+    fpdtype_t gm, Mgm;
+
+    // Pre-compute theta*delta/2.0
+    fpdtype_t td2 = ${0.25*delta}/alpha[1];
     
     for (int iter = 0; iter < ${niters}; iter++) {
         // Zero cost-function and Jacobian
@@ -120,23 +123,27 @@
             ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'gm')};
 
             // Precompute moment factors
-            mmnts[0] = M[0][i]*gm;
-            mmnts[1] = M[0][i]*gm*u[i][0];
-            mmnts[2] = M[0][i]*gm*u[i][1];
+            Mgm = M[0][i]*gm;
+            mmnts[0] = Mgm;
+            mmnts[1] = Mgm*u[i][0];
+            mmnts[2] = Mgm*u[i][1];
             % if ndims == 2:
-            mmnts[3] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
+            mmnts[3] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
             % elif ndims == 3:
-            mmnts[3] = M[0][i]*gm*u[i][2];
-            mmnts[4] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
+            mmnts[3] = Mgm*u[i][2];
+            mmnts[4] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
             % endif
 
+            // Add internal energy effects
+            % if delta:
+            mmnts[${ndims+1}] += Mgm*td2;
+            % endif
+
+            // Compute Jacobian
             % for ivar in range(ndims+2):
             R[${ivar}] += mmnts[${ivar}];
 
             J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
-            J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[i][0] - alpha[2]);
-            J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[i][1] - alpha[3]);
-
             % if ndims == 2:
             J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
                                              + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) );
@@ -144,8 +151,10 @@
             J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
                                              + (u[i][1]-alpha[3])*(u[i][1]-alpha[3])
                                              + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]) );
-            J[${ivar}][4] += mmnts[${ivar}]*2*alpha[1]*(u[i][2] - alpha[4]);
             % endif
+            % for dvar in range(ndims):
+            J[${ivar}][${2+dvar}] += mmnts[${ivar}]*2*alpha[1]*(u[i][${dvar}] - alpha[${2+dvar}]);
+            % endfor
             % endfor
         }
 

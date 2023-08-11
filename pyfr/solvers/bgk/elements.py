@@ -4,7 +4,6 @@ from ctypes.wintypes import PSIZE
 from pyfr.solvers.baseadvec import BaseAdvectionElements
 
 import functools
-from math import gamma as gamma_func
 import numpy as np
 
 # Setup velocity space and integrator
@@ -78,11 +77,14 @@ def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
         for i in range(ndims):
             Q[1] += -(u[...,i] - alpha[i+2])**2
             Q[i+2] = 2*alpha[1]*(u[...,i] - alpha[i+2])
-
+        
         # Compute Jacobian
         J = np.zeros((ndims+2, ndims+2))
         for ivar in range(ndims+2):
             psig = psi[:,ivar]*g
+            if delta and ivar == ndims+1:
+                psig += theta*(delta/2.0)*g
+
             F[ivar] = np.dot(M, psig) - U[ivar]
 
             for jvar in range(ndims+2):
@@ -169,7 +171,7 @@ class BGKElements(BaseAdvectionElements):
         if self.delta:
             fg = np.zeros((self.nupts, self.nvars, self.neles))
             fg[:,:self.nuvars,:] = f # Integral of F dzeta from 0 to infinity = f (because of gamma_func(delta/2) normalization factor)
-            fg[:,self.nuvars:,:] = f*theta*delta/2.0 # Integral of F*zeta dzeta from 0 to infinity = f*theta*delta/2
+            fg[:,self.nuvars:,:] = f*theta[:,None,:]*delta/2.0 # Integral of F*zeta dzeta from 0 to infinity = f*theta*delta/2
             return fg
         else:
             return f

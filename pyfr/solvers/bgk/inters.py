@@ -5,7 +5,6 @@ from pyfr.solvers.baseadvec import (BaseAdvectionIntInters,
                                     BaseAdvectionBCInters)
 
 import numpy as np
-from math import gamma as gamma_func
 
 def reflect2D(side, Nx, Ny):
     N = Nx*Ny
@@ -95,7 +94,6 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         self.niters = self.cfg.getint('solver', 'niters')
         delta = self.cfg.getint('solver', 'delta')
-        lam = 1.0/gamma_func(delta/2.0) if delta else 0.0
         Pr = self.cfg.getfloat('solver', 'Pr', 1.0)
 
         # Get reflections for wall BCs
@@ -115,7 +113,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
                        c=self.c, u=self.u, bctype=self.type, niters=self.niters,
-                       rsolver=rsolver, pi=np.pi, delta=delta, lam=lam, Pr=Pr,
+                       rsolver=rsolver, pi=np.pi, delta=delta, Pr=Pr,
                        Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
         
         self.kernels['comm_flux'] = lambda: self._be.kernel(

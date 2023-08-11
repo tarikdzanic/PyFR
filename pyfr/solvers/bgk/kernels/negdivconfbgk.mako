@@ -53,7 +53,6 @@
 
         // Set source
         tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;
-
         % if delta:
         tdivtconf[i + ${nuvars}] = -rcpdjac*tdivtconf[i + ${nuvars}] + (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
         % endif
