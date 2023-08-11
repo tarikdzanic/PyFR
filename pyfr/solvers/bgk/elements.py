@@ -36,7 +36,7 @@ def setup_BGK(cfg, ndims):
     psi[:,0] = 1.0
     for i in range(ndims):
         psi[:,i+1] = u[:,i]
-        psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
+    psi[:,-1] = 0.5*np.linalg.norm(u, axis=1)**2
 
     return [u, M, psi]
 
@@ -128,10 +128,12 @@ class BGKElements(BaseAdvectionElements):
         self.ndims = eles.shape[2]
 
         [self.u, self.M, self.psi] = setup_BGK(cfg, self.ndims)
-        self.nvars = len(self.u)
-        
-        self.iterate_ICs = cfg.getbool('solver', 'iterate_ICs', True)
         self.delta = cfg.getint('solver', 'delta')
+        self.iterate_ICs = cfg.getbool('solver', 'iterate_ICs', True)
+
+        self.nuvars = len(self.u)
+        self.nvars = 2*self.nuvars if self.delta else self.nuvars
+        self.nmvars = self.ndims + 2
 
         super().__init__(basiscls, eles, cfg)
 
@@ -141,7 +143,7 @@ class BGKElements(BaseAdvectionElements):
         cons = self.macropri_to_macrocon(pris, cfg)
 
         # Allocate initial distribution function
-        f = np.zeros((self.nupts, self.nvars, self.neles))
+        f = np.zeros((self.nupts, self.nuvars, self.neles))
         gamma = cfg.getfloat('constants', 'gamma')
 
         niters = cfg.getint('solver', 'niters') if self.iterate_ICs else 0 # Large iteration count for ICs
@@ -155,7 +157,12 @@ class BGKElements(BaseAdvectionElements):
                 # Compute local Maxwellian
                 f[uidx, :, eidx] = iterate_DVM(cons_local, self.u, self.ndims, self.psi, self.M, gamma, niters, self.delta)
 
-        return f
+        if self.delta:
+            fg = np.zeros((self.nupts, self.nvars, self.neles))
+            fg[:,:self.nuvars,:] = f
+            return fg
+        else:
+            return f
 
     # Compute macroscopic primitive state variables (moments) from distribution function
     @staticmethod
@@ -222,7 +229,6 @@ class BGKElements(BaseAdvectionElements):
         self.umat = self._be.const_matrix(self.u)
         self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
-        self.nmvars = self.ndims + 2
 
         # Get solver constants
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
@@ -234,15 +240,16 @@ class BGKElements(BaseAdvectionElements):
 
         # Template parameters for the flux kernels
         tplargs = {
-            'ndims': self.ndims, 'nupts': self.nupts, 
-            'nvars': self.nvars, 'nverts': len(self.basis.linspts), 
+            'ndims': self.ndims, 'nupts': self.nupts,
+            'nvars': self.nvars, 'nuvars' : self.nuvars,
+            'nmvars' : self.nmvars, 'nverts': len(self.basis.linspts),
             'c': self.cfg.items_as('constants', float),
             'jac_exprs': self.basis.jac_exprs,
             'srcex': self._src_exprs, 'pi': np.pi,
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega, 'Pr' : Pr, 'nmvars' : self.nmvars
+            'omega' : omega, 'Pr' : Pr,
         }
 
         # Helpers
