@@ -14,15 +14,15 @@
     ${pyfr.expand('calc_smats_detj', 'verts', 'upts', 'smats', 'djac')};
 
     // Compute and transform the fluxes
-for (int j = 0; j < ${nuvars}; j++) {
-    % for i in range(ndims):
-    F[${i}][j] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j]' for k in range(ndims))};
-    % endfor
+    for (int j = 0; j < ${nuvars}; j++) {
+        % for i in range(ndims):
+        F[${i}][j] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j]' for k in range(ndims))};
+        % endfor
 
-    % if delta:
-    % for i in range(ndims):
-    F[${i}][j + ${nuvars}] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j + {nuvars}]' for k in range(ndims))};
-    % endfor
-    % endif
-}
+        % if delta:
+        % for i in range(ndims):
+        F[${i}][j + ${nuvars}] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j + {nuvars}]' for k in range(ndims))};
+        % endfor
+        % endif
+    }
 </%pyfr:kernel>
