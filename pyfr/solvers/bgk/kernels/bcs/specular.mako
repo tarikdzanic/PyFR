@@ -11,7 +11,7 @@ if (abs(abs(nl[0]) - 1.0) < ${ntol} && abs(nl[1]) < ${ntol}) {
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Xidxs[i + nuvars]}];
+	fr[${i + nuvars}] = fl[${Xidxs[i] + nuvars}];
 	% endfor
 	% endif
 }
@@ -22,7 +22,7 @@ else if (abs(abs(nl[1]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol}) {
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Yidxs[i + nuvars]}];
+	fr[${i + nuvars}] = fl[${Yidxs[i] + nuvars}];
 	% endfor
 	% endif
 }
@@ -34,7 +34,7 @@ if (abs(abs(nl[0]) - 1.0) < ${ntol} && abs(nl[1]) < ${ntol} && abs(nl[2]) < ${nt
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Xidxs[i + nuvars]}];
+	fr[${i + nuvars}] = fl[${Xidxs[i] + nuvars}];
 	% endfor
 	% endif
 }
@@ -45,7 +45,7 @@ else if (abs(abs(nl[1]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol} && abs(nl[2]) <
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Yidxs[i + nuvars]}];
+	fr[${i + nuvars}] = fl[${Yidxs[i] + nuvars}];
 	% endfor
 	% endif
 }
@@ -56,7 +56,7 @@ else if (abs(abs(nl[2]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol} && abs(nl[1]) <
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Zidxs[i + nuvars]}];
+	fr[${i + nuvars}] = fl[${Zidxs[i] + nuvars}];
 	% endfor
 	% endif
 }
