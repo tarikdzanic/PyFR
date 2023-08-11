@@ -180,8 +180,13 @@ class BGKElements(BaseAdvectionElements):
     @staticmethod
     def con_to_pri(f, cfg, M, u, psi, ndims):
         pris = []
+        nuvars = len(u)
         for i in range(ndims+2):
-            pris.append(np.einsum('i,ijk->jk', M*psi[...,i], f))
+            pris.append(np.einsum('i,ijk->jk', M*psi[...,i], f[:nuvars,:,:]))
+        
+        # Add internal energy effects
+        if cfg.getfloat('solver', 'delta'):
+            pris[-1] += np.einsum('i,ijk->jk', M, f[nuvars:,:,:])
 
         return pris
     
@@ -196,8 +201,9 @@ class BGKElements(BaseAdvectionElements):
         elif ndims == 3:
             psi2 = [u[:,0]*u[:,1], u[:,0]*u[:,2], u[:,1]*u[:,2]]
  
+        nuvars = len(u)
         for i in range(len(psi2)):
-            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f))
+            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[nuvars:,:,:]))
 
         return pris
 
