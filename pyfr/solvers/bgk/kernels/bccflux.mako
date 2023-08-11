@@ -9,16 +9,31 @@
               fl='inout view fpdtype_t[${str(nvars)}]'
               nl='in fpdtype_t[${str(ndims)}]'
               magnl='in fpdtype_t'
-              u='in broadcast fpdtype_t[${str(nvars)}][${str(ndims)}]'
-              M='in broadcast fpdtype_t[1][${str(nvars)}]'>
+              u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
+              M='in broadcast fpdtype_t[1][${str(nuvars)}]'>
     // Compute the RHS
     fpdtype_t fr[${nvars}];
     ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr', 'u', 'M')};
 
-    // Perform the Riemann solve
-    fpdtype_t Fn[${nvars}];
-    ${pyfr.expand('rsolve', 'fl', 'fr', 'nl', 'Fn', 'u')};
+    // Perform the Riemann solve and write out the common normal fluxes
+    fpdtype_t Fn, ui[${ndims}], fli, fri;
+    for (int i = 0; i < ${nuvars}; i++) {
+        % for j in range(ndims):
+        ui[${j}] = u[i][${j}];
+        % endfor
 
-    // Scale and write out the common normal fluxes
-for (int i = 0; i < ${nvars}; i++) fl[i] = magnl*Fn[i];
+        fli = fl[i];
+        fri = fr[i];
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+
+        fl[i] = magnl*Fn;
+
+        % if delta:
+        fli = fl[i + ${nuvars}];
+        fri = fr[i + ${nuvars}];
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'u')};
+
+        fl[i + ${nuvars}] = magnl*Fn;
+        % endif
+    }
 </%pyfr:kernel>
