@@ -10,7 +10,6 @@
               nl='in fpdtype_t[${str(ndims)}]'
               magnl='in fpdtype_t'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'>
-
     // Perform the Riemann solve and write out the common normal fluxes
     fpdtype_t Fn, ui[${ndims}], fli, fri;
     for (int i = 0; i < ${nuvars}; i++) {

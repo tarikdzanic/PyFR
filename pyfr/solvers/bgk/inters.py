@@ -114,7 +114,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, rsolver=rsolver,
                        c=self.c, u=self.u, bctype=self.type, niters=self.niters,
-                       pi=np.pi, delta=delta,lam=lam, Pr=Pr,
+                       pi=np.pi, delta=delta, lam=lam, Pr=Pr,
                        Xidxs=self.Xidxs, Yidxs=self.Xidxs, Zidxs=self.Xidxs)
         
         self.kernels['comm_flux'] = lambda: self._be.kernel(
