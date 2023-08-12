@@ -203,7 +203,7 @@ class BGKElements(BaseAdvectionElements):
  
         nuvars = len(u)
         for i in range(len(psi2)):
-            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[nuvars:,:,:]))
+            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
 
         return pris
 

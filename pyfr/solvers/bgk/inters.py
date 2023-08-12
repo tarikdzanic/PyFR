@@ -56,8 +56,9 @@ class BGKIntInters(BaseAdvectionIntInters):
 
 
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
+        delta = self.cfg.getfloat('solver', 'delta')
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
-                       rsolver=rsolver, c=self.c)
+                       rsolver=rsolver, c=self.c, delta=delta)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
@@ -74,8 +75,9 @@ class BGKMPIInters(BaseAdvectionMPIInters):
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.mpicflux')
 
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
+        delta = self.cfg.getfloat('solver', 'delta')
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
-                       rsolver=rsolver, c=self.c)
+                       rsolver=rsolver, c=self.c, delta=delta)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', tplargs, dims=[self.ninterfpts],
@@ -93,7 +95,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
 
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         self.niters = self.cfg.getint('solver', 'niters')
-        delta = self.cfg.getint('solver', 'delta')
+        delta = self.cfg.getfloat('solver', 'delta')
         Pr = self.cfg.getfloat('solver', 'Pr', 1.0)
 
         # Get reflections for wall BCs
