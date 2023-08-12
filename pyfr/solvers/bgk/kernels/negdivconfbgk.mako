@@ -10,8 +10,8 @@
               ploc='in fpdtype_t[${str(ndims)}]'
               f='in fpdtype_t[${str(nvars)}]'
               rcpdjac='in fpdtype_t'
-              u='in broadcast fpdtype_t[${str(nvars)}][${str(ndims)}]'
-              M='in broadcast fpdtype_t[1][${str(nvars)}]'>
+              u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
+              M='in broadcast fpdtype_t[1][${str(nuvars)}]'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
@@ -42,7 +42,7 @@
 
     // Set source term
     fpdtype_t g;
-    for (int i = 0; i < ${nvars}; i++) {
+    for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
         ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'g')};
 
@@ -53,6 +53,9 @@
 
         // Set source
         tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;
+        % if delta:
+        tdivtconf[i + ${nuvars}] = -rcpdjac*tdivtconf[i + ${nuvars}] + (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
+        % endif
     }
 
 </%pyfr:kernel>

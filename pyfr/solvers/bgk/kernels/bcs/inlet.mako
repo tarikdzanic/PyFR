@@ -32,6 +32,11 @@
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
 
+    // Compute temperature
+    % if delta:
+    fpdtype_t theta = q[${ndims+1}]/q[0];
+    % endif
+
     % if Pr != 1.0:
     fpdtype_t p = q[${ndims+1}];
     fpdtype_t theta = p/q[0];
@@ -41,12 +46,17 @@
     % endif
 
     // Set RHS state
-    for (int i = 0; i < ${nvars}; i++) {
+    for (int i = 0; i < ${nuvars}; i++) {
         ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
 
         // Apply Shakov model
         % if Pr != 1.0:
         ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'fr[i]')};
+        % endif
+
+        // Apply internal energy effects
+        % if delta:
+        fr[i + ${nuvars}] = fr[i]*theta*${delta/2.0};
         % endif
     }
 </%pyfr:macro>

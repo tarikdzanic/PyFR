@@ -42,9 +42,9 @@
     % endif
 
     // Compute mass-preserving scaling factor
-    fpdtype_t Mw[${nvars}];
+    fpdtype_t Mw[${nuvars}];
     fpdtype_t un, eta1 = 0.0, eta2 = 0.0;
-    for (int i = 0; i < ${nvars}; i++) {
+    for (int i = 0; i < ${nuvars}; i++) {
         un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
 
         // Compute equilibrium distribution at i-th velocity point
@@ -66,7 +66,12 @@
 
     // Scale RHS state to preserve zero mass flux
     fpdtype_t eta = eta1/eta2;
-    for (int i = 0; i < ${nvars}; i++) {
+    for (int i = 0; i < ${nuvars}; i++) {
         fr[i] = eta*Mw[i];
+        
+        // Apply internal energy effects
+        % if delta:
+        fr[i + ${nuvars}] = fr[i]*${c['theta']*delta/2.0};
+        % endif
     }
 </%pyfr:macro>

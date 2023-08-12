@@ -10,18 +10,22 @@
     % endfor
 
     fpdtype_t fm;
-    for (int i = 0; i < ${nvars}; i++) {
-        fm = f[i]*M[0][i];
+    for (int i = 0; i < ${nuvars}; i++) {
+        fm = M[0][i]*f[i];
 
         w[0] += fm;
         w[1] += fm*u[i][0];
         w[2] += fm*u[i][1];
-    % if ndims == 2:
+        % if ndims == 2:
         w[3] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
-    % elif ndims == 3:
+        % elif ndims == 3:
         w[3] += fm*u[i][2];
         w[4] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
-    % endif
+        % endif
+
+        % if delta:
+        w[${ndims+1}] += M[0][i]*f[i + ${nuvars}];
+        % endif
     }
 </%pyfr:macro>
 
@@ -60,11 +64,10 @@
 
 <%pyfr:macro name='compute_equilibrium_distribution' params='alpha, u, i, g'>
     // Compute square of pecular velocity
-    fpdtype_t dv2;
     % if ndims == 2:
-    dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]);
+    fpdtype_t dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]);
     % elif ndims == 3:
-    dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]);
+    fpdtype_t dv2 = (u[i][0]-alpha[2])*(u[i][0]-alpha[2]) + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]);
     % endif
 
     // Compute monatomic Maxwellian
@@ -101,7 +104,10 @@
     fpdtype_t R[${ndims+2}];
     fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
     fpdtype_t mmnts[${ndims+2}];
-    fpdtype_t gm;
+    fpdtype_t gm, Mgm;
+
+    // Pre-compute theta*delta/2.0
+    fpdtype_t td2 = ${0.25*delta}/alpha[1];
     
     for (int iter = 0; iter < ${niters}; iter++) {
         // Zero cost-function and Jacobian
@@ -113,27 +119,31 @@
         % endfor
 
         // Compute discrete Maxwellian
-        for (int i = 0; i < ${nvars}; i++) {
+        for (int i = 0; i < ${nuvars}; i++) {
             ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'gm')};
 
             // Precompute moment factors
-            mmnts[0] = M[0][i]*gm;
-            mmnts[1] = M[0][i]*gm*u[i][0];
-            mmnts[2] = M[0][i]*gm*u[i][1];
-        % if ndims == 2:
-            mmnts[3] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
-        % elif ndims == 3:
-            mmnts[3] = M[0][i]*gm*u[i][2];
-            mmnts[4] = 0.5*M[0][i]*gm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
-        % endif
+            Mgm = M[0][i]*gm;
+            mmnts[0] = Mgm;
+            mmnts[1] = Mgm*u[i][0];
+            mmnts[2] = Mgm*u[i][1];
+            % if ndims == 2:
+            mmnts[3] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
+            % elif ndims == 3:
+            mmnts[3] = Mgm*u[i][2];
+            mmnts[4] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
+            % endif
 
-        % for ivar in range(ndims+2):
+            // Add internal energy effects
+            % if delta:
+            mmnts[${ndims+1}] += Mgm*td2;
+            % endif
+
+            // Compute Jacobian
+            % for ivar in range(ndims+2):
             R[${ivar}] += mmnts[${ivar}];
 
             J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
-            J[${ivar}][2] += mmnts[${ivar}]*2*alpha[1]*(u[i][0] - alpha[2]);
-            J[${ivar}][3] += mmnts[${ivar}]*2*alpha[1]*(u[i][1] - alpha[3]);
-
             % if ndims == 2:
             J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
                                              + (u[i][1]-alpha[3])*(u[i][1]-alpha[3]) );
@@ -141,9 +151,11 @@
             J[${ivar}][1] += -mmnts[${ivar}]*( (u[i][0]-alpha[2])*(u[i][0]-alpha[2])
                                              + (u[i][1]-alpha[3])*(u[i][1]-alpha[3])
                                              + (u[i][2]-alpha[4])*(u[i][2]-alpha[4]) );
-            J[${ivar}][4] += mmnts[${ivar}]*2*alpha[1]*(u[i][2] - alpha[4]);
             % endif
-        % endfor
+            % for dvar in range(ndims):
+            J[${ivar}][${2+dvar}] += mmnts[${ivar}]*2*alpha[1]*(u[i][${dvar}] - alpha[${2+dvar}]);
+            % endfor
+            % endfor
         }
 
 
