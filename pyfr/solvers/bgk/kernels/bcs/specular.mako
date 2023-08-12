@@ -7,22 +7,22 @@
 // If +/- X normal:
 if (abs(abs(nl[0]) - 1.0) < ${ntol} && abs(nl[1]) < ${ntol}) {
 	% for i in range(nuvars):
-	fr[${i}] = fl[${Xidxs[i]}];
+	fr[${i}] = fl[${reflidxs[0][i]}];
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Xidxs[i] + nuvars}];
+	fr[${i + nuvars}] = fl[${reflidxs[0][i] + nuvars}];
 	% endfor
 	% endif
 }
 // If +/- Y normal:
 else if (abs(abs(nl[1]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol}) {
 	% for i in range(nuvars):
-	fr[${i}] = fl[${Yidxs[i]}];
+	fr[${i}] = fl[${reflidxs[1][i]}];
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Yidxs[i] + nuvars}];
+	fr[${i + nuvars}] = fl[${reflidxs[1][i] + nuvars}];
 	% endfor
 	% endif
 }
@@ -30,33 +30,33 @@ else if (abs(abs(nl[1]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol}) {
 // If +/- X normal:
 if (abs(abs(nl[0]) - 1.0) < ${ntol} && abs(nl[1]) < ${ntol} && abs(nl[2]) < ${ntol}) {
 	% for i in range(nuvars):
-	fr[${i}] = fl[${Xidxs[i]}];
+	fr[${i}] = fl[${reflidxs[0][i]}];
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Xidxs[i] + nuvars}];
+	fr[${i + nuvars}] = fl[${reflidxs[0][i] + nuvars}];
 	% endfor
 	% endif
 }
 // If +/- Y normal:
 else if (abs(abs(nl[1]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol} && abs(nl[2]) < ${ntol}) {
 	% for i in range(nuvars):
-	fr[${i}] = fl[${Yidxs[i]}];
+	fr[${i}] = fl[${reflidxs[1][i]}];
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Yidxs[i] + nuvars}];
+	fr[${i + nuvars}] = fl[${reflidxs[1][i] + nuvars}];
 	% endfor
 	% endif
 }
 // If +/- Z normal:
 else if (abs(abs(nl[2]) - 1.0) < ${ntol} && abs(nl[0]) < ${ntol} && abs(nl[1]) < ${ntol}) {
 	% for i in range(nuvars):
-	fr[${i}] = fl[${Zidxs[i]}];
+	fr[${i}] = fl[${reflidxs[2][i]}];
 	% endfor
 	% if delta:
 	% for i in range(nuvars):
-	fr[${i + nuvars}] = fl[${Zidxs[i] + nuvars}];
+	fr[${i + nuvars}] = fl[${reflidxs[2][i] + nuvars}];
 	% endfor
 	% endif
 }
