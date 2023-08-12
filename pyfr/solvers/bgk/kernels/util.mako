@@ -74,32 +74,6 @@
     g = alpha[0]*exp(-alpha[1]*dv2);
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_Shakov_heatflux' params='alpha, f, M, u, S'>
-    fpdtype_t c[${ndims}];
-    for (int i = 0; i < ${nvars}; i++) {
-        // Compute peculiar velocity (based on DVM velocity)
-        % for j in range(ndims):
-        c[${j}] = u[i][${j}] - alpha[${j+2}];
-        % endfor
-        fpdtype_t c2 = ${pyfr.dot('c[{j}]', j=ndims)};
-
-        % for j in range(ndims):
-        S[${j}] += f[i]*M[0][i]*c2*c[${j}];
-        % endfor
-    }
-</%pyfr:macro>
-
-<%pyfr:macro name='apply_Shakov_model' params='alpha, u, S, p, theta, Pr, i, g'>
-    fpdtype_t c[${ndims}];
-    % for j in range(ndims):
-    c[${j}] = u[i][${j}] - alpha[${j+2}];
-    % endfor
-    fpdtype_t c2 = ${pyfr.dot('c[{j}]', j=ndims)};
-    fpdtype_t Sc = ${pyfr.dot('S[{j}]', 'c[{j}]', j=ndims)};
-
-    g *= 1 + ((1.0 - Pr)/5.0)*Sc*(c2/(2*theta) - 2.5)/(p*theta);
-</%pyfr:macro>
-
 <%pyfr:macro name='iterate_DVM' params='alpha, w, u, M'>
     fpdtype_t R[${ndims+2}];
     fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
