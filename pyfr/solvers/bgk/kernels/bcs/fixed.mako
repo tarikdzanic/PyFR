@@ -28,22 +28,9 @@
     fpdtype_t theta = q[${ndims+1}]/q[0];
     % endif
 
-    // Precompute necessary data for Shakov model (for Prandtl number effects)
-    % if Pr != 1.0:
-    fpdtype_t p = q[${ndims+1}];
-    fpdtype_t S[${ndims}] = {0};
-    fpdtype_t Pr = ${Pr};
-    ${pyfr.expand('compute_Shakov_heatflux', 'alpha', 'f', 'M', 'u', 'S')};
-    % endif
-
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
         ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
-
-        // Apply Shakov model
-        % if Pr != 1.0:
-        ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'fr[i]')};
-        % endif
 
         // Apply internal energy effects
         % if delta:

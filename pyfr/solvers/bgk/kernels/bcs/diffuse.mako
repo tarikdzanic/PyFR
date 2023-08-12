@@ -32,15 +32,6 @@
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
 
-    // Precompute necessary data for Shakov model (for Prandtl number effects)
-    % if Pr != 1.0:
-    fpdtype_t p = q[${ndims+1}];
-    fpdtype_t theta = p/q[0];
-    fpdtype_t S[${ndims}] = {0};
-    fpdtype_t Pr = ${Pr};
-    ${pyfr.expand('compute_Shakov_heatflux', 'alpha', 'f', 'M', 'u', 'S')};
-    % endif
-
     // Compute mass-preserving scaling factor
     fpdtype_t Mw[${nuvars}];
     fpdtype_t un, eta1 = 0.0, eta2 = 0.0;
@@ -49,11 +40,6 @@
 
         // Compute equilibrium distribution at i-th velocity point
         ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'Mw[i]')};
-
-        // Apply Shakov model
-        % if Pr != 1.0:
-        ${pyfr.expand('apply_Shakov_model', 'alpha', 'u', 'S', 'p', 'theta', 'Pr', 'i', 'Mw[i]')};
-        % endif
 
         // Balance mass flux
         if (un > 0.0) {
