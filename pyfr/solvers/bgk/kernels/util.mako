@@ -112,7 +112,7 @@
     fpdtype_t c1 = u[1] - alpha[8];
     fpdtype_t c2 = u[2] - alpha[9];
 
-    fpdtype_t dv2 = alpha[1]*c0*c0 + 2*alpha[2]*c0*c1 + 2*alpha[3]*c0*c2 + 2*alpha[4]*c1*c1 + 2*alpha[5]*c1*c2 + alpha[6]*c2*c2;
+    fpdtype_t dv2 = alpha[1]*c0*c0 + 2*alpha[2]*c0*c1 + 2*alpha[3]*c0*c2 + alpha[4]*c1*c1 + 2*alpha[5]*c1*c2 + alpha[6]*c2*c2;
     % endif
 
     // Compute ellipsoidal distribution
@@ -208,7 +208,129 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, w, u, M'>
+<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, q, u, M'>
+    fpdtype_t R[${4*ndims-2}];
+    fpdtype_t J[${4*ndims-2}][${4*ndims-2}], Jinv[${4*ndims-2}][${4*ndims-2}];
+    fpdtype_t mmnts[${4*ndims-2}], w2[${4*ndims-2}];
+    fpdtype_t gm, Mgm, invdet;
+
+    // Pre-compute theta*delta/2.0
+    // REDOO THIS #TD
+    fpdtype_t td2 = ${0.25*delta}/alpha[1];
+
+    // Compute extended macroscopic state
+    % if ndims == 2:
+    w2[0] = q[0];
+    w2[1] = q[0]*q[1];
+    w2[2] = q[0]*q[2];
+    w2[3] = q[0]*q[1]*q[1] + ${1.0/(c['gamma']-1.0)}*q[3];
+    w2[4] = q[0]*q[1]*q[2];
+    w2[5] = q[0]*q[2]*q[2] + ${1.0/(c['gamma']-1.0)}*q[3];
+    % elif ndims == 3:
+    w2[0] = q[0];
+    w2[1] = q[0]*q[1];
+    w2[2] = q[0]*q[2];
+    w2[3] = q[0]*q[3];
+    w2[4] = q[0]*q[1]*q[1] + ${1.0/(c['gamma']-1.0)}*q[4];
+    w2[5] = q[0]*q[1]*q[2];
+    w2[6] = q[0]*q[1]*q[3];
+    w2[7] = q[0]*q[2]*q[2] + ${1.0/(c['gamma']-1.0)}*q[4];
+    w2[8] = q[0]*q[2]*q[3];
+    w2[9] = q[0]*q[3]*q[2] + ${1.0/(c['gamma']-1.0)}*q[4];
+    % endif
+    
+    for (int iter = 0; iter < ${niters}; iter++) {
+        // Zero cost-function and Jacobian
+        % for ivar in range(4*ndims-2):
+        R[${ivar}] = 0; 
+        % for jvar in range(4*ndims-2):
+        J[${ivar}][${jvar}] = 0; 
+        % endfor
+        % endfor
+
+        // Compute discrete Maxwellian
+        for (int i = 0; i < ${nuvars}; i++) {
+            ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'gm')};
+
+            // Precompute moment factors
+            Mgm = M[0][i]*gm;
+            mmnts[0] = Mgm;
+            mmnts[1] = Mgm*u[i][0];
+            mmnts[2] = Mgm*u[i][1];
+            % if ndims == 2:
+            mmnts[3] = Mgm*u[i][0]*u[i][0];
+            mmnts[4] = Mgm*u[i][0]*u[i][1];
+            mmnts[5] = Mgm*u[i][1]*u[i][1];
+            % elif ndims == 3:
+            mmnts[3] = Mgm*u[i][2];
+            mmnts[4] = Mgm*u[i][0]*u[i][0];
+            mmnts[5] = Mgm*u[i][0]*u[i][1];
+            mmnts[6] = Mgm*u[i][0]*u[i][2];
+            mmnts[7] = Mgm*u[i][1]*u[i][1];
+            mmnts[8] = Mgm*u[i][1]*u[i][2];
+            mmnts[9] = Mgm*u[i][2]*u[i][2];
+            % endif
+
+            // Add internal energy effects
+            // REDO
+            % if delta:
+            ///mmnts[${ndims+1}] += Mgm*td2;
+            % endif
+
+            // Compute Jacobian
+            % if ndims == 2:
+            fpdtype_t c0 = u[i][0] - alpha[4];
+            fpdtype_t c1 = u[i][1] - alpha[5];
+
+            % for ivar in range(4*ndims-2):
+            R[${ivar}] += mmnts[${ivar}];
+
+            J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
+            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0);
+            J[${ivar}][2] += mmnts[${ivar}]*(-c0*c1);
+            J[${ivar}][3] += mmnts[${ivar}]*(-0.5*c1*c1);
+            J[${ivar}][4] += mmnts[${ivar}]*(alpha[1]*c0 + alpha[2]*c1);
+            J[${ivar}][5] += mmnts[${ivar}]*(alpha[2]*c0 + alpha[3]*c1);
+            % endfor
+            % elif ndims == 3:
+            fpdtype_t c0 = u[i][0] - alpha[7];
+            fpdtype_t c1 = u[i][1] - alpha[8];
+            fpdtype_t c2 = u[i][2] - alpha[9];
+
+            % for ivar in range(4*ndims-2):
+            R[${ivar}] += mmnts[${ivar}];
+
+            J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
+            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0);
+            J[${ivar}][2] += mmnts[${ivar}]*(-c0*c1);
+            J[${ivar}][3] += mmnts[${ivar}]*(-c0*c2);
+            J[${ivar}][4] += mmnts[${ivar}]*(-0.5*c1*c1);
+            J[${ivar}][5] += mmnts[${ivar}]*(-c1*c2);
+            J[${ivar}][6] += mmnts[${ivar}]*(-0.5*c2*c2);
+            J[${ivar}][7] += mmnts[${ivar}]*(alpha[1]*c0 + alpha[2]*c1 + alpha[3]*c2);
+            J[${ivar}][8] += mmnts[${ivar}]*(alpha[2]*c0 + alpha[4]*c1 + alpha[5]*c2);
+            J[${ivar}][9] += mmnts[${ivar}]*(alpha[3]*c0 + alpha[5]*c1 + alpha[6]*c2);
+            % endfor
+            % endif
+        }
+
+        // Get defect
+        % for var in range(4*ndims-2):
+        R[${var}] -= w2[${var}];
+        % endfor
+
+        // Compute inverse Jacobian
+        % if ndims == 2:
+        ${pyfr.expand('compute_6x6inverse', 'J', 'Jinv', 'invdet')};
+        % elif ndims == 3:
+        ${pyfr.expand('compute_10x10inverse', 'J', 'Jinv', 'invdet')};
+        % endif
+
+        // Take Newton iteration
+        % for var in range(4*ndims-2):
+        alpha[${var}] = alpha[${var}] - (${' + '.join('Jinv[{var}][{i}]*R[{i}]'.format(var=var, i=i) for i in range(4*ndims-2))});
+        % endfor
+    }
 </%pyfr:macro>
 
 
