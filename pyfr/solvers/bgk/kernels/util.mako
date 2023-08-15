@@ -29,6 +29,34 @@
     }
 </%pyfr:macro>
 
+<%pyfr:macro name='compute_extended_moments' params='f, u, M, exm'>
+    % for i in range(4*ndims-2):
+    exm[${i}] = 0.0;
+    % endfor
+
+    fpdtype_t fm;
+    for (int i = 0; i < ${nuvars}; i++) {
+        fm = M[0][i]*f[i];
+
+        exm[0] += fm;
+        exm[1] += fm*u[i][0];
+        exm[2] += fm*u[i][1];
+        % if ndims == 2:
+        exm[3] += fm*u[i][0]*u[i][0];
+        exm[4] += fm*u[i][0]*u[i][1];
+        exm[5] += fm*u[i][1]*u[i][1];
+        % elif ndims == 3:
+        exm[3] += fm*u[i][2];
+        exm[4] += fm*u[i][0]*u[i][0];
+        exm[5] += fm*u[i][0]*u[i][1];
+        exm[6] += fm*u[i][0]*u[i][2];
+        exm[7] += fm*u[i][1]*u[i][1];
+        exm[8] += fm*u[i][1]*u[i][2];
+        exm[9] += fm*u[i][2]*u[i][2];
+        % endif
+    }
+</%pyfr:macro>
+
 <%pyfr:macro name='con_to_pri' params='w, q'>
     q[0] = w[0];
     q[1] = w[1]/w[0];
@@ -208,37 +236,15 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, q, u, M'>
+<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, exm, u, M'>
     fpdtype_t R[${4*ndims-2}];
     fpdtype_t J[${4*ndims-2}][${4*ndims-2}], Jinv[${4*ndims-2}][${4*ndims-2}];
-    fpdtype_t mmnts[${4*ndims-2}], w2[${4*ndims-2}];
+    fpdtype_t mmnts[${4*ndims-2}];
     fpdtype_t gm, Mgm, invdet;
 
     // Pre-compute theta*delta/2.0
-    // REDOO THIS #TD
-    fpdtype_t td2 = ${0.25*delta}/alpha[1];
-
-    // Compute extended macroscopic state
-    % if ndims == 2:
-    w2[0] = q[0];
-    w2[1] = q[0]*q[1];
-    w2[2] = q[0]*q[2];
-    w2[3] = q[0]*q[1]*q[1] + ${1.0/(c['gamma']-1.0)}*q[3];
-    w2[4] = q[0]*q[1]*q[2];
-    w2[5] = q[0]*q[2]*q[2] + ${1.0/(c['gamma']-1.0)}*q[3];
-    % elif ndims == 3:
-    w2[0] = q[0];
-    w2[1] = q[0]*q[1];
-    w2[2] = q[0]*q[2];
-    w2[3] = q[0]*q[3];
-    w2[4] = q[0]*q[1]*q[1] + ${1.0/(c['gamma']-1.0)}*q[4];
-    w2[5] = q[0]*q[1]*q[2];
-    w2[6] = q[0]*q[1]*q[3];
-    w2[7] = q[0]*q[2]*q[2] + ${1.0/(c['gamma']-1.0)}*q[4];
-    w2[8] = q[0]*q[2]*q[3];
-    w2[9] = q[0]*q[3]*q[2] + ${1.0/(c['gamma']-1.0)}*q[4];
-    % endif
-    
+    fpdtype_t td2 = ${0.25*delta}/(q[${ndims+1}]/q[0]);
+   
     for (int iter = 0; iter < ${niters}; iter++) {
         // Zero cost-function and Jacobian
         % for ivar in range(4*ndims-2):
@@ -316,7 +322,7 @@
 
         // Get defect
         % for var in range(4*ndims-2):
-        R[${var}] -= w2[${var}];
+        R[${var}] -= exm[${var}];
         % endfor
 
         // Compute inverse Jacobian

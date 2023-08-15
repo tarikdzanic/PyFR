@@ -44,8 +44,12 @@
     fpdtype_t alpha_es[${4*ndims-2}];
     ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'alpha_es')};
 
+    // Get extended moments
+    fpdtype_t exm[${4*ndims-2}];
+    ${pyfr.expand('compute_extended_moments', 'f', 'u', 'M', 'exm')};
+
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha_es', 'w', 'u', 'M')};    
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha_es', 'exm', 'u', 'M')};    
     % endif
 
     // Compute collision time based on viscosity model
