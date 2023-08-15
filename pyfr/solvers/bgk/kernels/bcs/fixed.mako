@@ -18,7 +18,7 @@
 
     // Get alpha vector
     fpdtype_t alpha[${ndims+2}];
-    ${pyfr.expand('compute_alpha', 'q', 'alpha')};
+    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
