@@ -30,7 +30,27 @@
     ${pyfr.expand('compute_alpha', 'q', 'alpha')};
     
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
+    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+
+    // Apply ES-BGK model if necessary
+    % if Pr != 1:
+    fpdtype_t gm[${nuvars}];
+    for (int i = 0; i < ${nuvars}; i++) {
+        // Compute equilibrium distribution at i-th velocity point
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'gm[i]')};
+    }
+
+    // Compute initial temperature tensor
+    fpdtype_t T[${ndims}][${ndims}] = {0};
+    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'gm', 'alpha', 'u', 'M')}; 
+
+    // Get alpha vector
+    fpdtype_t alpha_es[${4*ndims-2}];
+    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'alpha_es')};
+
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha_es', 'w', 'u', 'M')};    
+    % endif
 
     // Compute mass-preserving scaling factor
     fpdtype_t Mw[${nuvars}];
@@ -39,7 +59,11 @@
         un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
 
         // Compute equilibrium distribution at i-th velocity point
+        % if Pr != 1:
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha_es', 'u[i]', 'Mw[i]')};
+        % else:
         ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'Mw[i]')};
+        % endif
 
         // Balance mass flux
         if (un > 0.0) {

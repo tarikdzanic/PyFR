@@ -28,6 +28,7 @@
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
 
+    // Apply ES-BGK model if necessary
     % if Pr != 1:
     fpdtype_t gm[${nuvars}];
     for (int i = 0; i < ${nuvars}; i++) {
