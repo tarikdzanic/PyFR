@@ -130,7 +130,7 @@ class BGKElements(BaseAdvectionElements):
         self.ndims = eles.shape[2]
 
         [self.u, self.M, self.psi] = setup_BGK(cfg, self.ndims)
-        self.delta = cfg.getint('solver', 'delta')
+        self.delta = cfg.getfloat('solver', 'delta', 0.0)
         self.iterate_ICs = cfg.getbool('solver', 'iterate_ICs', True)
 
         self.nuvars = len(self.u)
@@ -151,7 +151,6 @@ class BGKElements(BaseAdvectionElements):
         theta = np.zeros((self.nupts, self.neles))
 
         gamma = cfg.getfloat('constants', 'gamma')
-        delta = cfg.getfloat('solver', 'delta')
         niters = cfg.getint('solver', 'niters') if self.iterate_ICs else 0 # Large iteration count for ICs
 
         for uidx in range(self.nupts):
@@ -171,7 +170,7 @@ class BGKElements(BaseAdvectionElements):
         if self.delta:
             fg = np.zeros((self.nupts, self.nvars, self.neles))
             fg[:,:self.nuvars,:] = f # Integral of F dzeta from 0 to infinity = f (because of gamma_func(delta/2) normalization factor)
-            fg[:,self.nuvars:,:] = f*theta[:,None,:]*delta/2.0 # Integral of F*zeta dzeta from 0 to infinity = f*theta*delta/2
+            fg[:,self.nuvars:,:] = f*theta[:,None,:]*self.delta/2.0 # Integral of F*zeta dzeta from 0 to infinity = f*theta*delta/2
             return fg
         else:
             return f
@@ -185,7 +184,7 @@ class BGKElements(BaseAdvectionElements):
             pris.append(np.einsum('i,ijk->jk', M*psi[...,i], f[:nuvars,:,:]))
         
         # Add internal energy effects
-        if cfg.getfloat('solver', 'delta'):
+        if cfg.getfloat('solver', 'delta', 0.0):
             pris[-1] += np.einsum('i,ijk->jk', M, f[nuvars:,:,:])
 
         return pris
@@ -253,6 +252,7 @@ class BGKElements(BaseAdvectionElements):
         rho_ref = self.cfg.getfloat('constants', 'rho_ref')
         P_ref = self.cfg.getfloat('constants', 'P_ref')
         omega = self.cfg.getfloat('constants', 'omega')
+        Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
         theta_ref = P_ref/rho_ref
 
         # Template parameters for the flux kernels
@@ -266,7 +266,7 @@ class BGKElements(BaseAdvectionElements):
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega,
+            'omega' : omega, 'Pr' : Pr
         }
 
         # Helpers

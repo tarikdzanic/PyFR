@@ -30,7 +30,7 @@
 
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'fr[i]')};
 
         // Apply internal energy effects
         % if delta:

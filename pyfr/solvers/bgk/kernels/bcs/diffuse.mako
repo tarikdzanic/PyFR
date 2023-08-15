@@ -39,7 +39,7 @@
         un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
 
         // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'Mw[i]')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'Mw[i]')};
 
         // Balance mass flux
         if (un > 0.0) {

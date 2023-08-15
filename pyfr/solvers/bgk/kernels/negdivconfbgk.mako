@@ -23,21 +23,44 @@
 
     // Get alpha vector
     fpdtype_t alpha[${ndims+2}];
-    ${pyfr.expand('compute_alpha', 'q', 'alpha')};
+    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
+    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+
+    % if Pr != 1:
+    fpdtype_t gm[${nuvars}];
+    for (int i = 0; i < ${nuvars}; i++) {
+        // Compute equilibrium distribution at i-th velocity point
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'gm[i]')};
+    }
+
+    // Compute initial temperature tensor
+    fpdtype_t T[${ndims}][${ndims}] = {0};
+    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'gm', 'alpha', 'u', 'M')}; 
+
+    // Get alpha vector
+    fpdtype_t alpha_es[${4*ndims-2}];
+    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'alpha_es')};
+
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha_es', 'w', 'u', 'M')};    
+    % endif
 
     // Compute collision time based on viscosity model
     fpdtype_t p = q[${ndims+1}];
     fpdtype_t theta = p/q[0];
-    fpdtype_t tau = ${tau_ref}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
+    fpdtype_t tau = ${tau_ref/Pr}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
 
     // Set source term
     fpdtype_t g;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'g')};
+        % if Pr != 1:
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha_es', 'u[i]', 'g')};
+        % else:
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
+        % endif
 
         // Set source
         tdivtconf[i] = -rcpdjac*tdivtconf[i] + (g - f[i])/tau;

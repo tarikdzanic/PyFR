@@ -15,9 +15,9 @@
     // Compute RHS state
     fpdtype_t w[${ndims+2}];
     w[0] = ${c['rho']};
-% for i, v in enumerate('uvw'[:ndims]):
+    % for i, v in enumerate('uvw'[:ndims]):
     w[${i+1}] = (${c['rho']})*(${c[v]});
-% endfor
+    % endfor
     w[${ndims+1}] = ql[${ndims+1}]/${c['gamma']-1}
                     + (0.5/w[0])*${pyfr.dot('w[{i}]', i=(1, ndims + 1))};
 
@@ -39,7 +39,7 @@
 
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'fr[i]')};
 
         // Apply internal energy effects
         % if delta:
