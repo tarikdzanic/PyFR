@@ -17,6 +17,14 @@ def setup_BGK(cfg, ndims):
     mins = list(offsets - vmax)
     maxs = list(offsets + vmax)
 
+    # Ensure that symmetric velocity space is used for ES-BGK
+    if cfg.getfloat('constants', 'Pr', 1.0) != 1.0:
+        c1 = all(N == Ns[0] for N in Ns)
+        c2 = all(m == mins[0] for m in mins)
+        c3 = all(m == maxs[0] for m in maxs)
+        if not (c1 and c2 and c3):
+            raise ValueError('Symmetric velocity space must be used for ES-BGK.')
+
     # Helper function to create 1D trapezoidal rule
     linwts = lambda N, mass: (np.array([0.5] + list(np.ones(N)[1:-1]) + [0.5]))*mass/(N-1)
 
