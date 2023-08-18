@@ -137,7 +137,6 @@
 
     // Compute ellipsoidal distribution
     g = alpha[0]*exp(-0.5*dv2);
-    //printf("%f %f %f %f %f %f %f %f %f\n", alpha[0], alpha[1], alpha[2], alpha[3], Tvinv[0][0], Tvinv[0][1], Tvinv[1][1], dv2, g);
 </%pyfr:macro>
 
 <%pyfr:macro name='compute_temperature_tensor' params='T, f, q, u, M'>
@@ -151,10 +150,12 @@
 </%pyfr:macro>
 
 <%pyfr:macro name='compute_temperature_Jacobian' params='T, dTvinvdtheta, theta'>
+    // Compute d/dtheta of T + theta*I where T is symmetric
+    // Use M = det(T)*T^(-1), so that T^(-1) = M/det(T)
+    fpdtype_t det, ddet, rcpdet2;
     % if ndims == 2:
     /* 
-    Compute d/dtheta of T + theta*I where T is symmetric
-    Use M = det(T)*T^(-1), so that T^(-1) = M/det(T)
+    For 2D:
 
     M[0][0] = T[1][1] + theta;
     M[0][1] = -T[0][1];
@@ -162,10 +163,9 @@
 
     dM[0][0] = 1.0;
     dM[0][1] = 0.0;
-    dM[1][1]  = 1.0;
+    dM[1][1] = 1.0;
     */
 
-    fpdtype_t det, ddet, rcpdet2;
     det = (T[0][0] + theta)*(T[1][1] + theta) - T[0][1]*T[0][1];
     ddet = 2*theta + T[0][0] + T[1][1];
     rcpdet2 = 1.0/(det*det);
@@ -174,6 +174,39 @@
     dTvinvdtheta[1] = rcpdet2*(T[0][1]*ddet);
     dTvinvdtheta[2] = rcpdet2*(det - (T[0][0] + theta)*ddet);
     % elif ndims == 3:
+    /* 
+    For 3D:
+
+    */
+    
+    fpdtype_t M[${ndims}][${ndims}] = {{0}};
+    fpdtype_t dM[${ndims}][${ndims}] = {{0}};
+    M[0][0] =   (T[1][1] + theta)*(T[2][2] + theta) - (T[1][2])*(T[1][2]);
+    M[0][1] = - (T[0][1])*(T[2][2] + theta) - (T[0][2])*(T[1][2]);
+    M[0][2] =   (T[0][1])*(T[1][2]) - (T[0][2])*(T[1][1] + theta);
+    M[1][1] =   (T[0][0] + theta)*(T[2][2] + theta) - (T[0][2])*(T[0][2]);
+    M[1][2] = - (T[0][0] + theta)*(T[1][2]) - (T[0][2])*(T[0][1]);
+    M[2][2] =   (T[0][0] + theta)*(T[1][1] + theta) - (T[0][1])*(T[0][1]);
+
+    dM[0][0] = 2*theta + T[1][1] + T[2][2];
+    dM[0][1] = T[0][1];
+    dM[0][2] = -T[0][2];
+    dM[1][1] = 2*theta + T[0][0] + T[2][2];
+    dM[1][2] = T[1][2];
+    dM[2][2] = 2*theta + T[0][0] + T[1][1];
+
+    det  = (T[0][0] + theta)*((T[1][1] + theta)*(T[2][2] + theta) - (T[1][2])*(T[1][2])) 
+	     - (T[0][1])        *((T[0][1])        *(T[2][2] + theta) - (T[1][2])*(T[0][2])) 
+	     + (T[0][2])        *((T[0][1])        *(T[1][2])         - (T[1][1] + theta)*(T[0][2]));
+    ddet = (T[0][0] + theta)*(T[1][1] + T[2][2] + 2*theta) - T[0][1]*T[0][1] - T[0][2]*T[0][2] + (T[1][1] + theta)*(T[2][2] + theta) - T[1][2]*T[1][2];
+    rcpdet2 = 1.0/(det*det);
+
+    dTvinvdtheta[0] = rcpdet2*(dM[0][0]*det - M[0][0]*ddet);
+    dTvinvdtheta[1] = rcpdet2*(dM[0][1]*det - M[0][1]*ddet);
+    dTvinvdtheta[2] = rcpdet2*(dM[0][2]*det - M[0][2]*ddet);
+    dTvinvdtheta[3] = rcpdet2*(dM[1][1]*det - M[1][1]*ddet);
+    dTvinvdtheta[4] = rcpdet2*(dM[1][2]*det - M[1][2]*ddet);
+    dTvinvdtheta[5] = rcpdet2*(dM[2][2]*det - M[2][2]*ddet);
     % endif
 </%pyfr:macro>
 
@@ -313,6 +346,17 @@
             fpdtype_t c0 = u[i][0] - alpha[2];
             fpdtype_t c1 = u[i][1] - alpha[3];
             fpdtype_t c2 = u[i][2] - alpha[4];
+
+            % for ivar in range(ndims+2):
+            R[${ivar}] += mmnts[${ivar}];
+
+            J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
+            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0*dTvinvdtheta[0] - c0*c1*dTvinvdtheta[1] - c0*c2*dTvinvdtheta[2]
+                                             -0.5*c1*c1*dTvinvdtheta[3] - c1*c2*dTvinvdtheta[4] - 0.5*c2*c2*dTvinvdtheta[5]);
+            J[${ivar}][2] += mmnts[${ivar}]*(Tvinv[0][0]*c0 + Tvinv[0][1]*c1 + Tvinv[0][2]*c2);
+            J[${ivar}][3] += mmnts[${ivar}]*(Tvinv[0][1]*c0 + Tvinv[1][1]*c1 + Tvinv[1][2]*c2);
+            J[${ivar}][4] += mmnts[${ivar}]*(Tvinv[0][2]*c0 + Tvinv[1][2]*c1 + Tvinv[2][2]*c2);
+            % endfor
             % endif
         }
 
