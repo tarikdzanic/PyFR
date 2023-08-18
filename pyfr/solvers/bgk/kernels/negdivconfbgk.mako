@@ -21,35 +21,25 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
+    // Apply ES-BGK model if necessary
+    % if Pr != 1:
+    // Compute initial temperature tensor (scaled by 1 - 1/Pr)
+    fpdtype_t T[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'q', 'u', 'M')}; 
+
+    // Get alpha vector
+    fpdtype_t alpha[${ndims+2}], Tvinv[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'Tvinv', 'alpha')};
+
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'w', 'T', 'Tvinv', 'u', 'M')};
+    % else:
     // Get alpha vector
     fpdtype_t alpha[${ndims+2}];
     ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
-
-    // Apply ES-BGK model if necessary
-    % if Pr != 1:
-    fpdtype_t gm[${nuvars}];
-    for (int i = 0; i < ${nuvars}; i++) {
-        // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'gm[i]')};
-    }
-
-    // Compute initial temperature tensor
-    fpdtype_t T[${ndims}][${ndims}] = {0};
-    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'gm', 'alpha', 'u', 'M')}; 
-
-    // Get alpha vector
-    fpdtype_t alpha_es[${4*ndims-2}];
-    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'alpha_es')};
-
-    // Get extended moments
-    fpdtype_t exm[${4*ndims-2}];
-    ${pyfr.expand('compute_extended_moments', 'f', 'u', 'M', 'exm')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha_es', 'exm', 'u', 'M')};    
     % endif
 
     // Compute collision time based on viscosity model
@@ -62,7 +52,7 @@
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
         % if Pr != 1:
-        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha_es', 'u[i]', 'g')};
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'Tvinv', 'g')};
         % else:
         ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
         % endif
