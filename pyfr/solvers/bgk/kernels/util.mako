@@ -17,10 +17,10 @@
         w[1] += fm*u[i][0];
         w[2] += fm*u[i][1];
         % if ndims == 2:
-        w[3] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1])${' + M[0][i]*f[i + ${nuvars}]' if delta else ''};
+        w[3] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1])${f' + M[0][i]*f[i + {nuvars}]' if delta else ''};
         % elif ndims == 3:
         w[3] += fm*u[i][2];
-        w[4] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2])${' + M[0][i]*f[i + ${nuvars}]' if delta else ''};
+        w[4] += 0.5*fm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2])${f' + M[0][i]*f[i + {nuvars}]' if delta else ''};
         % endif
     }
 </%pyfr:macro>
@@ -294,12 +294,6 @@
             % elif ndims == 3:
             mmnts[3] = Mgm*u[i][2];
             mmnts[4] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2])${' + Mgm*td2' if delta else ''};
-            % endif
-
-            // Add internal energy effects
-            // REDO
-            % if delta:
-            ///mmnts[${ndims+1}] += Mgm*td2;
             % endif
 
             // Compute Jacobian
