@@ -47,6 +47,15 @@ class BaseElements:
         self.nfacefpts = basis.nfacefpts
         self.nmpts = basis.nmpts
 
+    def pri_to_f(self, pris, cfg):
+        pass
+
+    def f_to_con(f, cfg, M, u, psi, ndims):
+        pass
+
+    def f_to_vis(f, cfg, M, u, psi, ndims):
+        pass
+
     def pri_to_con(pris, cfg):
         pass
 
@@ -72,10 +81,10 @@ class BaseElements:
         self.scal_upts = np.empty((self.nupts, self.nvars, self.neles))
 
         # Convert from primitive to conservative form
-        self.scal_upts = self.pri_to_con(ics, self.cfg)
+        self.scal_upts = self.pri_to_f(ics, self.cfg)
 
         self.mvars = np.empty((self.nupts, self.ndims + 2, self.neles))
-        mvars = self.macropri_to_macrocon(ics, self.cfg)
+        mvars = self.pri_to_con(ics, self.cfg)
         for i in range(self.ndims+2):
             self.mvars[:,i,:] = mvars[i]
 
