@@ -95,8 +95,8 @@ def iterate_DVM(U, u, ndims, psi, M, gamma, niters, delta):
         g = compute_discrete_maxwellian(alpha)
 
     # Print warning if macroscopic state residual exceeds 1e-6
-    if np.max(F) > 1e-6:
-        print(f'DVM did not converge for solution {U} with residual {F}.')
+    # if np.max(F) > 1e-6:
+    #     print(f'DVM did not converge for solution {U} with residual {F}.')
 
     return g
 
@@ -106,8 +106,14 @@ class BGKElements(BaseAdvectionElements):
     privarmap = {2: ['rho', 'u', 'v', 'p'],
                  3: ['rho', 'u', 'v', 'w', 'p']}
 
-    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'sxy'],
-                  3: ['rho', 'u', 'v', 'w', 'p', 'sxy', 'sxz', 'syz']}
+    privarmap2 = {2: ['rho', 'u', 'v', 'p',
+                      'adf', 'adfu', 'adfv', 'adfu2',
+                      'df2', 'df2u', 'df2v', 'df2u2',
+                      'sxy', 'sxy_df'],
+                  3: ['rho', 'u', 'v', 'w', 'p',
+                      'adf', 'adfu', 'adfv', 'adfw', 'adfu2',
+                      'df2', 'df2u', 'df2v', 'df2w', 'df2u2',
+                      'sxy', 'sxz', 'syz', 'sxy_df', 'sxz_df', 'syz_df']}
 
     convarmap = {2: ['1'],
                  3: ['1']}
@@ -118,11 +124,17 @@ class BGKElements(BaseAdvectionElements):
         2: [('density', ['rho']),
             ('velocity', ['u', 'v']),
             ('pressure', ['p']),
-            ('strain', ['sxy'])],
+            ('strain', ['sxy']),
+            ('adf', ['adf', 'adfu', 'adfv', 'adfu2']),
+            ('df2', ['df2', 'df2u', 'df2v', 'df2u2']),
+            ('dfstress', ['sxy_df'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
-            ('strain', ['sxy', 'sxz', 'syz'])]
+            ('strain', ['sxy', 'sxz', 'syz']),
+            ('adf', ['adf', 'adfu', 'adfv', 'adfw', 'adfu2']),
+            ('df2', ['df2', 'df2u', 'df2v', 'df2w', 'df2u2']),
+            ('dfstress', ['sxy_df', 'sxz_df', 'syz_df'])]
     }
 
 
@@ -189,11 +201,31 @@ class BGKElements(BaseAdvectionElements):
             pris[-1] += np.einsum('i,ijk->jk', M, f[nuvars:,:,:])
 
         return pris
-    
+
     @staticmethod
     def con_to_vis(f, cfg, M, u, psi, ndims):
         # Compute primitive variables
-        pris = BGKElements.con_to_pri(f, cfg, M, u, psi, ndims)
+        pris = BGKElements.macrocon_to_macropri(BGKElements.con_to_pri(f, cfg, M, u, psi, ndims), cfg)
+
+        (nuvars, nupts, neles) = np.shape(f)
+        cons = BGKElements.macropri_to_macrocon(pris, cfg)
+        g = np.zeros((nuvars, nupts, neles))
+        gamma = cfg.getfloat('constants', 'gamma')
+        niters = cfg.getint('solver', 'niters')
+        for uidx in range(nupts):
+            for eidx in range(neles):
+                # Get local conserved state variables
+                cons_local = np.zeros(ndims+2)
+                for i in range(ndims+2):
+                    cons_local[i] = cons[i] if np.isscalar(cons[i]) else cons[i][uidx, eidx]
+                # Compute local Maxwellian
+                g[:, uidx, eidx] = iterate_DVM(cons_local, u, ndims, psi, M, gamma, niters, 0.0)
+
+        df = f-g
+        adf = BGKElements.con_to_pri(np.abs(f), cfg, M, u, psi, ndims)
+        pris = np.concatenate((pris, adf), axis=0)
+        df2 = BGKElements.con_to_pri(df*df, cfg, M, u, psi, ndims)
+        pris = np.concatenate((pris, df2), axis=0)
 
         # Compute and append off-diagonal molecular stresses
         if ndims == 2:
@@ -203,7 +235,11 @@ class BGKElements(BaseAdvectionElements):
  
         nuvars = len(u)
         for i in range(len(psi2)):
-            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
+            s = np.atleast_3d(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]).T).T
+            pris = np.concatenate((pris, s), axis=0)
+        for i in range(len(psi2)):
+            s = np.atleast_3d(np.einsum('i,ijk->jk', M*psi2[i], df[:nuvars,:,:]).T).T
+            pris = np.concatenate((pris, s), axis=0)
 
         return pris
 
