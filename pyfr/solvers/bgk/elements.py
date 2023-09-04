@@ -222,7 +222,7 @@ class BGKElements(BaseAdvectionElements):
                 g[:, uidx, eidx] = iterate_DVM(cons_local, u, ndims, psi, M, gamma, niters, 0.0)
 
         df = f-g
-        adf = BGKElements.con_to_pri(np.abs(f), cfg, M, u, psi, ndims)
+        adf = BGKElements.con_to_pri(np.abs(f-g), cfg, M, u, psi, ndims)
         pris = np.concatenate((pris, adf), axis=0)
         df2 = BGKElements.con_to_pri(df*df, cfg, M, u, psi, ndims)
         pris = np.concatenate((pris, df2), axis=0)
