@@ -110,7 +110,7 @@ class TavgPlugin(PostactionMixin, RegionMixin, BasePlugin):
             soln = intg.macro_soln[idx][..., rgn].swapaxes(0, 1)
 
             # Convert from conservative to primitive variables
-            psolns = self.elementscls.macrocon_to_macropri(soln, self.cfg)
+            psolns = self.elementscls.con_to_pri(soln, self.cfg)
 
             # Prepare the substitutions dictionary
             subs = dict(zip(pnames, psolns))

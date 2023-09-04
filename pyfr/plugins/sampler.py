@@ -226,7 +226,7 @@ class SamplerPlugin(BasePlugin):
 
         # If necessary then convert to primitive form
         if samps.size:
-            samps = self.elementscls.macrocon_to_macropri(samps.T, self.cfg)
+            samps = self.elementscls.con_to_pri(samps.T, self.cfg)
             samps = np.array(samps).T
 
         return np.ascontiguousarray(samps, dtype=float)

@@ -140,9 +140,9 @@ class BGKElements(BaseAdvectionElements):
         super().__init__(basiscls, eles, cfg)
 
     # Compute Maxwellian state from primitive initial conditions
-    def pri_to_con(self, pris, cfg):
+    def pri_to_f(self, pris, cfg):
         # Convert primitive macroscopic state to conserved macroscopic state
-        cons = self.macropri_to_macrocon(pris, cfg)
+        cons = self.pri_to_con(pris, cfg)
 
         # Allocate initial distribution function
         f = np.zeros((self.nupts, self.nuvars, self.neles))
@@ -165,7 +165,7 @@ class BGKElements(BaseAdvectionElements):
                 f[uidx, :, eidx] = iterate_DVM(cons_local, self.u, self.ndims, self.psi, self.M, gamma, niters, self.delta)
 
                 # Get local temperature if necessary for internal DOFs
-                pri_local = BGKElements.macrocon_to_macropri(cons_local, cfg)
+                pri_local = BGKElements.con_to_pri(cons_local, cfg)
                 theta[uidx, eidx] = pri_local[-1]/pri_local[0]
 
         if self.delta:
@@ -178,7 +178,7 @@ class BGKElements(BaseAdvectionElements):
 
     # Compute macroscopic primitive state variables (moments) from distribution function
     @staticmethod
-    def con_to_pri(f, cfg, M, u, psi, ndims):
+    def f_to_con(f, cfg, M, u, psi, ndims):
         pris = []
         nuvars = len(u)
         for i in range(ndims+2):
@@ -191,9 +191,10 @@ class BGKElements(BaseAdvectionElements):
         return pris
     
     @staticmethod
-    def con_to_vis(f, cfg, M, u, psi, ndims):
+    def f_to_vis(f, cfg, M, u, psi, ndims):
         # Compute primitive variables
-        pris = BGKElements.con_to_pri(f, cfg, M, u, psi, ndims)
+        cons = BGKElements.f_to_con(f, cfg, M, u, psi, ndims)
+        pris = BGKElements.con_to_pri(cons, cfg)
 
         # Compute and append off-diagonal molecular stresses
         if ndims == 2:
@@ -208,7 +209,7 @@ class BGKElements(BaseAdvectionElements):
         return pris
 
     @staticmethod
-    def macrocon_to_macropri(cons, cfg):
+    def con_to_pri(cons, cfg):
         rho, E = cons[0], cons[-1]
 
         # Divide momentum components by rho
@@ -221,7 +222,7 @@ class BGKElements(BaseAdvectionElements):
         return [rho] + vs + [p]
 
     @staticmethod
-    def macropri_to_macrocon(pris, cfg):
+    def pri_to_con(pris, cfg):
         rho, p = pris[0], pris[-1]
 
         # Multiply velocity components by rho
