@@ -11,6 +11,10 @@ class BaseAdvectionElements(BaseElements):
         else:
             bufs = {'scal_fpts', 'vect_upts'}
 
+        # ALLOCATE VECTOR UPTS HERE OR NOT
+        # USE CPY
+
+
         # if self._soln_in_src_exprs:
         bufs |= {'scal_upts_cpy'}
 
@@ -59,12 +63,14 @@ class BaseAdvectionElements(BaseElements):
                 out=self.scal_upts[fout]
             )
         elif self.basis.order > 0:
+            # CHANGE THESE TO DO DIM BY DIM
             kernels['tdivtpcorf'] = lambda fout: self._be.kernel(
                 'mul', self.opmat('M1 - M3*M2'), self._vect_upts,
                 out=self.scal_upts[fout]
             )
 
         # Second flux correction kernel
+        # WORK OUT FPTS OPTIMIZATIONS?
         kernels['tdivtconf'] = lambda fout: self._be.kernel(
             'mul', self.opmat('M3'), self._scal_fpts,
             out=self.scal_upts[fout], beta=float(self.basis.order > 0)

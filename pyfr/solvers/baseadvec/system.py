@@ -41,6 +41,7 @@ class BaseAdvectionSystem(BaseSystem):
         g1.add_all(k['eles/qptsu'], deps=k['eles/limiter'])
 
         # Compute the transformed flux
+        # LOOP OVER DIMS
         for l in k['eles/tdisf_curved'] + k['eles/tdisf_linear']:
             g1.add(l, deps=deps(l, 'eles/qptsu', 'eles/limiter'))
 

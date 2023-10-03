@@ -99,6 +99,22 @@ class BaseShape:
         return m.reshape(self.nupts, -1)
 
     @cached_property
+    def m1a(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,0,:]
+        return m
+
+    @cached_property
+    def m1b(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,1,:]
+        return m
+
+    @cached_property
+    def m1c(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,2,:]
+        return m
+
+    @cached_property
+    # WORK THIS OUT FOR NORMAL?
     def m2(self):
         m = self.norm_fpts[..., None]*self.m0[:, None, :]
         return m.reshape(self.nfpts, -1)
