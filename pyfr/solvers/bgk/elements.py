@@ -276,32 +276,69 @@ class BGKElements(BaseAdvectionElements):
 
         assert not self.antialias, 'Anti-aliasing not supported for Boltzmann-BGK.' 
 
-        # DIM BY DIM COMPUTE FLUX
         if self.cfg.getbool('solver', 'optimize-memory', True):
             # Seperate div(F) kernel to compute dimension-by-dimension
-            tplargs_cpy_list = []
-            for dim in range(self.ndims):
-                tplargs_cpy_list.append(tplargs.copy())
-                tplargs_cpy_list[dim]['fluxdim'] = dim
-                print(dim, 'pp', tplargs_cpy_list[dim])
+            # for dim in range(self.ndims):
+            #     self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit{dim}')
+            #     self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit{dim}')
 
-                if c in r:
-                    print('curve', dim)
-                    self.kernels[f'tdisf_curved_{dim}'] = lambda uin: self._be.kernel(
-                        f'tfluxsplit{dim}', tplargs=tplargs_cpy_list[dim], dims=[self.nupts, r[c]],
-                        f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
-                        smats=self.curved_smat_at('upts'), u=self.umat
-                    )
+            #     if c in r:
+            #         self.kernels[f'tdisf_curved_{dim}'] = lambda uin: self._be.kernel(
+            #             f'tfluxsplit{dim}', tplargs=tplargs, dims=[self.nupts, r[c]],
+            #             f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
+            #             smats=self.curved_smat_at('upts'), u=self.umat
+            #         )
 
-                if l in r:
-                    
-                    print('lin')
-                    self.kernels[f'tdisf_linear_{dim}'] = lambda uin: self._be.kernel(
-                        'tfluxlinsplit', tplargs=tplargs_cpy_list[dim], dims=[self.nupts, r[l]],
-                        f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
-                        verts=self.ploc_at('linspts', l), upts=self.upts,
-                        u=self.umat
-                    )
+            #     if l in r:
+            #         self.kernels[f'tdisf_linear_{dim}'] = lambda uin: self._be.kernel(
+            #             f'tfluxlinsplit{dim}', tplargs=tplargs, dims=[self.nupts, r[l]],
+            #             f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
+            #             verts=self.ploc_at('linspts', l), upts=self.upts,
+            #             u=self.umat
+            #         )
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit0')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit0')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit1')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit1')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit2')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit2')
+
+            if c in r:
+                self.kernels[f'tdisf_curved_0'] = lambda uin: self._be.kernel(
+                    f'tfluxsplit0', tplargs=tplargs, dims=[self.nupts, r[c]],
+                    f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
+                    smats=self.curved_smat_at('upts'), u=self.umat
+                )
+                self.kernels[f'tdisf_curved_1'] = lambda uin: self._be.kernel(
+                    f'tfluxsplit1', tplargs=tplargs, dims=[self.nupts, r[c]],
+                    f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
+                    smats=self.curved_smat_at('upts'), u=self.umat
+                )
+                self.kernels[f'tdisf_curved_2'] = lambda uin: self._be.kernel(
+                    f'tfluxsplit2', tplargs=tplargs, dims=[self.nupts, r[c]],
+                    f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
+                    smats=self.curved_smat_at('upts'), u=self.umat
+                )
+
+            if l in r:
+                self.kernels[f'tdisf_linear_0'] = lambda uin: self._be.kernel(
+                    f'tfluxlinsplit0', tplargs=tplargs, dims=[self.nupts, r[l]],
+                    f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts,
+                    u=self.umat
+                )
+                self.kernels[f'tdisf_linear_1'] = lambda uin: self._be.kernel(
+                    f'tfluxlinsplit1', tplargs=tplargs, dims=[self.nupts, r[l]],
+                    f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts,
+                    u=self.umat
+                )
+                self.kernels[f'tdisf_linear_2'] = lambda uin: self._be.kernel(
+                    f'tfluxlinsplit2', tplargs=tplargs, dims=[self.nupts, r[l]],
+                    f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts,
+                    u=self.umat
+                )
         else:
             if c in r:
                 self.kernels['tdisf_curved'] = lambda uin: self._be.kernel(

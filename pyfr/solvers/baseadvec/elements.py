@@ -63,11 +63,31 @@ class BaseAdvectionElements(BaseElements):
                 out=self.scal_upts[fout]
             )
         elif self.basis.order > 0:
-            # CHANGE THESE TO DO DIM BY DIM
-            kernels['tdivtpcorf'] = lambda fout: self._be.kernel(
-                'mul', self.opmat('M1 - M3*M2'), self._vect_upts,
-                out=self.scal_upts[fout]
-            )
+            if self.cfg.getbool('solver', 'optimize-memory', True):
+                kernels[f'tdivtpcorf_0'] = lambda fout: self._be.kernel(
+                    'mul', self.opmat(f'M1A - M32A'), self._scal_upts_cpy,
+                    out=self.scal_upts[fout], beta=0.0
+                )
+                kernels[f'tdivtpcorf_1'] = lambda fout: self._be.kernel(
+                    'mul', self.opmat(f'M1B - M32B'), self._scal_upts_cpy,
+                    out=self.scal_upts[fout], beta=1.0
+                )
+                if self.ndims == 3:
+                    kernels[f'tdivtpcorf_2'] = lambda fout: self._be.kernel(
+                        'mul', self.opmat(f'M1C - M32C'), self._scal_upts_cpy,
+                        out=self.scal_upts[fout], beta=1.0
+                    )
+                # for i,v in enumerate('ABC'[:self.ndims]):
+                #     kernels[f'tdivtpcorf_{i}'] = lambda fout: self._be.kernel(
+                #         'mul', self.opmat(f'M1{v} - M32{v}'), self._scal_upts_cpy,
+                #         out=self.scal_upts[fout], beta=float(i > 0)
+                #     )
+                #     print(f'M1{v} - M32{v}', )
+            else:
+                kernels['tdivtpcorf'] = lambda fout: self._be.kernel(
+                    'mul', self.opmat('M1 - M3*M2'), self._vect_upts,
+                    out=self.scal_upts[fout]
+                )
 
         # Second flux correction kernel
         # WORK OUT FPTS OPTIMIZATIONS?

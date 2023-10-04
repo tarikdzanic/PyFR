@@ -83,10 +83,10 @@ class BaseShape:
     def opmat(self, expr):
         expr = expr.lower().replace('*', '@')
 
-        if not re.match(r'[m0-9\-+@() ]+$', expr):
+        if not re.match(r'[m0-9a-c\-+@() ]+$', expr):
             raise ValueError('Invalid operator matrix expression')
 
-        mats = {m: getattr(self, m) for m in re.findall(r'm\d+', expr)}
+        mats = {m: getattr(self, m) for m in re.findall(r'm\d+[abc]?', expr)}
         return eval(expr, {'__builtins__': None}, mats)
 
     @cached_property
@@ -114,7 +114,6 @@ class BaseShape:
         return m
 
     @cached_property
-    # WORK THIS OUT FOR NORMAL?
     def m2(self):
         m = self.norm_fpts[..., None]*self.m0[:, None, :]
         return m.reshape(self.nfpts, -1)
@@ -132,8 +131,24 @@ class BaseShape:
         return m
 
     @cached_property
+    def m32a(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, :self.nupts]
+
+    @cached_property
+    def m32b(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, self.nupts:2*self.nupts]
+
+    @cached_property
+    def m32c(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, 2*self.nupts:]
+
+    @cached_property
     def m4(self):
         m = self.m1.reshape(self.nupts, -1, self.nupts).swapaxes(0, 1)
+
         return m.reshape(-1, self.nupts)
 
     @cached_property

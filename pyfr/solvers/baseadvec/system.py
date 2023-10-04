@@ -12,6 +12,8 @@ class BaseAdvectionSystem(BaseSystem):
 
         def deps(dk, *names): return self._kdeps(k, dk, *names)
 
+        optimize_memory = self.cfg.getbool('solver', 'optimize-memory', True)
+
         g1 = self.backend.graph()
         g1.add_mpi_reqs(m['scal_fpts_recv'])
 
@@ -40,19 +42,39 @@ class BaseAdvectionSystem(BaseSystem):
         # Interpolate the solution to the quadrature points
         g1.add_all(k['eles/qptsu'], deps=k['eles/limiter'])
 
-        # Compute the transformed flux
-        # LOOP OVER DIMS
-        for l in k['eles/tdisf_curved'] + k['eles/tdisf_linear']:
-            g1.add(l, deps=deps(l, 'eles/qptsu', 'eles/limiter'))
+        # If separating flux calculation by dimension
+        if optimize_memory:
+            for i in range(self.ndims):
+                if i == 0:
+                    tdeps = k['eles/qptsu'] + k['eles/limiter'] + k['eles/copy_soln']
+                else:
+                    tdeps = k[f'eles/tdivtpcorf_{i-1}']
 
-        # Compute the transformed divergence of the partially corrected flux
-        for l in k['eles/tdivtpcorf']:
-            ldeps = deps(l, 'eles/tdisf_curved', 'eles/tdisf_linear',
-                         'eles/copy_soln', 'eles/disu')
-            g1.add(l, deps=ldeps + k['mpiint/scal_fpts_pack'])
+                # Compute the transformed flux
+                g1.add_all(k[f'eles/tdisf_curved_{i}'] + k[f'eles/tdisf_linear_{i}'], deps=tdeps)
+
+                # Compute the transformed divergence of the partially corrected flux
+                g1.add_all(k[f'eles/tdivtpcorf_{i}'],
+                           deps=k['eles/copy_soln'] + k['eles/disu'] + k['mpiint/scal_fpts_pack'] +
+                                k[f'eles/tdisf_curved_{i}'] + k[f'eles/tdisf_linear_{i}'])
+        else:
+            # Compute the transformed flux
+            for l in k['eles/tdisf_curved'] + k['eles/tdisf_linear']:
+                g1.add(l, deps=deps(l, 'eles/qptsu', 'eles/limiter'))
+
+            # Compute the transformed divergence of the partially corrected flux
+            for l in k['eles/tdivtpcorf']:
+                ldeps = deps(l, 'eles/tdisf_curved', 'eles/tdisf_linear',
+                            'eles/copy_soln', 'eles/disu')
+                g1.add(l, deps=ldeps + k['mpiint/scal_fpts_pack'])
+            
+
         g1.commit()
 
         g2 = self.backend.graph()
+
+        if optimize_memory:
+            g2.add_all(k['eles/copy_soln'])
 
         # Compute the common normal flux at our MPI interfaces
         g2.add_all(k['mpiint/scal_fpts_unpack'])
@@ -64,7 +86,10 @@ class BaseAdvectionSystem(BaseSystem):
 
         # Obtain the physical divergence of the corrected flux
         for l in k['eles/negdivconf']:
-            g2.add(l, deps=deps(l, 'eles/tdivtconf'))
+            if optimize_memory:
+                g2.add(l, deps=deps(l, 'eles/tdivtconf', 'eles/copy_soln'))
+            else:
+                g2.add(l, deps=deps(l, 'eles/tdivtconf'))
         g2.commit()
 
         return g1, g2

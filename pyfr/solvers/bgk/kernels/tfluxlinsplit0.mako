@@ -3,7 +3,7 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 <%include file='pyfr.solvers.baseadvec.kernels.smats'/>
 
-<%pyfr:kernel name='tfluxlin' ndim='2'
+<%pyfr:kernel name='tfluxlinsplit0' ndim='2'
               f='in fpdtype_t[${str(nvars)}]'
               F='out fpdtype_t[${str(nvars)}]'
               verts='in broadcast-col fpdtype_t[${str(nverts)}][${str(ndims)}]'
@@ -15,10 +15,10 @@
 
     // Compute and transform the fluxes
     for (int j = 0; j < ${nuvars}; j++) {
-        F[j] = ${' + '.join(f'smats[{fluxdim}][{k}]*u[j][{k}]*f[j]' for k in range(ndims))};
+        F[j] = ${' + '.join(f'smats[0][{k}]*u[j][{k}]*f[j]' for k in range(ndims))};
 
         % if delta:
-        F[j + ${nuvars}] = ${' + '.join(f'smats[{fluxdim}][{k}]*u[j][{k}]*f[j + {nuvars}]' for k in range(ndims))};
+        F[j + ${nuvars}] = ${' + '.join(f'smats[0][{k}]*u[j][{k}]*f[j + {nuvars}]' for k in range(ndims))};
         % endif
     }
 </%pyfr:kernel>
