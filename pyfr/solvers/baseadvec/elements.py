@@ -9,13 +9,10 @@ class BaseAdvectionElements(BaseElements):
         if 'flux' in self.antialias:
             bufs = {'scal_fpts', 'scal_qpts', 'vect_qpts'}
         else:
-            bufs = {'scal_fpts', 'vect_upts'}
+            bufs = {'scal_fpts'}
 
-        # ALLOCATE VECTOR UPTS HERE OR NOT
-        # USE CPY
-
-
-        # if self._soln_in_src_exprs:
+        if not self.cfg.getbool('solver', 'optimize-memory', True):
+            bufs |= {'vect_upts'}
         bufs |= {'scal_upts_cpy'}
 
         return bufs
