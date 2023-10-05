@@ -11,7 +11,7 @@ class BaseAdvectionElements(BaseElements):
         else:
             bufs = {'scal_fpts'}
 
-        if not self.cfg.getbool('solver', 'optimize-memory', True):
+        if not self.optimize_memory:
             bufs |= {'vect_upts'}
         bufs |= {'scal_upts_cpy'}
 
@@ -60,7 +60,7 @@ class BaseAdvectionElements(BaseElements):
                 out=self.scal_upts[fout]
             )
         elif self.basis.order > 0:
-            if self.cfg.getbool('solver', 'optimize-memory', True):
+            if self.optimize_memory:
                 for i,v in enumerate('ABC'[:self.ndims]):
                     kernels[f'tdivtpcorf_{i}'] = lambda fout, i=i, v=v: self._be.kernel(
                         'mul', self.opmat(f'M1{v} - M32{v}'), self._scal_upts_cpy,
@@ -73,7 +73,6 @@ class BaseAdvectionElements(BaseElements):
                 )
 
         # Second flux correction kernel
-        # WORK OUT FPTS OPTIMIZATIONS?
         kernels['tdivtconf'] = lambda fout: self._be.kernel(
             'mul', self.opmat('M3'), self._scal_fpts,
             out=self.scal_upts[fout], beta=float(self.basis.order > 0)

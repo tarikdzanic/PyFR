@@ -347,6 +347,11 @@ class BaseShape:
     def nmpts(self):
         return len(self.mpts)
 
+    @cached_property
+    def fpts_in_upts(self):
+        mrowsum = np.max(np.abs(np.sum(self.m0, axis=1) - 1.0))
+        return np.min(self.m0) > -1e-8 and mrowsum < 1e-8
+
 
 class TensorProdShape:
     @classmethod

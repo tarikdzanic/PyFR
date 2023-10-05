@@ -177,6 +177,10 @@ class BaseElements:
     def _soln_in_src_exprs(self):
         return any(re.search(r'\bu\b', ex) for ex in self._src_exprs)
 
+    @cached_property
+    def optimize_memory(self):
+        return self.cfg.getbool('solver', 'optimize-memory', True)
+
     def set_backend(self, backend, nscalupts, nonce, linoff):
         self._be = backend
 

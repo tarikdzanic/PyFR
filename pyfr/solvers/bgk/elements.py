@@ -276,7 +276,7 @@ class BGKElements(BaseAdvectionElements):
 
         assert not self.antialias, 'Anti-aliasing not supported for Boltzmann-BGK.' 
 
-        if self.cfg.getbool('solver', 'optimize-memory', True):
+        if self.optimize_memory:
             # Seperate div(F) kernel to compute dimension-by-dimension
             self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit')
             self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit')
@@ -326,6 +326,7 @@ class BGKElements(BaseAdvectionElements):
 
         # Positivity-preserving squeeze limiter
         if self.cfg.getbool('solver', 'limiter', False) and self.basis.order != 0:
+            assert self.basis.fpts_in_upts, 'Flux points must be subset of solution points for limiter.'
             ub = self.basis.ubasis
             tplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
 
