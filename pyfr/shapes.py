@@ -148,7 +148,6 @@ class BaseShape:
     @cached_property
     def m4(self):
         m = self.m1.reshape(self.nupts, -1, self.nupts).swapaxes(0, 1)
-
         return m.reshape(-1, self.nupts)
 
     @cached_property

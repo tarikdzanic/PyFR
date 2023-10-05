@@ -9,10 +9,10 @@ class BaseAdvectionElements(BaseElements):
         if 'flux' in self.antialias:
             bufs = {'scal_fpts', 'scal_qpts', 'vect_qpts'}
         else:
-            if not self.optimize_memory:
-                bufs = {'vect_upts', 'scal_fpts', 'scal_upts_cpy'}
-            else:
+            if self.optimize_memory:
                 bufs = {'scal_ufpts'}
+            else:
+                bufs = {'vect_upts', 'scal_fpts', 'scal_upts_cpy'}
 
         return bufs
 
