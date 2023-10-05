@@ -210,6 +210,13 @@ class BaseElements:
         # Allocate additional scalar scratch space
         if 'scal_upts_cpy' in sbufs:
             self._scal_upts_cpy = salloc('scal_upts_cpy', nupts)
+        if 'scal_ufpts' in sbufs:
+            if nupts >= nfpts:
+                self._scal_upts_cpy = salloc('scal_upts', nupts)
+                self._scal_fpts = backend.matrix((nfpts, nvars, neles), aliases=self._scal_upts_cpy, tags={'align'})
+            else:
+                self._scal_fpts = salloc('scal_fpts', nfpts)
+                self._scal_upts_cpy = backend.matrix((nupts, nvars, neles), aliases=self._scal_fpts, tags={'align'})
 
         # Allocate required vector scratch space
         if 'vect_upts' in sbufs:
