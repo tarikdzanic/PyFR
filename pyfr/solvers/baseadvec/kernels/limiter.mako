@@ -28,8 +28,27 @@
 </%pyfr:macro>
 
 <%pyfr:macro name='project_step_to_element' params='x0, x1, dx'>
+    // Project step from x0 -> x1 along vector dx = x1 - x0 onto a quad (-1, 1)^2
+    fpdtype_t a1 = 1.0, a2 = 1.0;
+
+    if (dx[0] > ${eps} && x1[0] > 1.0) {
+        a1 = (1.0 - x0[0])/dx[0];
+    }
+    else if (dx[0] < ${-eps} && x1[0] < -1.0) {
+        a1 = (-1.0 - x0[0])/dx[0];
+    }
+
+    if (dx[1] > ${eps} && x1[1] > 1.0) {
+        a2 = (1.0 - x0[1])/dx[1];
+    }
+    else if (dx[1] < ${-eps} && x1[1] < -1.0) {
+        a2 = (-1.0 - x0[1])/dx[1];
+    }
+
+
+    fpdtype_t adx = max(0.0, min(a1, a2));
     % for i in range(ndims):
-    x1[${i}] = fmax(-1.0, fmin(1.0, x1[${i}]));
+    x1[${i}] = fmax(-1.0, fmin(1.0, x0[${i}] + adx*dx[${i}]));
     % endfor
 </%pyfr:macro>
 
@@ -127,7 +146,6 @@
         H[0][1] = (dh[2][2] -   dh[0][2] - dh[2][0] + dh[0][0])/${4*dxi**2};
         H[1][0] = H[0][1];
 
-        // ADD CHECK HERE FOR HESSIAN DETERMINANT
         // Invert Hessian
         det = H[0][0]*H[1][1] - H[0][1]*H[1][0];
         if (abs(det) > ${eps}) {
