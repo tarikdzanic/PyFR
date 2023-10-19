@@ -4,6 +4,15 @@
 <% dxi = 1E-4 %>
 <% eps = 1E-12 %>
 <% beta = 0.1 %>
+
+<%pyfr:macro name='compute_element_average' params='u, uavg'>
+    // Compute mean modes
+    % for i in range(nvars):
+    uavg[${i}] = ${' + '.join(f'{jx}*u[{j}][{i}]' 
+                              for j, jx in enumerate(meanwts) if jx != 0)};
+    % endfor
+</%pyfr:macro>
+
 <%pyfr:macro name='eval_monomial' params='um, x, ui'>
     fpdtype_t tmp;
     % for i in range(nvars):
@@ -158,14 +167,7 @@
     hstar = fmax(-1, hstar - dhJ);
 </%pyfr:macro>
 
-<%pyfr:macro name='optimize_and_limit' params='u, x'>
-    // Compute mean modes
-    fpdtype_t uavg[${nvars}];
-    % for i in range(nvars):
-    uavg[${i}] = ${' + '.join(f'{jx}*u[{j}][{i}]' 
-                              for j, jx in enumerate(meanwts) if jx != 0)};
-    % endfor
-
+<%pyfr:macro name='optimize_and_limit' params='u, uavg, x'>
     // Optimize function
     fpdtype_t hstar;
     ${pyfr.expand('optimize', 'u', 'uavg', 'x', 'hstar')};

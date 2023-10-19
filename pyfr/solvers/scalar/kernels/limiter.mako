@@ -1,22 +1,48 @@
 <%inherit file='base'/>
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
-<%pyfr:macro name='cost1' params='ui, uavg, alpha'>
+<% eps = 1E-12 %>
+
+<%pyfr:macro name='g1' params='u, g'>
     % if global_bounds:
-    alpha = (ui[0] - ${gbnds[0]})/fmax(${1E-8}, abs(uavg[0] - ${gbnds[0]}) - (ui[0] - ${gbnds[0]}));
+    g = u[0] - ${gbnds[0]};
     % else:
-    alpha = (ui[0] - bounds[0])/fmax(${1E-8}, abs(uavg[0] - bounds[0]) - (ui[0] - bounds[0]));
+    g = u[0] - bounds[0];
     % endif
 </%pyfr:macro>
-<%pyfr:macro name='cost2' params='ui, uavg, alpha'>    
+
+<%pyfr:macro name='g2' params='u, g'>
     % if global_bounds:
-    alpha = (${gbnds[1]} - ui[0])/fmax(${1E-8}, abs(${gbnds[1]} - uavg[0]) - (${gbnds[1]} - ui[0]));
+    g = ${gbnds[1]} - u[0];
     % else:
-    alpha = (bounds[1] - ui[0])/fmax(${1E-8}, abs(bounds[1] - uavg[0]) - (bounds[1] - ui[0]));
+    g = bounds[0] - u[0];
     % endif
 </%pyfr:macro>
-<%pyfr:macro name='cost3' params='ui, uavg, alpha'>
-    alpha = (-0.5*ui[0]*ui[0] - bounds[2])/fmax(${1E-8}, abs(-0.5*uavg[0]*uavg[0] - bounds[2]) - (-0.5*ui[0]*ui[0] - bounds[2]));
+
+<%pyfr:macro name='g3' params='u, g'>
+    g = bounds[2] - 0.5*u[0]*u[0]; // DOUBLE CHECK THIS
+</%pyfr:macro>
+
+<%pyfr:macro name='h_from_g' params='gu, gavg, h'>
+    h = gu >= 0 ? gu/gavg : gu/(gavg - gu);
+</%pyfr:macro>
+
+<%pyfr:macro name='cost1' params='ui, uavg, h'>
+    ${pyfr.expand('g1', 'ui' ,'gu')};
+    ${pyfr.expand('g1', 'uavg' ,'gavg')};
+    ${pyfr.expand('h_from_g', 'gu' ,'gavg', 'h')};
+</%pyfr:macro>
+
+<%pyfr:macro name='cost2' params='ui, uavg, h'>
+    ${pyfr.expand('g2', 'ui' ,'gu')};
+    ${pyfr.expand('g2', 'uavg' ,'gavg')};
+    ${pyfr.expand('h_from_g', 'gu' ,'gavg', 'h')};
+</%pyfr:macro>
+
+<%pyfr:macro name='cost3' params='ui, uavg, h'>
+    ${pyfr.expand('g3', 'ui' ,'gu')};
+    ${pyfr.expand('g3', 'uavg' ,'gavg')};
+    ${pyfr.expand('h_from_g', 'gu' ,'gavg', 'h')};
 </%pyfr:macro>
 
 <%include file='pyfr.solvers.baseadvec.kernels.limiter'/>
@@ -24,9 +50,39 @@
               u='inout fpdtype_t[${str(nupts)}][${str(nvars)}]'
               x='in broadcast fpdtype_t[${str(nupts)}][${str(ndims)}]'
               bounds='inout fpdtype_t[3]'>
+    fpdtype_t gu, gavg;
+    fpdtype_t uavg[${nvars}];
+    ${pyfr.expand('compute_element_average', 'u', 'uavg')};
+
     % if apply_entropy_bounds:
-    ${pyfr.expand('optimize_and_limit_3', 'u' ,'x')};
+    fpdtype_t gavg1, gavg2, gavg3;
+    ${pyfr.expand('g1', 'uavg', 'gavg1')};
+    ${pyfr.expand('g2', 'uavg', 'gavg2')};
+    ${pyfr.expand('g3', 'uavg', 'gavg3')};
+
+    if (gavg1 < ${eps} || gavg2 < ${eps} || gavg3 < ${eps}) {
+        % for i,j in pyfr.ndrange(nupts, nvars):
+        u[${i}][${j}] = uavg[${j}];
+        % endfor
+    }
+    else {
+        ${pyfr.expand('optimize_and_limit_1', 'u', 'uavg','x')};
+        ${pyfr.expand('optimize_and_limit_2', 'u', 'uavg','x')};
+        ${pyfr.expand('optimize_and_limit_3', 'u', 'uavg','x')};
+    }
+    % else:
+    fpdtype_t gavg1, gavg2;
+    ${pyfr.expand('g1', 'uavg', 'gavg1')};
+    ${pyfr.expand('g2', 'uavg', 'gavg2')};
+
+    if (gavg1 < ${eps} || gavg2 < ${eps}) {
+        % for i,j in pyfr.ndrange(nupts, nvars):
+        u[${i}][${j}] = uavg[${j}];
+        % endfor
+    }
+    else {
+        ${pyfr.expand('optimize_and_limit_1', 'u', 'uavg','x')};
+        ${pyfr.expand('optimize_and_limit_2', 'u', 'uavg','x')};
+    }
     % endif
-    ${pyfr.expand('optimize_and_limit_2', 'u' ,'x')};
-    ${pyfr.expand('optimize_and_limit_1', 'u' ,'x')};
 </%pyfr:kernel>
