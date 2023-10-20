@@ -61,7 +61,7 @@
     % endfor
 
     // Find discrete minima
-    fpdtype_t ui[${nvars}], xmin[${ndims}], xmin_old[${ndims}], h2;
+    fpdtype_t ui[${nvars}], xmin[${ndims}], xmin_old[${ndims}], hmax, h2;
 
     % for i in range(nvars):
     ui[${i}] = u[0][${i}];
@@ -72,6 +72,7 @@
     % endfor
 
     !! CALL_COSTFUNCTION ['ui', 'uavg', 'hstar']
+    hmax = hstar;
 
     for (int i = 1; i < ${nupts}; i++) {
         % for j in range(nvars):
@@ -86,103 +87,136 @@
             xmin[${j}] = x[i][${j}];
             % endfor
         }
-    }
-
-    // Optimize cost function to find minimum in element
-    fpdtype_t ui2[${nvars}], x2[${ndims}];
-    fpdtype_t J[${ndims}], H[${ndims}][${ndims}];
-    fpdtype_t invH[${ndims}][${ndims}], det, invdet;
-    fpdtype_t dx1[${ndims}], dx2[${ndims}], xmin1[${ndims}], xmin2[${ndims}];
-    % if ndims == 2:
-    fpdtype_t dh[3][3];
-    % elif ndims == 3:
-    fpdtype_t dh[3][3][3];
-    % endif
-
-    for (int iter = 0; iter < ${niters}; iter++) {
-        // Set old xmin
-        % for i in range(ndims):
-        xmin_old[${i}] = xmin[${i}];
-        % endfor
-
-        ${pyfr.expand('eval_monomial', 'um', 'xmin', 'ui')};
-        !! CALL_COSTFUNCTION ['ui', 'uavg', 'hstar']
-    
-        // Numerically compute Jacobian/Hessian
-        // Compute perturbations 
-        % for i,j in pyfr.ndrange(3, 3):
-        x2[0] = xmin[0] + ${dxi*(i-1)};
-        x2[1] = xmin[1] + ${dxi*(j-1)};
-        ${pyfr.expand('eval_monomial', 'um', 'x2', 'ui2')};
-        !! CALL_COSTFUNCTION ['ui2', 'uavg', 'h2']
-        dh[${i}][${j}] = h2;
-        % endfor
-
-        // Compute Jacobian
-        J[0] = (dh[2][1] - dh[0][1])/${2*dxi};
-        J[1] = (dh[1][2] - dh[1][0])/${2*dxi};
-
-            ////// ADD BRANCH HERE FOR IF ON BOUNDARY OR NOT
-
-        // Take gradient descent step
-        % for i in range(ndims):
-        dx1[${i}] = ${-beta}*J[${i}];
-        % endfor
-        // Take step and project to element bounds
-        % for i in range(ndims):
-        xmin1[${i}] = xmin[${i}] - dx1[${i}];
-        % endfor
-        ${pyfr.expand('project_step_to_element', 'xmin', 'xmin1', 'dx1')};
-        
-        ${pyfr.expand('eval_monomial', 'um', 'xmin1', 'ui2')};
-        !! CALL_COSTFUNCTION ['ui2', 'uavg', 'hstar']
-        % for i in range(ndims):
-        xmin[${i}] = xmin1[${i}];
-        % endfor
-
-        // Attempt Newton step and compare to GD
-        H[0][0] = (dh[2][1] - 2*dh[1][1] + dh[0][1]           )/${dxi**2};
-        H[1][1] = (dh[1][2] - 2*dh[1][1] + dh[1][0]           )/${dxi**2};
-        H[0][1] = (dh[2][2] -   dh[0][2] - dh[2][0] + dh[0][0])/${4*dxi**2};
-        H[1][0] = H[0][1];
-
-        // Invert Hessian
-        det = H[0][0]*H[1][1] - H[0][1]*H[1][0];
-        if (abs(det) > ${eps}) {
-            invdet = 1.0/det;
-            invH[0][0] =  invdet*H[1][1];
-            invH[0][1] = -invdet*H[0][1];
-            invH[1][0] = -invdet*H[1][0];
-            invH[1][1] =  invdet*H[0][0];
-
-                ////// ADD BRANCH HERE FOR IF ON BOUNDARY OR NOT
-
-            // Take Newton and gradient descent step
-            % for i in range(ndims):
-            dx2[${i}] = -(${' + '.join(f'invH[{i}][{j}]*J[{j}]' for j in range(ndims))});
-            % endfor
-
-            // Take step and project to element bounds
-            % for i in range(ndims):
-            xmin2[${i}] = xmin[${i}] - dx2[${i}];
-            % endfor
-            ${pyfr.expand('project_step_to_element', 'xmin', 'xmin2', 'dx2')};
-
-            ${pyfr.expand('eval_monomial', 'um', 'xmin2', 'ui2')};
-            !! CALL_COSTFUNCTION ['ui2', 'uavg', 'h2']
-
-            if (h2 < hstar) {
-                hstar = h2;
-                % for i in range(ndims):
-                xmin[${i}] = xmin2[${i}];
-                % endfor
-            }
+        if (h2 > hmax) {
+            hmax = h2;
         }
     }
 
-    // Extrapolate lower bound for hstar
-    fpdtype_t dhJ = (${' + '.join(f'abs(J[{i}]*(xmin[{i}] - xmin_old[{i}]))' for i in range(ndims))});
-    hstar = fmax(-1, hstar - dhJ);
+    if ((hmax - hstar) < ${eps}){
+        hstar = -1;
+    }
+    % if niters > 0:
+    else {
+        // Optimize cost function to find minimum in element
+        fpdtype_t ui2[${nvars}], x2[${ndims}];
+        fpdtype_t J[${ndims}], H[${ndims}][${ndims}];
+        fpdtype_t invH[${ndims}][${ndims}], det, invdet;
+        fpdtype_t dx1[${ndims}], dx2[${ndims}], xmin1[${ndims}], xmin2[${ndims}];
+        % if ndims == 2:
+        fpdtype_t dh[3][3];
+        % elif ndims == 3:
+        fpdtype_t dh[3][3][3];
+        % endif
+
+        for (int iter = 0; iter < ${niters}; iter++) {
+            // Set old xmin
+            % for i in range(ndims):
+            xmin_old[${i}] = xmin[${i}];
+            % endfor
+
+            ${pyfr.expand('eval_monomial', 'um', 'xmin', 'ui')};
+            !! CALL_COSTFUNCTION ['ui', 'uavg', 'hstar']
+        
+            // Numerically compute Jacobian/Hessian
+            // Compute perturbations 
+            % for i,j in pyfr.ndrange(3, 3):
+            x2[0] = xmin[0] + ${dxi*(i-1)};
+            x2[1] = xmin[1] + ${dxi*(j-1)};
+            ${pyfr.expand('eval_monomial', 'um', 'x2', 'ui2')};
+            !! CALL_COSTFUNCTION ['ui2', 'uavg', 'h2']
+            dh[${i}][${j}] = h2;
+            % endfor
+
+            // Compute Jacobian
+            J[0] = (dh[2][1] - dh[0][1])/${2*dxi};
+            J[1] = (dh[1][2] - dh[1][0])/${2*dxi};
+
+            // Compute gradient descent step
+            % for i in range(ndims):
+            dx1[${i}] = ${-beta}*J[${i}];
+            % endfor
+
+            // Zero outward facing component if on element boundary
+            if ((xmin[0] > ${1-eps}) || (xmin[0] < ${-1+eps}) || (xmin[1] > ${1-eps}) || (xmin[1] < ${-1+eps})) {
+                // Add switch here for quad/tri
+                // Zero positive dx if on right boundary
+                dx1[0] = xmin[0] > ${1-eps}  ? min(dx1[0], 0.0) : dx1[0];
+                // Zero negative dx if on left boundary
+                dx1[0] = xmin[0] < ${-1+eps} ? max(dx1[0], 0.0) : dx1[0];
+                // Zero positive dy if on top boundary
+                dx1[1] = xmin[1] > ${1-eps}  ? min(dx1[1], 0.0) : dx1[1];
+                // Zero negative dy if on bottom boundary
+                dx1[1] = xmin[1] < ${-1+eps} ? max(dx1[1], 0.0) : dx1[1];
+            }
+
+            // Take step and project to element bounds
+            % for i in range(ndims):
+            xmin1[${i}] = xmin[${i}] - dx1[${i}];
+            % endfor
+            ${pyfr.expand('project_step_to_element', 'xmin', 'xmin1', 'dx1')};
+    
+            // Evaluate solution at new point
+            ${pyfr.expand('eval_monomial', 'um', 'xmin1', 'ui2')};
+            !! CALL_COSTFUNCTION ['ui2', 'uavg', 'hstar']
+            % for i in range(ndims):
+            xmin[${i}] = xmin1[${i}];
+            % endfor
+
+            // Attempt Newton step and compare to GD
+            H[0][0] = (dh[2][1] - 2*dh[1][1] + dh[0][1]           )/${dxi**2};
+            H[1][1] = (dh[1][2] - 2*dh[1][1] + dh[1][0]           )/${dxi**2};
+            H[0][1] = (dh[2][2] -   dh[0][2] - dh[2][0] + dh[0][0])/${4*dxi**2};
+            H[1][0] = H[0][1];
+
+            // Invert Hessian
+            det = H[0][0]*H[1][1] - H[0][1]*H[1][0];
+            if (abs(det) > ${eps}) {
+                invdet = 1.0/det;
+                invH[0][0] =  invdet*H[1][1];
+                invH[0][1] = -invdet*H[0][1];
+                invH[1][0] = -invdet*H[1][0];
+                invH[1][1] =  invdet*H[0][0];
+
+                // Take Newton and gradient descent step
+                % for i in range(ndims):
+                dx2[${i}] = -(${' + '.join(f'invH[{i}][{j}]*J[{j}]' for j in range(ndims))});
+                % endfor
+
+                // Zero outward facing component if on element boundary
+                if ((xmin[0] > ${1-eps}) || (xmin[0] < ${-1+eps}) || (xmin[1] > ${1-eps}) || (xmin[1] < ${-1+eps})) {
+                    // Zero positive dx if on right boundary
+                    dx2[0] = xmin[0] > ${1-eps}  ? min(dx2[0], 0.0) : dx2[0];
+                    // Zero negative dx if on left boundary
+                    dx2[0] = xmin[0] < ${-1+eps} ? max(dx2[0], 0.0) : dx2[0];
+                    // Zero positive dy if on top boundary
+                    dx2[1] = xmin[1] > ${1-eps}  ? min(dx2[1], 0.0) : dx2[1];
+                    // Zero negative dy if on bottom boundary
+                    dx2[1] = xmin[1] < ${-1+eps} ? max(dx2[1], 0.0) : dx2[1];
+                }
+
+                // Take step and project to element bounds
+                % for i in range(ndims):
+                xmin2[${i}] = xmin[${i}] - dx2[${i}];
+                % endfor
+                ${pyfr.expand('project_step_to_element', 'xmin', 'xmin2', 'dx2')};
+
+                ${pyfr.expand('eval_monomial', 'um', 'xmin2', 'ui2')};
+                !! CALL_COSTFUNCTION ['ui2', 'uavg', 'h2']
+
+                if (h2 < hstar) {
+                    hstar = h2;
+                    % for i in range(ndims):
+                    xmin[${i}] = xmin2[${i}];
+                    % endfor
+                }
+            }
+        }
+
+        // Extrapolate lower bound for hstar
+        fpdtype_t dhJ = (${' + '.join(f'abs(J[{i}]*(xmin[{i}] - xmin_old[{i}]))' for i in range(ndims))});
+        hstar = fmax(-1, hstar - dhJ);
+    }
+    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='optimize_and_limit' params='u, uavg, x'>
