@@ -85,7 +85,7 @@ class BaseAdvectionElements(BaseElements):
             rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, u=solnupts
         )
 
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp') and self.basis.order > 0:
             # Create monomial VDM
             degs = self.basis.ubasis.degrees
             upts = self.basis.upts
@@ -98,6 +98,13 @@ class BaseAdvectionElements(BaseElements):
             self.moninvvdm = np.linalg.inv(V.T)
             ub = self.basis.ubasis
             self.meanwts = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+
+            # npts = 4*self.basis.order + 1
+            # ux = np.linspace(-1, 1, npts)
+            # uxx, uyy = np.meshgrid(ux, ux, indexing='xy')
+            # ug = np.zeros((npts**2, 2))
+            # ug[:,0] = np.reshape(uxx, (-1))
+            # ug[:,1] = np.reshape(uyy, (-1))
             self.upts_mat = self._be.const_matrix(upts)
             assert self.ndims == 2, "Newton's method and face search only implemented for 2D."
 

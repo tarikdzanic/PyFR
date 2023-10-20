@@ -46,26 +46,27 @@ class ScalarIntInters(ScalarIntersMixin, BaseAdvectionIntInters):
             ploc=self._ploc_at_fpts
         )
 
-        self.kernels['comm_bounds'] = lambda: self._be.kernel(
-            'intcbounds', tplargs=tplargs, dims=[self.ninterfpts],
-            ul=self._scal_lhs, ur=self._scal_rhs
-        )
+        if self.cfg.getbool('solver', 'cbp'):
+            self.kernels['comm_bounds'] = lambda: self._be.kernel(
+                'intcbounds', tplargs=tplargs, dims=[self.ninterfpts],
+                ul=self._scal_lhs, ur=self._scal_rhs
+            )
 
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundsl')
-        self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
-            'intcboundsl', tplargs={}, dims=[self.ninters],
-            bounds_l_lhs=self._bounds_l_lhs, bounds_l_rhs=self._bounds_l_rhs
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundsh')
-        self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
-            'intcboundsh', tplargs={}, dims=[self.ninters],
-            bounds_h_lhs=self._bounds_h_lhs, bounds_h_rhs=self._bounds_h_rhs
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundse')
-        self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
-            'intcboundse', tplargs={}, dims=[self.ninters],
-            bounds_e_lhs=self._bounds_e_lhs, bounds_e_rhs=self._bounds_e_rhs
-        )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundsl')
+            self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
+                'intcboundsl', tplargs={}, dims=[self.ninters],
+                bounds_l_lhs=self._bounds_l_lhs, bounds_l_rhs=self._bounds_l_rhs
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundsh')
+            self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
+                'intcboundsh', tplargs={}, dims=[self.ninters],
+                bounds_h_lhs=self._bounds_h_lhs, bounds_h_rhs=self._bounds_h_rhs
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcboundse')
+            self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
+                'intcboundse', tplargs={}, dims=[self.ninters],
+                bounds_e_lhs=self._bounds_e_lhs, bounds_e_rhs=self._bounds_e_rhs
+            )
 
 
 class ScalarMPIInters(ScalarIntersMixin, BaseAdvectionMPIInters):
@@ -84,26 +85,27 @@ class ScalarMPIInters(ScalarIntersMixin, BaseAdvectionMPIInters):
             ploc=self._ploc_at_fpts
         )
 
-        self.kernels['comm_bounds'] = lambda: self._be.kernel(
-            'mpicbounds', tplargs, dims=[self.ninterfpts],
-            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs
-        )
+        if self.cfg.getbool('solver', 'cbp'):
+            self.kernels['comm_bounds'] = lambda: self._be.kernel(
+                'mpicbounds', tplargs, dims=[self.ninterfpts],
+                ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs
+            )
 
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundsl')
-        self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
-            'mpicboundsl', tplargs={}, dims=[self.ninters],
-            bounds_l_lhs=self._bounds_l_lhs, bounds_l_rhs=self._bounds_l_rhs
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundsh')
-        self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
-            'mpicboundsh', tplargs={}, dims=[self.ninters],
-            bounds_h_lhs=self._bounds_h_lhs, bounds_h_rhs=self._bounds_h_rhs
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundse')
-        self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
-            'mpicboundse', tplargs={}, dims=[self.ninters],
-            bounds_e_lhs=self._bounds_e_lhs, bounds_e_rhs=self._bounds_e_rhs
-        )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundsl')
+            self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
+                'mpicboundsl', tplargs={}, dims=[self.ninters],
+                bounds_l_lhs=self._bounds_l_lhs, bounds_l_rhs=self._bounds_l_rhs
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundsh')
+            self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
+                'mpicboundsh', tplargs={}, dims=[self.ninters],
+                bounds_h_lhs=self._bounds_h_lhs, bounds_h_rhs=self._bounds_h_rhs
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.mpicboundse')
+            self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
+                'mpicboundse', tplargs={}, dims=[self.ninters],
+                bounds_e_lhs=self._bounds_e_lhs, bounds_e_rhs=self._bounds_e_rhs
+            )
 
 
 class ScalarBaseBCInters(ScalarIntersMixin, BaseAdvectionBCInters):
@@ -123,30 +125,31 @@ class ScalarBaseBCInters(ScalarIntersMixin, BaseAdvectionBCInters):
             ploc=self._ploc_at_fpts, **self._external_vals
         )
 
-        self.kernels['comm_bounds'] = lambda: self._be.kernel(
-            'bccbounds', tplargs=tplargs, dims=[self.ninterfpts],
-            extrns=self._external_args, ul=self._scal_lhs, nl=self._pnorm_lhs,
-            **self._external_vals
-        )
+        if self.cfg.getbool('solver', 'cbp'):
+            self.kernels['comm_bounds'] = lambda: self._be.kernel(
+                'bccbounds', tplargs=tplargs, dims=[self.ninterfpts],
+                extrns=self._external_args, ul=self._scal_lhs, nl=self._pnorm_lhs,
+                **self._external_vals
+            )
 
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundsl')
-        self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
-            'bccboundsl', tplargs=tplargs, dims=[self.ninterfpts],
-            extrns=self._external_args, bounds_l_lhs=self._bounds_l_lhs,
-            nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundsh')
-        self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
-            'bccboundsh', tplargs=tplargs, dims=[self.ninterfpts],
-            extrns=self._external_args, bounds_h_lhs=self._bounds_h_lhs,
-            nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
-        )
-        self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundse')
-        self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
-            'bccboundse', tplargs=tplargs, dims=[self.ninterfpts],
-            extrns=self._external_args, bounds_e_lhs=self._bounds_e_lhs,
-            nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
-        )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundsl')
+            self.kernels['comm_bounds_l'] = lambda: self._be.kernel(
+                'bccboundsl', tplargs=tplargs, dims=[self.ninterfpts],
+                extrns=self._external_args, bounds_l_lhs=self._bounds_l_lhs,
+                nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundsh')
+            self.kernels['comm_bounds_h'] = lambda: self._be.kernel(
+                'bccboundsh', tplargs=tplargs, dims=[self.ninterfpts],
+                extrns=self._external_args, bounds_h_lhs=self._bounds_h_lhs,
+                nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+            )
+            self._be.pointwise.register('pyfr.solvers.scalar.kernels.bccboundse')
+            self.kernels['comm_bounds_e'] = lambda: self._be.kernel(
+                'bccboundse', tplargs=tplargs, dims=[self.ninterfpts],
+                extrns=self._external_args, bounds_e_lhs=self._bounds_e_lhs,
+                nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+            )
 
 class ScalarFixedBCInters(ScalarBaseBCInters):
     type = 'fixed'
