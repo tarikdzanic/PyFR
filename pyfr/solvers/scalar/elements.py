@@ -111,7 +111,7 @@ class ScalarElements(BaseAdvectionElements):
                 ploc=ploc_qpts
             )
         
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp') and self.basis.order > 0:
             tplargs['invvdm'] = self.moninvvdm 
             tplargs['faceinvvdm'] = self.facemoninvvdm 
             tplargs['meanwts'] = self.meanwts
@@ -128,12 +128,13 @@ class ScalarElements(BaseAdvectionElements):
             glob_bounds = self.cfg.getbool('solver', 'glob-bounds', False)
             assert face_bounds + elem_bounds + glob_bounds == 1, 'Only one bounding method must be enabled.'
 
-            self.kernels['element_bounds'] = lambda uin: self._be.kernel(
-                'elementbounds', tplargs=tplargs,
-                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
-                bounds=self.bounds, bounds_l=self.bounds_l_int,
-                bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
-            )
+            if not glob_bounds:
+                self.kernels['element_bounds'] = lambda uin: self._be.kernel(
+                    'elementbounds', tplargs=tplargs,
+                    dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
+                    bounds=self.bounds, bounds_l=self.bounds_l_int,
+                    bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
+                )
 
             if face_bounds:
                 self.kernels['compute_bounds'] = lambda : self._be.kernel(
@@ -154,6 +155,6 @@ class ScalarElements(BaseAdvectionElements):
                             
             self.kernels['limiter'] = lambda uin: self._be.kernel(
                 'limiter', tplargs=tplargs,
-                dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
-                bounds=self.bounds
+                dims=[self.neles], u=self.scal_upts[uin], uf=self._scal_fpts,
+                x=self.upts_mat, bounds=self.bounds # ADD FPTS TO UPTS_MAT
             )
