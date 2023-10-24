@@ -61,7 +61,7 @@
     % endfor
 
     // Find discrete minima
-    fpdtype_t ui[${nvars}], xmin[${ndims}], xmin_old[${ndims}], hmax, h2;
+    fpdtype_t ui[${nvars}], xmin[${ndims}], xmin_old[${ndims}], hmax, hmin, h2;
 
     % for i in range(nvars):
     ui[${i}] = u[0][${i}];
@@ -73,6 +73,7 @@
 
     !! CALL_COSTFUNCTION ['ui', 'uavg', 'hstar']
     hmax = hstar;
+    hmin = hstar;
 
     for (int i = 1; i < ${nupts}; i++) {
         % for j in range(nvars):
@@ -210,11 +211,14 @@
                     % endfor
                 }
             }
+
+            // Track minimum value across iterations
+            hmin = fmin(hmin, hstar);
         }
 
         // Extrapolate lower bound for hstar
-        fpdtype_t dhJ = (${' + '.join(f'abs(J[{i}]*(xmin[{i}] - xmin_old[{i}]))' for i in range(ndims))});
-        hstar = fmax(-1, hstar - dhJ);
+        fpdtype_t dhJ2 = (${' + '.join(f'pow(J[{i}]*J[{i}]*(xmin[{i}] - xmin_old[{i}]), 2.0)' for i in range(ndims))});
+        hstar = fmax(-1, hmin - sqrt(dhJ2));
     }
     % endif
 </%pyfr:macro>
