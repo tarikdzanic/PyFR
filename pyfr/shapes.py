@@ -83,10 +83,10 @@ class BaseShape:
     def opmat(self, expr):
         expr = expr.lower().replace('*', '@')
 
-        if not re.match(r'[m0-9\-+@() ]+$', expr):
+        if not re.match(r'[m0-9a-c\-+@() ]+$', expr):
             raise ValueError('Invalid operator matrix expression')
 
-        mats = {m: getattr(self, m) for m in re.findall(r'm\d+', expr)}
+        mats = {m: getattr(self, m) for m in re.findall(r'm\d+[abc]?', expr)}
         return eval(expr, {'__builtins__': None}, mats)
 
     @cached_property
@@ -97,6 +97,21 @@ class BaseShape:
     def m1(self):
         m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)
         return m.reshape(self.nupts, -1)
+
+    @cached_property
+    def m1a(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,0,:]
+        return m
+
+    @cached_property
+    def m1b(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,1,:]
+        return m
+
+    @cached_property
+    def m1c(self):
+        m = np.rollaxis(self.ubasis.jac_nodal_basis_at(self.upts), 2)[:,2,:]
+        return m
 
     @cached_property
     def m2(self):
@@ -114,6 +129,21 @@ class BaseShape:
             m = m @ block_diag(fp)
 
         return m
+
+    @cached_property
+    def m32a(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, :self.nupts]
+
+    @cached_property
+    def m32b(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, self.nupts:2*self.nupts]
+
+    @cached_property
+    def m32c(self):
+        m32 = self.m3 @ self.m2
+        return m32[:, 2*self.nupts:]
 
     @cached_property
     def m4(self):
@@ -315,6 +345,11 @@ class BaseShape:
     @cached_property
     def nmpts(self):
         return len(self.mpts)
+
+    @cached_property
+    def fpts_in_upts(self):
+        mrowsum = np.max(np.abs(np.sum(self.m0, axis=1) - 1.0))
+        return np.min(self.m0) > -1e-8 and mrowsum < 1e-8
 
 
 class TensorProdShape:

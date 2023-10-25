@@ -9,10 +9,10 @@ class BaseAdvectionElements(BaseElements):
         if 'flux' in self.antialias:
             bufs = {'scal_fpts', 'scal_qpts', 'vect_qpts'}
         else:
-            bufs = {'scal_fpts', 'vect_upts'}
-
-        # if self._soln_in_src_exprs:
-        bufs |= {'scal_upts_cpy'}
+            if self.optimize_memory:
+                bufs = {'scal_ufpts'}
+            else:
+                bufs = {'vect_upts', 'scal_fpts', 'scal_upts_cpy'}
 
         return bufs
 
@@ -59,10 +59,17 @@ class BaseAdvectionElements(BaseElements):
                 out=self.scal_upts[fout]
             )
         elif self.basis.order > 0:
-            kernels['tdivtpcorf'] = lambda fout: self._be.kernel(
-                'mul', self.opmat('M1 - M3*M2'), self._vect_upts,
-                out=self.scal_upts[fout]
-            )
+            if self.optimize_memory:
+                for i,v in enumerate('ABC'[:self.ndims]):
+                    kernels[f'tdivtpcorf_{i}'] = lambda fout, i=i, v=v: self._be.kernel(
+                        'mul', self.opmat(f'M1{v} - M32{v}'), self._scal_upts_cpy,
+                        out=self.scal_upts[fout], beta=float(i > 0)
+                    )
+            else:
+                kernels['tdivtpcorf'] = lambda fout: self._be.kernel(
+                    'mul', self.opmat('M1 - M3*M2'), self._vect_upts,
+                    out=self.scal_upts[fout]
+                )
 
         # Second flux correction kernel
         kernels['tdivtconf'] = lambda fout: self._be.kernel(
