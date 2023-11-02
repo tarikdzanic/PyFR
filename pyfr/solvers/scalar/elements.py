@@ -121,6 +121,7 @@ class ScalarElements(BaseAdvectionElements):
             tplargs['nfaces'] = self.nfaces
             tplargs['nfptsperface'] = self.nfptsperface
             tplargs['niters'] = self.cfg.getint('solver', 'niters', 3)
+            tplargs['element_type'] = self.basis.name
             tplargs['apply_entropy_bounds'] = self.cfg.getbool('solver', 'entropy-bounds', False)
 
             face_bounds = self.cfg.getbool('solver', 'face-bounds', False)

@@ -28,6 +28,7 @@
 </%pyfr:macro>
 
 <%pyfr:macro name='project_step_to_element' params='x0, x1, dx'>
+    % if element_type == 'quad':
     // Project step from x0 -> x1 along vector dx = x1 - x0 onto a quad (-1, 1)^2
     fpdtype_t a1 = 1.0, a2 = 1.0;
 
@@ -45,11 +46,32 @@
         a2 = (-1.0 - x0[1])/dx[1];
     }
 
-
     fpdtype_t adx = max(0.0, min(a1, a2));
     % for i in range(ndims):
     x1[${i}] = fmax(-1.0, fmin(1.0, x0[${i}] + adx*dx[${i}]));
     % endfor
+    % elif element_type == 'tri':
+    // Project step from x0 -> x1 along vector dx = x1 - x0 onto a triangle defined by (-1, -1), (1, -1), (-1, 1)
+    fpdtype_t a1 = 1.0, a2 = 1.0, a3 = 1.0;
+    if (dx[0] < ${-eps} && x1[0] < -1.0) {
+        a1 = (-1.0 - x0[0])/dx[0];
+    }
+    if (dx[1] < ${-eps} && x1[1] < -1.0) {
+        a2 = (-1.0 - x0[1])/dx[1];
+    }
+    // Diagonal is defined by y = -x, step will intersect if (x0, y0) in triangle and dy > -dx
+    if (dx[1] > -dx[0] - ${eps} && x1[1] > -x1[0] - ${eps}) {
+        // Intersection defined by solving x = -y -> x0 + a*dx = -(y0 + a*dy) -> a = -(y0 + x0)/(dx + dy)
+        a3 = -(x0[0] + x0[1])/fmax(${eps}, dx[0] + dx[1]);
+    }
+
+    // Compute interestion and explicitly enforce x > -1, y > -1, y < -x
+    fpdtype_t adx = max(0.0, min(a3, min(a1, a2)));
+    % for i in range(ndims):
+    x1[${i}] = fmax(-1.0, fmin(1.0, x0[${i}] + adx*dx[${i}]));
+    % endfor
+    x1[1] = min(x1[1], -x1[0]);
+    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='optimize' params='u, uavg, x, hstar'>
@@ -138,17 +160,26 @@
             % endfor
 
             // Zero outward facing component if on element boundary
-            if ((xmin[0] > ${1-eps}) || (xmin[0] < ${-1+eps}) || (xmin[1] > ${1-eps}) || (xmin[1] < ${-1+eps})) {
-                // Add switch here for quad/tri
-                // Zero positive dx if on right boundary
-                dx1[0] = xmin[0] > ${1-eps}  ? min(dx1[0], 0.0) : dx1[0];
-                // Zero negative dx if on left boundary
-                dx1[0] = xmin[0] < ${-1+eps} ? max(dx1[0], 0.0) : dx1[0];
-                // Zero positive dy if on top boundary
-                dx1[1] = xmin[1] > ${1-eps}  ? min(dx1[1], 0.0) : dx1[1];
-                // Zero negative dy if on bottom boundary
-                dx1[1] = xmin[1] < ${-1+eps} ? max(dx1[1], 0.0) : dx1[1];
+            % if element_type == 'quad':
+            // Zero positive dx if on right boundary
+            dx1[0] = xmin[0] > ${1-eps}  ? min(dx1[0], 0.0) : dx1[0];
+            // Zero negative dx if on left boundary
+            dx1[0] = xmin[0] < ${-1+eps} ? max(dx1[0], 0.0) : dx1[0];
+            // Zero positive dy if on top boundary
+            dx1[1] = xmin[1] > ${1-eps}  ? min(dx1[1], 0.0) : dx1[1];
+            // Zero negative dy if on bottom boundary
+            dx1[1] = xmin[1] < ${-1+eps} ? max(dx1[1], 0.0) : dx1[1];
+            % elif element_type == 'tri':
+            // Zero negative dx if on left boundary
+            dx1[0] = xmin[0] < ${-1+eps} ? max(dx1[0], 0.0) : dx1[0];
+            // Zero negative dy if on bottom boundary
+            dx1[1] = xmin[1] < ${-1+eps} ? max(dx1[1], 0.0) : dx1[1];
+            // Zero outward normal (1,1) if on diagonal
+            if (xmin[1] > -xmin[0] - ${eps} && dx1[0] + dx1[1] > 0) {
+                dx1[0] = ${1 - 2**0.5}*dx1[0];
+                dx1[1] = ${1 - 2**0.5}*dx1[1];
             }
+            % endif
 
             // Take step and project to element bounds
             % for i in range(ndims):
@@ -184,16 +215,26 @@
                 % endfor
 
                 // Zero outward facing component if on element boundary
-                if ((xmin[0] > ${1-eps}) || (xmin[0] < ${-1+eps}) || (xmin[1] > ${1-eps}) || (xmin[1] < ${-1+eps})) {
-                    // Zero positive dx if on right boundary
-                    dx2[0] = xmin[0] > ${1-eps}  ? min(dx2[0], 0.0) : dx2[0];
-                    // Zero negative dx if on left boundary
-                    dx2[0] = xmin[0] < ${-1+eps} ? max(dx2[0], 0.0) : dx2[0];
-                    // Zero positive dy if on top boundary
-                    dx2[1] = xmin[1] > ${1-eps}  ? min(dx2[1], 0.0) : dx2[1];
-                    // Zero negative dy if on bottom boundary
-                    dx2[1] = xmin[1] < ${-1+eps} ? max(dx2[1], 0.0) : dx2[1];
+                % if element_type == 'quad':
+                // Zero positive dx if on right boundary
+                dx2[0] = xmin[0] > ${1-eps}  ? min(dx2[0], 0.0) : dx2[0];
+                // Zero negative dx if on left boundary
+                dx2[0] = xmin[0] < ${-1+eps} ? max(dx2[0], 0.0) : dx2[0];
+                // Zero positive dy if on top boundary
+                dx2[1] = xmin[1] > ${1-eps}  ? min(dx2[1], 0.0) : dx2[1];
+                // Zero negative dy if on bottom boundary
+                dx2[1] = xmin[1] < ${-1+eps} ? max(dx2[1], 0.0) : dx2[1];
+                % elif element_type == 'tri':
+                // Zero negative dx if on left boundary
+                dx2[0] = xmin[0] < ${-1+eps} ? max(dx2[0], 0.0) : dx2[0];
+                // Zero negative dy if on bottom boundary
+                dx2[1] = xmin[1] < ${-1+eps} ? max(dx2[1], 0.0) : dx2[1];
+                // Zero outward normal (1,1) if on diagonal
+                if (xmin[1] > -xmin[0] - ${eps} && dx2[0] + dx2[1] > 0) {
+                    dx2[0] = ${1 - 2**0.5}*dx2[0];
+                    dx2[1] = ${1 - 2**0.5}*dx2[1];
                 }
+                % endif
 
                 // Take step and project to element bounds
                 % for i in range(ndims):
