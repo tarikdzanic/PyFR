@@ -260,7 +260,6 @@ class BGKElements(BaseAdvectionElements):
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
         rho_ref = self.cfg.getfloat('constants', 'rho_ref')
         P_ref = self.cfg.getfloat('constants', 'P_ref')
-        omega = self.cfg.getfloat('constants', 'omega')
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
         theta_ref = P_ref/rho_ref
 
@@ -275,40 +274,62 @@ class BGKElements(BaseAdvectionElements):
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega, 'Pr' : Pr
+            'Pr' : Pr
         }
+
+        # Setup viscosity law
+        viscosity_law = self.cfg.get('solver', 'viscosity-law')
+        tplargs['viscosity_law'] = viscosity_law
+        if viscosity_law not in {'constant-tau', 'constant-viscosity', 'power-law', 'sutherland'}:
+            raise ValueError(f'Unknown viscosity law: {viscosity_law}')
+        if viscosity_law == 'power-law':
+            tplargs['omega'] = self.cfg.getfloat('constants', 'omega')
+        elif viscosity_law == 'sutherland':
+            tplargs['theta_s'] = self.cfg.getfloat('constants', 'theta_s')
 
         # Helpers
         c, l = 'curved', 'linear'
         r, s = self._mesh_regions, self._slice_mat
 
-        if c in r and 'flux' not in self.antialias:
-            self.kernels['tdisf_curved'] = lambda uin: self._be.kernel(
-                'tflux', tplargs=tplargs, dims=[self.nupts, r[c]],
-                f=s(self.scal_upts[uin], c), F=s(self._vect_upts, c),
-                smats=self.curved_smat_at('upts'), u=self.umat
-            )
-        elif c in r:
-            self.kernels['tdisf_curved'] = lambda: self._be.kernel(
-                'tflux', tplargs=tplargs, dims=[self.nqpts, r[c]],
-                f=s(self._scal_qpts, c), F=s(self._vect_qpts, c),
-                smats=self.curved_smat_at('qpts'), u=self.umat
-            )
+        assert not self.antialias, 'Anti-aliasing not supported for Boltzmann-BGK.' 
 
-        if l in r and 'flux' not in self.antialias:
-            self.kernels['tdisf_linear'] = lambda uin: self._be.kernel(
-                'tfluxlin', tplargs=tplargs, dims=[self.nupts, r[l]],
-                f=s(self.scal_upts[uin], l), F=s(self._vect_upts, l),
-                verts=self.ploc_at('linspts', l), upts=self.upts,
-                u=self.umat
-            )
-        elif l in r:
-            self.kernels['tdisf_linear'] = lambda: self._be.kernel(
-                'tfluxlin', tplargs=tplargs, dims=[self.nqpts, r[l]],
-                f=s(self._scal_qpts, l), F=s(self._vect_qpts, l),
-                verts=self.ploc_at('linspts', l), upts=self.qpts,
-                u=self.umat
-            )
+        if self.optimize_memory:
+            # Seperate div(F) kernel to compute dimension-by-dimension
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxsplit')
+            self._be.pointwise.register(f'pyfr.solvers.bgk.kernels.tfluxlinsplit')
+            for dim in range(self.ndims):
+                tplargs_cpy = tplargs.copy()
+                tplargs_cpy['fluxdim'] = dim
+
+                if c in r:
+                    self.kernels[f'tdisf_curved_{dim}'] = lambda uin, tplargs=tplargs_cpy: self._be.kernel(
+                        f'tfluxsplit', tplargs=tplargs, dims=[self.nupts, r[c]],
+                        f=s(self.scal_upts[uin], c), F=s(self._scal_upts_cpy, c),
+                        smats=self.curved_smat_at('upts'), u=self.umat
+                    )
+
+                if l in r:
+                    self.kernels[f'tdisf_linear_{dim}'] = lambda uin, tplargs=tplargs_cpy: self._be.kernel(
+                        f'tfluxlinsplit', tplargs=tplargs, dims=[self.nupts, r[l]],
+                        f=s(self.scal_upts[uin], l), F=s(self._scal_upts_cpy, l),
+                        verts=self.ploc_at('linspts', l), upts=self.upts,
+                        u=self.umat
+                    )
+        else:
+            if c in r:
+                self.kernels['tdisf_curved'] = lambda uin: self._be.kernel(
+                    'tflux', tplargs=tplargs, dims=[self.nupts, r[c]],
+                    f=s(self.scal_upts[uin], c), F=s(self._vect_upts, c),
+                    smats=self.curved_smat_at('upts'), u=self.umat
+                )
+
+            if l in r:
+                self.kernels['tdisf_linear'] = lambda uin: self._be.kernel(
+                    'tfluxlin', tplargs=tplargs, dims=[self.nupts, r[l]],
+                    f=s(self.scal_upts[uin], l), F=s(self._vect_upts, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts,
+                    u=self.umat
+                )
 
         plocsrc = self._ploc_in_src_exprs
         plocupts = self.ploc_at('upts') if plocsrc else None
@@ -322,6 +343,7 @@ class BGKElements(BaseAdvectionElements):
 
         # Positivity-preserving squeeze limiter
         if self.cfg.getbool('solver', 'limiter', False) and self.basis.order != 0:
+            assert self.basis.fpts_in_upts, 'Flux points must be subset of solution points for limiter.'
             ub = self.basis.ubasis
             tplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
 

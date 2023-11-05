@@ -45,7 +45,17 @@
     // Compute collision time based on viscosity model
     fpdtype_t p = q[${ndims+1}];
     fpdtype_t theta = p/q[0];
+    % if viscosity_law == 'constant-tau':
+    fpdtype_t tau = ${tau_ref/Pr};
+    % elif viscosity_law == 'constant-viscosity':
+    fpdtype_t tau = ${tau_ref*P_ref/Pr}/p;
+    % elif viscosity_law == 'power-law':
     fpdtype_t tau = ${tau_ref/Pr}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
+    % elif viscosity_law == 'sutherland':
+    // mu = mu_ref*(T/T_ref)^1.5 * (T_ref + T_s)/(T + T_s)
+    fpdtype_t theta_rat = theta/${theta_ref};
+    fpdtype_t tau = (${tau_ref*P_ref*(theta_ref + theta_s)/Pr}/p)*theta_rat*sqrt(theta_rat)/(theta + ${theta_s});
+    % endif
 
     // Set source term
     fpdtype_t g;
