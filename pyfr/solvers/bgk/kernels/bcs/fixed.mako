@@ -15,22 +15,40 @@
     // Convert to primitives
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
+    // Apply ES-BGK model if necessary
+    % if Pr != 1:
+    // Compute initial temperature tensor (scaled by 1 - 1/Pr)
+    fpdtype_t T[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'q', 'u', 'M')}; 
 
     // Get alpha vector
-    fpdtype_t alpha[${ndims+2}];
-    ${pyfr.expand('compute_alpha', 'q', 'alpha')};
+    fpdtype_t alpha[${ndims+2}], Tvinv[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'Tvinv', 'alpha')};
 
     // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM', 'alpha', 'w', 'u', 'M')};
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'w', 'T', 'Tvinv', 'u', 'M')};
+    % else:
+    // Get alpha vector
+    fpdtype_t alpha[${ndims+2}];
+    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
 
-    // Compute temperature
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+    % endif
+
+    // Compute temperature for internal DOFs if necessary
     % if delta:
     fpdtype_t theta = q[${ndims+1}]/q[0];
     % endif
 
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u', 'i', 'fr[i]')};
+        // Compute equilibrium distribution at i-th velocity point
+        % if Pr != 1:
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha_es', 'u[i]', 'fr[i]')};
+        % else:
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'fr[i]')};
+        % endif
 
         // Apply internal energy effects
         % if delta:
