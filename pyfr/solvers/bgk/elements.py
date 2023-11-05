@@ -253,7 +253,6 @@ class BGKElements(BaseAdvectionElements):
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
         rho_ref = self.cfg.getfloat('constants', 'rho_ref')
         P_ref = self.cfg.getfloat('constants', 'P_ref')
-        omega = self.cfg.getfloat('constants', 'omega')
         theta_ref = P_ref/rho_ref
 
         # Template parameters for the flux kernels
@@ -266,9 +265,18 @@ class BGKElements(BaseAdvectionElements):
             'srcex': self._src_exprs, 'pi': np.pi,
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
-            'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'omega' : omega,
+            'P_ref': P_ref, 'theta_ref' : theta_ref
         }
+
+        # Setup viscosity law
+        viscosity_law = self.cfg.get('solver', 'viscosity-law')
+        tplargs['viscosity_law'] = viscosity_law
+        if viscosity_law not in {'constant-tau', 'constant-viscosity', 'power-law', 'sutherland'}:
+            raise ValueError(f'Unknown viscosity law: {viscosity_law}')
+        if viscosity_law == 'power-law':
+            tplargs['omega'] = self.cfg.getfloat('constants', 'omega')
+        elif viscosity_law == 'sutherland':
+            tplargs['theta_s'] = self.cfg.getfloat('constants', 'theta_s')
 
         # Helpers
         c, l = 'curved', 'linear'
