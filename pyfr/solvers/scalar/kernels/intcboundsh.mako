@@ -5,5 +5,5 @@
               bounds_h_lhs='inout view fpdtype_t'
               bounds_h_rhs='inout view fpdtype_t'>
 
-    bounds_h_lhs = bounds_h_rhs = fmax(bounds_h_lhs, bounds_h_rhs);
+    bounds_h_lhs = bounds_h_rhs = fmin(bounds_h_lhs, bounds_h_rhs);
 </%pyfr:kernel>

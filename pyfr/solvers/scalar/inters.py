@@ -46,7 +46,7 @@ class ScalarIntInters(ScalarIntersMixin, BaseAdvectionIntInters):
             ploc=self._ploc_at_fpts
         )
 
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp', False) and self.cfg.get('solver', 'bounds') != 'global':
             self.kernels['comm_bounds'] = lambda: self._be.kernel(
                 'intcbounds', tplargs=tplargs, dims=[self.ninterfpts],
                 ul=self._scal_lhs, ur=self._scal_rhs
@@ -85,7 +85,7 @@ class ScalarMPIInters(ScalarIntersMixin, BaseAdvectionMPIInters):
             ploc=self._ploc_at_fpts
         )
 
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp', False) and self.cfg.get('solver', 'bounds') != 'global':
             self.kernels['comm_bounds'] = lambda: self._be.kernel(
                 'mpicbounds', tplargs, dims=[self.ninterfpts],
                 ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs

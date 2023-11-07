@@ -67,11 +67,10 @@ class BaseAdvectionSystem(BaseSystem):
         k, _ = self._get_kernels(uinbank, None)
 
         def deps(dk, *names): return self._kdeps(k, dk, *names)
-        face_bounds = self.cfg.getbool('solver', 'face-bounds', False)
-        elem_bounds = self.cfg.getbool('solver', 'elem-bounds', False)
-        glob_bounds = self.cfg.getbool('solver', 'glob-bounds', False)
+        bound_method = self.cfg.get('solver', 'bounds', None)
 
-        if face_bounds:
+        if bound_method == 'local-face':
+            raise NotImplementedError()
             g1 = self.backend.graph()
 
             # Interpolate the solution to the flux points
@@ -108,7 +107,7 @@ class BaseAdvectionSystem(BaseSystem):
                                                           k['bcint/comm_bounds'])
                 g1.commit()
                 return g1,
-        elif elem_bounds:
+        if bound_method == 'local-element':
             g1 = self.backend.graph()
             g1.add_mpi_reqs(m['bounds_l_fpts_recv'])
             g1.add_mpi_reqs(m['bounds_h_fpts_recv'])

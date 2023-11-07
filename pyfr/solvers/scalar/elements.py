@@ -124,12 +124,11 @@ class ScalarElements(BaseAdvectionElements):
             tplargs['element_type'] = self.basis.name
             tplargs['apply_entropy_bounds'] = self.cfg.getbool('solver', 'entropy-bounds', False)
 
-            face_bounds = self.cfg.getbool('solver', 'face-bounds', False)
-            elem_bounds = self.cfg.getbool('solver', 'elem-bounds', False)
-            glob_bounds = self.cfg.getbool('solver', 'glob-bounds', False)
-            assert face_bounds + elem_bounds + glob_bounds == 1, 'Only one bounding method must be enabled.'
+            bound_method = self.cfg.get('solver', 'bounds', None)
+            if bound_method not in {'global', 'local-element', 'local-face'}:
+                raise ValueError(f'Unknown bound method {bound_method}')
 
-            if not glob_bounds:
+            if bound_method != 'global':
                 self.kernels['element_bounds'] = lambda uin: self._be.kernel(
                     'elementbounds', tplargs=tplargs,
                     dims=[self.neles], u=self.scal_upts[uin], x=self.upts_mat,
@@ -137,21 +136,22 @@ class ScalarElements(BaseAdvectionElements):
                     bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
                 )
 
-            if face_bounds:
+            if bound_method == 'local-face':
+                raise NotImplementedError()
                 self.kernels['compute_bounds'] = lambda : self._be.kernel(
                     'computeboundsface', tplargs=tplargs,
                     dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
                     bounds=self.bounds
                 )
-            elif elem_bounds:
+            elif bound_method == 'local-element':
                 self.kernels['compute_bounds'] = lambda : self._be.kernel(
                     'computeboundselem', tplargs=tplargs,
                     dims=[self.neles], uf=self._scal_fpts, xf=self.fpts_mat,
                     bounds=self.bounds, bounds_l=self.bounds_l_int,
                     bounds_h=self.bounds_h_int, bounds_e=self.bounds_e_int
                 )
-            elif glob_bounds:
-                tplargs['global_bounds'] = glob_bounds
+            elif bound_method == 'global':
+                tplargs['global_bounds'] = True
                 tplargs['gbnds'] = self.cfg.getliteral('solver', 'global-bounds')
                             
             self.kernels['limiter'] = lambda uin: self._be.kernel(

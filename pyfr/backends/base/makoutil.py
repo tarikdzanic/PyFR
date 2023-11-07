@@ -132,6 +132,7 @@ def expand(context, name, /, *args, **kwargs):
                 largs = eval(line.split('CALL_COSTFUNCTION')[-1]) # Get macro args
                 line = lspaces + cc[-1] # Get expanded macro
                 # Replace template args with macro args
+                print(cc)
                 for i, larg in enumerate(largs):
                     line = line.replace(cc[0][i], larg)
             newbody += line + '\n'

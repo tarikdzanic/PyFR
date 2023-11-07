@@ -16,7 +16,7 @@ class BaseAdvectionIntInters(BaseInters):
         self._scal_lhs = self._scal_view(lhs, 'get_scal_fpts_for_inter')
         self._scal_rhs = self._scal_view(rhs, 'get_scal_fpts_for_inter')
         self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp', False) and self.cfg.get('solver', 'bounds') != 'global':
             self._bounds_l_lhs = self._view(
                 lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
             )
@@ -75,7 +75,7 @@ class BaseAdvectionMPIInters(BaseInters):
         self._scal_lhs = self._scal_xchg_view(lhs, 'get_scal_fpts_for_inter')
         self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         self._scal_rhs = be.xchg_matrix_for_view(self._scal_lhs)
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp', False) and self.cfg.get('solver', 'bounds') != 'global':
             self._bounds_l_lhs = self._xchg_view(
                 lhs, 'get_bounds_l_int_fpts_for_inter', with_perm=False
             )
@@ -187,7 +187,7 @@ class BaseAdvectionBCInters(BaseInters):
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
         self._ploc_at_fpts = self._const_mat(lhs, 'get_ploc_for_inter')
         
-        if self.cfg.getbool('solver', 'cbp'):
+        if self.cfg.getbool('solver', 'cbp', False) and self.cfg.get('solver', 'bounds') != 'global':
             self._bounds_l_lhs = self._view(lhs, 'get_bounds_l_bc_fpts_for_inter')
             self._bounds_h_lhs = self._view(lhs, 'get_bounds_h_bc_fpts_for_inter')
             self._bounds_e_lhs = self._view(lhs, 'get_bounds_e_bc_fpts_for_inter')
