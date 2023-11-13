@@ -212,7 +212,7 @@ class BaseElements:
             self._scal_upts_cpy = salloc('scal_upts_cpy', nupts)
         if 'scal_ufpts' in sbufs:
             if nupts >= nfpts:
-                self._scal_upts_cpy = salloc('scal_upts', nupts)
+                self._scal_upts_cpy = salloc('scal_upts_cpy', nupts)
                 self._scal_fpts = backend.matrix((nfpts, nvars, neles), aliases=self._scal_upts_cpy, tags={'align'})
             else:
                 self._scal_fpts = salloc('scal_fpts', nfpts)
