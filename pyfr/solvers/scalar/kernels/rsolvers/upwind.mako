@@ -21,18 +21,19 @@
         % if system == 'burgers':
         fpdtype_t laml = ${' + '.join(f'n[{j}]*ul[{j}]' for j in range(ndims))};
         fpdtype_t lamr = ${' + '.join(f'n[{j}]*ur[{j}]' for j in range(ndims))};
-        % elif system == 'kpp':
-        fpdtype_t laml = n[0]*cos(ul[0]) + n[1]*sin(ul[0]);
-        fpdtype_t lamr = n[0]*cos(ur[0]) + n[1]*sin(ur[0]);
-        % endif
         // Estimate the maximum wave speed 
         fpdtype_t lam = fmax(abs(laml), abs(lamr));
+        nf[0] = 0.5*(fnl + fnr) + 0.5*lam*(ul[0] - ur[0]);
+        % elif system == 'kpp':
+        fpdtype_t laml = n[0]*cos(ul[0]) - n[1]*sin(ul[0]);
+        fpdtype_t lamr = n[0]*cos(ur[0]) - n[1]*sin(ur[0]);
 
-        // Output
-    % for i in range(nvars):
-        nf[${i}] = 0.5*(${' + '.join(f'n[{j}]*(fl[{j}][{i}] + fr[{j}][{i}])'
-                                    for j in range(ndims))})
-                + 0.5*lam*(ul[${i}] - ur[${i}]);
-    % endfor
+        fpdtype_t ap = max(0, max(laml, lamr));
+        fpdtype_t am = min(0, min(laml, lamr));
+        fpdtype_t da = max(${1e-12}, ap - am);
+        
+        nf[0] = (ap*fnl - am*fnr)/da + (ap*am)*(ur[0] - ul[0])/da;
+
+        % endif
     % endif
 </%pyfr:macro>
