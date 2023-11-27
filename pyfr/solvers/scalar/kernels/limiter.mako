@@ -23,7 +23,7 @@
     % if global_bounds:
     g = 0;
     % else:
-    g = -bounds[2] - u[0]*u[0]; // bounds[2] is negative since finding min(-u*u)
+    g = bounds[2] - (-0.5*u[0]*u[0]); // bounds[2] is negative since finding min(-u*u)
     % endif
 </%pyfr:macro>
 
