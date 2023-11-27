@@ -52,10 +52,10 @@
             else {
                 fpdtype_t reml = fmod(ul[0], ${2*pi});
                 fpdtype_t remr = fmod(ur[0], ${2*pi});
-                if (remr > ${0.5*pi} && reml < ${0.5*pi}) {
+                if (reml > ${0.5*pi} && remr < ${0.5*pi}) {
                     fe[0] = 1;
                 }
-                else if (ul[0] - ur[0] > remr + ${1.5*pi}) {
+                else if (ul[0] - ur[0] > reml + ${1.5*pi}) {
                     fe[0] = 1;
                 }
             }
@@ -87,10 +87,7 @@
             else {
                 fpdtype_t reml = fmod(ul[0], ${2*pi});
                 fpdtype_t remr = fmod(ur[0], ${2*pi});
-                if (remr > ${0.5*pi} && reml < ${0.5*pi}) {
-                    fe[1] = 1;
-                }
-                else if (reml < remr) {
+                if (reml < remr) {
                     fe[1] = 1;
                 }
             }
