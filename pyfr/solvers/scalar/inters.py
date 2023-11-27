@@ -2,6 +2,7 @@ from pyfr.solvers.baseadvec import (BaseAdvectionIntInters,
                                     BaseAdvectionMPIInters,
                                     BaseAdvectionBCInters)
 import math
+import numpy as np
 
 class ScalarIntersMixin:
     def __init__(self, *args, **kwargs):
@@ -38,7 +39,7 @@ class ScalarIntInters(ScalarIntersMixin, BaseAdvectionIntInters):
         self._be.pointwise.register('pyfr.solvers.scalar.kernels.intcbounds')
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars,
-                       c=self.c, system=self.system, v=self.v)
+                       c=self.c, system=self.system, v=self.v, pi=np.pi)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],

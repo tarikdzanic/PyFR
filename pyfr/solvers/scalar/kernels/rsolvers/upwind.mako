@@ -25,14 +25,80 @@
         fpdtype_t lam = fmax(abs(laml), abs(lamr));
         nf[0] = 0.5*(fnl + fnr) + 0.5*lam*(ul[0] - ur[0]);
         % elif system == 'kpp':
-        fpdtype_t laml = n[0]*cos(ul[0]) - n[1]*sin(ul[0]);
-        fpdtype_t lamr = n[0]*cos(ur[0]) - n[1]*sin(ur[0]);
+        fpdtype_t fe[2];
 
-        fpdtype_t ap = max(0, max(laml, lamr));
-        fpdtype_t am = min(0, min(laml, lamr));
-        fpdtype_t da = ap - am;
-        
-        nf[0] = (ap*fnl - am*fnr)/da + (ap*am)*(ur[0] - ul[0])/da;
+        if (ul[0] < ur[0]) {
+            fe[0] = min(fl[0][0], fr[0][0]);
+            if (ur[0] - ul[0] > ${2*pi}) {
+                fe[0] = -1;
+            }
+            else {
+                fpdtype_t reml = fmod(ul[0], ${2*pi});
+                fpdtype_t remr = fmod(ur[0], ${2*pi});
+                if (remr > ${1.5*pi} && reml < ${1.5*pi}) {
+                    fe[0] = -1;
+                }
+                else if (ur[0] - ul[0] > remr + ${0.5*pi}) {
+                    fe[0] = -1;
+                }
+            }
+
+        }
+        else {
+            fe[0] = max(fl[0][0], fr[0][0]);
+            if (ul[0] - ur[0] > ${2*pi}) {
+                fe[0] = 1;
+            }
+            else {
+                fpdtype_t reml = fmod(ul[0], ${2*pi});
+                fpdtype_t remr = fmod(ur[0], ${2*pi});
+                if (remr > ${0.5*pi} && reml < ${0.5*pi}) {
+                    fe[0] = 1;
+                }
+                else if (ul[0] - ur[0] > remr + ${1.5*pi}) {
+                    fe[0] = 1;
+                }
+            }
+        }
+
+
+        if (ul[0] < ur[0]) {
+            fe[1] = min(fl[1][0], fr[1][0]);
+            if (ur[0] - ul[0] > ${2*pi}) {
+                fe[1] = -1;
+            }
+            else {
+                fpdtype_t reml = fmod(ul[0], ${2*pi});
+                fpdtype_t remr = fmod(ur[0], ${2*pi});
+                if (remr > ${1.0*pi} && reml < ${1.0*pi}) {
+                    fe[1] = -1;
+                }
+                else if (ur[0] - ul[0] > remr + ${1.0*pi}) {
+                    fe[1] = -1;
+                }
+            }
+
+        }
+        else {
+            fe[1] = max(fl[1][0], fr[1][0]);
+            if (ul[0] - ur[0] > ${2*pi}) {
+                fe[1] = 1;
+            }
+            else {
+                fpdtype_t reml = fmod(ul[0], ${2*pi});
+                fpdtype_t remr = fmod(ur[0], ${2*pi});
+                if (remr > ${0.5*pi} && reml < ${0.5*pi}) {
+                    fe[1] = 1;
+                }
+                else if (reml < remr) {
+                    fe[1] = 1;
+                }
+            }
+        }
+
+        fn[0] = n[0]*fe[0] + n[1]*fe[1];
+    
+
 
         % endif
     % endif
