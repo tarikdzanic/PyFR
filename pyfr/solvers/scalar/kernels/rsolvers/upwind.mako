@@ -30,7 +30,7 @@
 
         fpdtype_t ap = max(0, max(laml, lamr));
         fpdtype_t am = min(0, min(laml, lamr));
-        fpdtype_t da = max(${1e-12}, ap - am);
+        fpdtype_t da = ap - am;
         
         nf[0] = (ap*fnl - am*fnr)/da + (ap*am)*(ur[0] - ul[0])/da;
 
