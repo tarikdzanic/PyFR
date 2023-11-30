@@ -10,7 +10,7 @@
 </%pyfr:macro>
 
 <%pyfr:macro name='coste' params='ui, uavg, g, bounds'>
-    g = -0.5*ui[0]*ui[0];
+    g = -ui[0]*ui[0];
 </%pyfr:macro>
 
 <%include file='pyfr.solvers.baseadvec.kernels.limiter'/>
