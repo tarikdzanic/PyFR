@@ -156,6 +156,16 @@ class BaseAdvectionElements(BaseElements):
             self.invvdm = self._be.const_matrix(self.basis.ubasis.invvdm.T)
         else:
             self.entmin_int = None
+        if shock_capturing == 'tvd':
+            tags = {'align'}
+
+            # Allocate one minimum entropy value per interface
+            self.nfaces = len(self.nfacefpts)
+            ext = nonce + 'mean_int'
+            self.mean_int = self._be.matrix((self.nfaces, self.nvars, self.neles),
+                                              tags=tags, extent=ext)
+        else:
+            self.mean_int = None
 
     def get_entmin_int_fpts_for_inter(self, eidx, fidx):
         return (self.entmin_int.mid,), (fidx,), (eidx,)

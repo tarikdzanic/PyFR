@@ -134,6 +134,45 @@ class BaseFluidElements:
                 u=self.scal_upts[uin], entmin_int=self.entmin_int,
                 vdm=self.vdm, invvdm=self.invvdm
             )
+            
+        if shock_capturing == 'tvd' and self.basis.order != 0:
+            self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.elementmean'
+            )
+
+            # Template arguments
+            tvdtplargs = {
+                'ndims': self.ndims,
+                'nupts': self.nupts,
+                'nfpts': self.nfpts,
+                'nvars': self.nvars,
+                'nfaces': self.nfaces,
+                'c': self.cfg.items_as('constants', float),
+                'order': self.basis.order
+            }
+
+            # Check to see if running anti-aliasing
+            if self.antialias:
+                raise ValueError('TVD limiter not compatible with '
+                                 'anti-aliasing.')
+
+            # Check to see if running collocated solution/flux points
+            m0 = self.basis.m0
+            mrowsum = np.max(np.abs(np.sum(m0, axis=1) - 1.0))
+            if np.min(m0) < -1e-8 or mrowsum > 1e-8:
+                raise ValueError('Entropy filter requires flux points to be a '
+                                 'subset of solution points or a convex '
+                                 'combination thereof.')
+
+            ub = self.basis.ubasis
+            tvdtplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+
+            # Compute local entropy bounds
+            self.kernels['element_mean'] = lambda uin: self._be.kernel(
+                'elementmean', tplargs=tvdtplargs, dims=[self.neles],
+                u=self.scal_upts[uin], ubar_int=self.mean_int
+            )
+
 
 
 class EulerElements(BaseFluidElements, BaseAdvectionElements):
