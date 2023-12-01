@@ -22,8 +22,10 @@ class StdEulerStepper(BaseStdStepper):
 
     def step(self, t, dt):
         add, rhs_with_postproc = self._add, self.system.rhs
+        limit = self.system.limit
         ut, f = self._regidx
 
+        limit(ut)
         rhs_with_postproc(t, ut, f)
         add(1.0, ut, dt, f)
 
@@ -42,6 +44,7 @@ class StdTVDRK3Stepper(BaseStdStepper):
 
     def step(self, t, dt):
         add, rhs_with_postproc = self._add, self.system.rhs
+        limit = self.system.limit
 
         # Get the bank indices for each register (n, n+1, rhs)
         r0, r1, r2 = self._regidx
@@ -51,15 +54,18 @@ class StdTVDRK3Stepper(BaseStdStepper):
             r0, r1 = r1, r0
 
         # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
+        limit(r0)
         rhs_with_postproc(t, r0, r2)
         add(0.0, r1, 1.0, r0, dt, r2)
 
         # Second stage; r2 = -∇·f(r1); r1 = 0.75*r0 + 0.25*r1 + 0.25*dt*r2
+        limit(r1)
         rhs_with_postproc(t + dt, r1, r2)
         add(0.25, r1, 0.75, r0, 0.25*dt, r2)
 
         # Third stage; r2 = -∇·f(r1);
         #              r1 = 1.0/3.0*r0 + 2.0/3.0*r1 + 2.0/3.0*dt*r2
+        limit(r1)
         rhs_with_postproc(t + 0.5*dt, r1, r2)
         add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
 
@@ -79,6 +85,7 @@ class StdRK4Stepper(BaseStdStepper):
 
     def step(self, t, dt):
         add, rhs_with_postproc = self._add, self.system.rhs
+        limit = self.system.limit
 
         # Get the bank indices for each register
         r0, r1, r2 = self._regidx
@@ -88,10 +95,12 @@ class StdRK4Stepper(BaseStdStepper):
             r0, r1 = r1, r0
 
         # First stage; r1 = -∇·f(r0)
+        limit(r0)
         rhs_with_postproc(t, r0, r1)
 
         # Second stage; r2 = r0 + dt/2*r1; r2 = -∇·f(r2)
         add(0.0, r2, 1.0, r0, dt/2.0, r1)
+        limit(r2)
         rhs_with_postproc(t + dt/2.0, r2, r2)
 
         # As no subsequent stages depend on the first stage we can
@@ -103,6 +112,7 @@ class StdRK4Stepper(BaseStdStepper):
         # r2 = r0 + dt/2*r2
         # r2 = -∇·f(r2)
         add(dt/2.0, r2, 1.0, r0)
+        limit(r2)
         rhs_with_postproc(t + dt/2.0, r2, r2)
 
         # Accumulate; r1 = r1 + dt/3*r2
@@ -112,6 +122,7 @@ class StdRK4Stepper(BaseStdStepper):
         # r2 = r0 + dt*r2
         # r2 = -∇·f(r2)
         add(dt, r2, 1.0, r0)
+        limit(r2)
         rhs_with_postproc(t + dt, r2, r2)
 
         # Final accumulation r1 = r1 + dt/6*r2 = u(t + dt)
@@ -179,6 +190,7 @@ class StdRKVdH2RStepper(BaseStdStepper):
     def step(self, t, dt):
         run_kernels = self.backend.run_kernels
         rhs_with_postproc = self.system.rhs
+        limit = self.system.limit
 
         r1 = self._idxcurr
         r2, *rs = set(self._regidx) - {r1}
@@ -186,6 +198,10 @@ class StdRKVdH2RStepper(BaseStdStepper):
         # Evaluate the stages in the scheme
         for i, ci in enumerate(self.c):
             # Compute -∇·f
+            if i > 0:
+                limit(r2)
+            else:
+                limit(r1)
             rhs_with_postproc(t + ci*dt, r2 if i > 0 else r1, r2)
 
             # Fetch the appropriate RK accumulation kernels
