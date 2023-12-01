@@ -25,7 +25,7 @@ class StdEulerStepper(BaseStdStepper):
         limit = self.system.limit
         ut, f = self._regidx
 
-        limit(ut)
+        limit(t, ut)
         rhs_with_postproc(t, ut, f)
         add(1.0, ut, dt, f)
 
@@ -54,18 +54,18 @@ class StdTVDRK3Stepper(BaseStdStepper):
             r0, r1 = r1, r0
 
         # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
-        limit(r0)
+        limit(t, r0)
         rhs_with_postproc(t, r0, r2)
         add(0.0, r1, 1.0, r0, dt, r2)
 
         # Second stage; r2 = -∇·f(r1); r1 = 0.75*r0 + 0.25*r1 + 0.25*dt*r2
-        limit(r1)
+        limit(t + dt, r1)
         rhs_with_postproc(t + dt, r1, r2)
         add(0.25, r1, 0.75, r0, 0.25*dt, r2)
 
         # Third stage; r2 = -∇·f(r1);
         #              r1 = 1.0/3.0*r0 + 2.0/3.0*r1 + 2.0/3.0*dt*r2
-        limit(r1)
+        limit(t + 0.5*dt, r1)
         rhs_with_postproc(t + 0.5*dt, r1, r2)
         add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
 
@@ -95,12 +95,12 @@ class StdRK4Stepper(BaseStdStepper):
             r0, r1 = r1, r0
 
         # First stage; r1 = -∇·f(r0)
-        limit(r0)
+        limit(t, r0)
         rhs_with_postproc(t, r0, r1)
 
         # Second stage; r2 = r0 + dt/2*r1; r2 = -∇·f(r2)
         add(0.0, r2, 1.0, r0, dt/2.0, r1)
-        limit(r2)
+        limit(t + dt/2.0, r2)
         rhs_with_postproc(t + dt/2.0, r2, r2)
 
         # As no subsequent stages depend on the first stage we can
@@ -112,7 +112,7 @@ class StdRK4Stepper(BaseStdStepper):
         # r2 = r0 + dt/2*r2
         # r2 = -∇·f(r2)
         add(dt/2.0, r2, 1.0, r0)
-        limit(r2)
+        limit(t + dt/2.0, r2)
         rhs_with_postproc(t + dt/2.0, r2, r2)
 
         # Accumulate; r1 = r1 + dt/3*r2
@@ -122,7 +122,7 @@ class StdRK4Stepper(BaseStdStepper):
         # r2 = r0 + dt*r2
         # r2 = -∇·f(r2)
         add(dt, r2, 1.0, r0)
-        limit(r2)
+        limit(t + dt, r2)
         rhs_with_postproc(t + dt, r2, r2)
 
         # Final accumulation r1 = r1 + dt/6*r2 = u(t + dt)
@@ -199,9 +199,9 @@ class StdRKVdH2RStepper(BaseStdStepper):
         for i, ci in enumerate(self.c):
             # Compute -∇·f
             if i > 0:
-                limit(r2)
+                limit(t + ci*dt, r2)
             else:
-                limit(r1)
+                limit(t + ci*dt, r1)
             rhs_with_postproc(t + ci*dt, r2 if i > 0 else r1, r2)
 
             # Fetch the appropriate RK accumulation kernels
