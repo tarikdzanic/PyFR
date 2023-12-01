@@ -273,10 +273,19 @@ class BaseSystem:
     def _preproc_graphs(self, uinbank):
         pass
 
+    def _limit_graphs(self, uinbank):
+        pass
+
     def preproc(self, t, uinbank):
         self._prepare_kernels(t, uinbank, None)
 
         for graph in self._preproc_graphs(uinbank):
+            self.backend.run_graph(graph)
+
+    def limit(self, t, uinbank):
+        self._prepare_kernels(t, uinbank, None)
+
+        for graph in self._limit_graphs(uinbank):
             self.backend.run_graph(graph)
 
     def postproc(self, uinbank):
