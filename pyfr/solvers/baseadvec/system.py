@@ -123,6 +123,49 @@ class BaseAdvectionSystem(BaseSystem):
         else:
             return g1,
 
+
+    @memoize
+    def _limit_graphs(self, uinbank):
+        m = self._mpireqs
+        k, _ = self._get_kernels(uinbank, None)
+
+        def deps(dk, *names): return self._kdeps(k, dk, *names)
+
+        g1 = self.backend.graph()
+        g1.add_mpi_reqs(m['mean_fpts_recv'])
+
+        # Compute local mean within element
+        g1.add_all(k['eles/element_mean'])
+
+        # Pack and send the mean values to neighbors
+        g1.add_all(k['mpiint/mean_fpts_pack'], deps=k['eles/element_mean'])
+        for send, pack in zip(m['mean_fpts_send'], k['mpiint/mean_fpts_pack']):
+            g1.add_mpi_req(send, deps=[pack])
+
+        # Compute common entropy minima at internal/boundary interfaces
+        g1.add_all(k['iint/comm_mean'], deps=k['eles/element_mean'])
+        g1.add_all(k['bcint/comm_mean'],
+                   deps=k['eles/element_mean'] + k['eles/disu'])
+        
+        g1.add_all(k['eles/limit'],
+                   deps=k['iint/comm_mean'] + k['bcint/comm_mean'])
+        g1.commit()
+
+        if 'mpiint/comm_mean' in k:
+            # Compute common entropy minima at MPI interfaces
+            g2 = self.backend.graph()
+
+            g2.add_all(k['mpiint/mean_fpts_unpack'])
+            for l in k['mpiint/comm_mean']:
+                g2.add(l, deps=deps(l, 'mpiint/mean_fpts_unpack'))
+
+            g2.add_all(k['eles/limit'], deps=k['mpiint/comm_mean'])
+            g2.commit()
+
+            return g1, g2
+        else:
+            return g1,
+
     def postproc(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)
 
