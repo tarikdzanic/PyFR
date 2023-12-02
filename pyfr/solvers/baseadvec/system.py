@@ -147,7 +147,7 @@ class BaseAdvectionSystem(BaseSystem):
         g1.add_all(k['bcint/comm_mean'],
                    deps=k['eles/element_mean'] + k['eles/disu'])
         
-        g1.add_all(k['eles/limit'],
+        g1.add_all(k['eles/limiter'],
                    deps=k['iint/comm_mean'] + k['bcint/comm_mean'])
         g1.commit()
 
@@ -159,7 +159,7 @@ class BaseAdvectionSystem(BaseSystem):
             for l in k['mpiint/comm_mean']:
                 g2.add(l, deps=deps(l, 'mpiint/mean_fpts_unpack'))
 
-            g2.add_all(k['eles/limit'], deps=k['mpiint/comm_mean'])
+            g2.add_all(k['eles/limiter'], deps=k['mpiint/comm_mean'])
             g2.commit()
 
             return g1, g2

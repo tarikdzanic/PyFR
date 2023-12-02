@@ -72,8 +72,8 @@ class BaseInters:
         vm = [np.concatenate(m)[perm] for m in zip(*vm)]
         return self._be.view(*vm, vshape=vshape)
 
-    def _scal_view(self, inter, meth):
-        return self._view(inter, meth, (self.nvars,))
+    def _scal_view(self, inter, meth, with_perm=True):
+        return self._view(inter, meth, (self.nvars,), with_perm=with_perm)
 
     def _vect_view(self, inter, meth):
         return self._view(inter, meth, (self.ndims, self.nvars))

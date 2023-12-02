@@ -139,6 +139,9 @@ class BaseFluidElements:
             self._be.pointwise.register(
                 'pyfr.solvers.euler.kernels.elementmean'
             )
+            self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.tvdlimiter'
+            )
 
             # Template arguments
             tvdtplargs = {
@@ -167,10 +170,16 @@ class BaseFluidElements:
             ub = self.basis.ubasis
             tvdtplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
 
-            # Compute local entropy bounds
+            # Compute local means
             self.kernels['element_mean'] = lambda uin: self._be.kernel(
                 'elementmean', tplargs=tvdtplargs, dims=[self.neles],
                 u=self.scal_upts[uin], ubar_int=self.mean_int
+            )
+
+            # Apply limiter
+            self.kernels['limiter'] = lambda uin: self._be.kernel(
+                'tvdlimiter', tplargs=tvdtplargs, dims=[self.neles],
+                u=self.scal_upts[uin], ubar_int=self.mean_int,
             )
 
 
