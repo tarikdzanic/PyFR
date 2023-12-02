@@ -15,6 +15,15 @@ class FluidIntIntersMixin:
                 entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
             )
 
+        if self.cfg.get('solver', 'shock-capturing') == 'tvd':
+            self._be.pointwise.register('pyfr.solvers.euler.kernels.intcmean')
+
+            tplargs = {'nvars' : self.nvars}
+            self.kernels['comm_mean'] = lambda: self._be.kernel(
+                'intcmean', tplargs=tplargs, dims=[self.ninters],
+                mean_lhs=self._mean_lhs, mean_rhs=self._mean_rhs
+            )
+
 
 class TplargsMixin:
     def __init__(self, *args, **kwargs):
@@ -42,6 +51,15 @@ class FluidMPIIntersMixin:
             self.kernels['comm_entropy'] = lambda: self._be.kernel(
                 'mpicent', tplargs={}, dims=[self.ninters],
                 entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
+            )
+
+        if self.cfg.get('solver', 'shock-capturing') == 'tvd':
+            self._be.pointwise.register('pyfr.solvers.euler.kernels.mpicmean')
+
+            tplargs = {'nvars' : self.nvars}
+            self.kernels['comm_mean'] = lambda: self._be.kernel(
+                'mpicmean', tplargs=tplargs, dims=[self.ninters],
+                mean_lhs=self._mean_lhs, mean_rhs=self._mean_rhs
             )
 
 
@@ -93,6 +111,16 @@ class EulerBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
                 extrns=self._external_args, entmin_lhs=self._entmin_lhs,
                 nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
             )
+
+        # if self.cfg.get('solver', 'shock-capturing') == 'mean':
+        #     self._be.pointwise.register('pyfr.solvers.euler.kernels.bccmean')
+
+        #     self._tplargs |= dict(nvars=self.nvars)
+        #     self.kernels['comm_entropy'] = lambda: self._be.kernel(
+        #         'bccmean', tplargs=self._tplargs, dims=[self.ninterfpts],
+        #         extrns=self._external_args, mean_lhs=self._entmin_lhs,
+        #         nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+        #     )
 
 
 class EulerSupInflowBCInters(EulerBaseBCInters):

@@ -173,3 +173,10 @@ class BaseAdvectionElements(BaseElements):
     def get_entmin_bc_fpts_for_inter(self, eidx, fidx):
         nfp = self.nfacefpts[fidx]
         return (self.entmin_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp
+
+    def get_mean_int_fpts_for_inter(self, eidx, fidx):
+        return (self.mean_int.mid,), (fidx,), (eidx,)
+
+    def get_mean_bc_fpts_for_inter(self, eidx, fidx):
+        nfp = self.nfacefpts[fidx]
+        return (self.mean_int.mid,)*nfp, (fidx,)*nfp, (eidx,)*nfp

@@ -109,6 +109,18 @@ class NavierStokesBaseBCInters(TplargsMixin, BaseAdvectionDiffusionBCInters):
                 nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
             )
 
+        # if self.cfg.get('solver', 'shock-capturing') == 'tvd':
+        #     self._be.pointwise.register(
+        #         'pyfr.solvers.navstokes.kernels.bccmean'
+        #     )
+
+        #     self._tplargs |= dict(nvars=self.nvars)
+        #     self.kernels['comm_mean'] = lambda: self._be.kernel(
+        #         'bccmean', tplargs=self._tplargs, dims=[self.ninterfpts],
+        #         extrns=self._external_args, mean_lhs=self._mean_lhs,
+        #         nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+        #     )
+
 
 class NavierStokesNoSlpIsotWallBCInters(NavierStokesBaseBCInters):
     type = 'no-slp-isot-wall'

@@ -26,6 +26,15 @@ class BaseAdvectionIntInters(BaseInters):
             )
         else:
             self._entmin_lhs = self._entmin_rhs = None
+        if cfg.get('solver', 'shock-capturing') == 'tvd':
+            self._mean_lhs = self._view(
+                lhs, 'get_mean_int_fpts_for_inter', with_perm=False
+            )
+            self._mean_rhs = self._view(
+                rhs, 'get_mean_int_fpts_for_inter', with_perm=False
+            )
+        else:
+            self._mean_lhs = self._mean_rhs = None
 
         # Generate the constant matrices
         self._pnorm_lhs = self._const_mat(lhs, 'get_pnorms_for_inter')
@@ -96,6 +105,28 @@ class BaseAdvectionMPIInters(BaseInters):
             )
         else:
             self._entmin_lhs = self._entmin_rhs = None
+        if cfg.get('solver', 'shock-capturing') == 'tvd':
+            self._mean_lhs = self._xchg_view(
+                lhs, 'get_mean_int_fpts_for_inter', with_perm=False
+            )
+            self._mean_rhs = be.xchg_matrix_for_view(self._mean_lhs)
+
+            self.kernels['mean_fpts_pack'] = lambda: be.kernel(
+                'pack', self._mean_lhs
+            )
+            self.kernels['mean_fpts_unpack'] = lambda: be.kernel(
+                'unpack', self._mean_rhs
+            )
+
+            mean_fpts_tag = next(self._mpi_tag_counter)
+            self.mpireqs['mean_fpts_send'] = lambda: self._mean_lhs.sendreq(
+                self._rhsrank, ent_fpts_tag
+            )
+            self.mpireqs['mean_fpts_recv'] = lambda: self._mean_rhs.recvreq(
+                self._rhsrank, ent_fpts_tag
+            )
+        else:
+            self._mean_lhs = self._mean_rhs = None
 
 
 class BaseAdvectionBCInters(BaseInters):
@@ -121,6 +152,10 @@ class BaseAdvectionBCInters(BaseInters):
             self._entmin_lhs = self._view(lhs, 'get_entmin_bc_fpts_for_inter')
         else:
             self._entmin_lhs = None
+        if cfg.get('solver', 'shock-capturing') == 'tvd':
+            self._mean_lhs = self._view(lhs, 'get_mean_bc_fpts_for_inter')
+        else:
+            self._mean_lhs = None
 
     def _eval_opts(self, opts, default=None):
         # Boundary conditions, much like initial conditions, can be
