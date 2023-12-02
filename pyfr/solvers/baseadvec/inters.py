@@ -120,10 +120,10 @@ class BaseAdvectionMPIInters(BaseInters):
 
             mean_fpts_tag = next(self._mpi_tag_counter)
             self.mpireqs['mean_fpts_send'] = lambda: self._mean_lhs.sendreq(
-                self._rhsrank, ent_fpts_tag
+                self._rhsrank, mean_fpts_tag
             )
             self.mpireqs['mean_fpts_recv'] = lambda: self._mean_rhs.recvreq(
-                self._rhsrank, ent_fpts_tag
+                self._rhsrank, mean_fpts_tag
             )
         else:
             self._mean_lhs = self._mean_rhs = None
