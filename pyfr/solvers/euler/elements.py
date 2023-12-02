@@ -64,6 +64,30 @@ class BaseFluidElements:
         # Can elide shock-capturing at p = 0
         shock_capturing = self.cfg.get('solver', 'shock-capturing', 'none')
 
+        
+        if self.basis.order != 0:
+            ub = self.basis.ubasis
+            ltplargs = {
+                'ndims': self.ndims,
+                'nupts': self.nupts,
+                'nvars': self.nvars,
+                'c': self.cfg.items_as('constants', float)
+            }
+            ltplargs['d_min'] = self.cfg.getfloat('solver',
+                                                   'd-min', 1e-6)
+            ltplargs['p_min'] = self.cfg.getfloat('solver',
+                                                   'd-min', 1e-6)
+            ltplargs['wts'] = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+
+            self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.limiter'
+            )
+            # Apply limiter
+            self.kernels['limiter'] = lambda uin: self._be.kernel(
+                'limiter', tplargs=ltplargs, dims=[self.neles],
+                u=self.scal_upts[uin]
+            )
+
         # Modified entropy filtering method using specific physical
         # entropy (without operator splitting for Navier-Stokes)
         # doi:10.1016/j.jcp.2022.111501

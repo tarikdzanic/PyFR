@@ -127,3 +127,4 @@ class BaseAdvectionSystem(BaseSystem):
         k, _ = self._get_kernels(uinbank, None)
 
         self.backend.run_kernels(k['eles/entropy_filter'])
+        self.backend.run_kernels(k['eles/limiter'])
