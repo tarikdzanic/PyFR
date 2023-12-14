@@ -11,8 +11,7 @@ class BaseAdvectionElements(BaseElements):
         else:
             bufs = {'scal_fpts', 'vect_upts'}
 
-        if self._soln_in_src_exprs:
-            bufs |= {'scal_upts_cpy'}
+        bufs |= {'scal_upts_cpy'}
 
         return bufs
 
@@ -74,10 +73,9 @@ class BaseAdvectionElements(BaseElements):
         plocupts = self.ploc_at('upts') if plocsrc else None
         solnupts = self._scal_upts_cpy if solnsrc else None
 
-        if solnsrc:
-            kernels['copy_soln'] = lambda uin: self._be.kernel(
-                'copy', self._scal_upts_cpy, self.scal_upts[uin]
-            )
+        kernels['copy_soln'] = lambda uin: self._be.kernel(
+            'copy', self._scal_upts_cpy, self.scal_upts[uin]
+        )
 
         kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconf', tplargs=srctplargs,

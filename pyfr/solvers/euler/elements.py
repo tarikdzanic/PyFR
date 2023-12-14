@@ -1,6 +1,7 @@
 import numpy as np
 
 from pyfr.solvers.baseadvec import BaseAdvectionElements
+from pyfr.quadrules import get_quadrule
 
 
 class BaseFluidElements:
@@ -136,13 +137,10 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
     def set_backend(self, *args, **kwargs):
         super().set_backend(*args, **kwargs)
 
-        # Can elide interior flux calculations at p = 0
-        if self.basis.order == 0:
-            return
-
         # Register our flux kernels
         self._be.pointwise.register('pyfr.solvers.euler.kernels.tflux')
         self._be.pointwise.register('pyfr.solvers.euler.kernels.tfluxlin')
+        self._be.pointwise.register('pyfr.solvers.euler.kernels.negdivconfLO')
 
         # Template parameters for the flux kernels
         tplargs = {
@@ -150,7 +148,8 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             'nvars': self.nvars,
             'nverts': len(self.basis.linspts),
             'c': self.cfg.items_as('constants', float),
-            'jac_exprs': self.basis.jac_exprs
+            'jac_exprs': self.basis.jac_exprs,
+            'rsolver': self.cfg.get('solver-interfaces', 'riemann-solver')
         }
 
         # Helpers
@@ -182,3 +181,15 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
                 u=s(self._scal_qpts, l), f=s(self._vect_qpts, l),
                 verts=self.ploc_at('linspts', l), upts=self.qpts
             )
+
+        tplargs['p'] = self.basis.order
+        tplargs['nupts'] = self.basis.nupts
+        tplargs['nfpts'] = self.basis.nfpts
+        tplargs['wts'] = get_quadrule('line', 'gauss-legendre-lobatto', max(2, self.basis.order+1)).wts
+
+        solnupts = self._scal_upts_cpy
+        self.kernels['negdivconf_LO'] = lambda fout: self._be.kernel(
+            'negdivconfLO', tplargs=tplargs,
+            dims=[self.neles], tdivtconf=self.scal_upts[fout],
+            rcpdjac=self.rcpdjac_at('upts'), u=solnupts, ffpts=self._scal_fpts
+        )
