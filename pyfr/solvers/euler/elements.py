@@ -141,6 +141,7 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.euler.kernels.tflux')
         self._be.pointwise.register('pyfr.solvers.euler.kernels.tfluxlin')
         self._be.pointwise.register('pyfr.solvers.euler.kernels.negdivconfLO')
+        self._be.pointwise.register('pyfr.solvers.euler.kernels.correct')
 
         # Template parameters for the flux kernels
         tplargs = {
@@ -186,10 +187,15 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
         tplargs['nupts'] = self.basis.nupts
         tplargs['nfpts'] = self.basis.nfpts
         tplargs['wts'] = get_quadrule('line', 'gauss-legendre-lobatto', max(2, self.basis.order+1)).wts
+        tplargs['salpha'] = self.cfg.getfloat('solver', 'subcell-alpha', 1e-2)
 
-        solnupts = self._scal_upts_cpy
         self.kernels['negdivconf_LO'] = lambda fout: self._be.kernel(
             'negdivconfLO', tplargs=tplargs,
             dims=[self.neles], tdivtconf=self.scal_upts[fout],
-            rcpdjac=self.rcpdjac_at('upts'), u=solnupts, ffpts=self._scal_fpts
+            rcpdjac=self.rcpdjac_at('upts'), u=self._scal_upts_cpy, ffpts=self._scal_fpts
+        )
+
+        self.kernels['correct'] = lambda fout: self._be.kernel(
+            'correct', tplargs=tplargs,
+            dims=[self.neles], uHO=self._scal_upts_cpy, uLO=self.scal_upts[fout]
         )

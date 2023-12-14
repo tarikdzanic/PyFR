@@ -255,11 +255,21 @@ class BaseSystem:
     def _rhs_graphs(self, uinbank, foutbank):
         pass
 
+    def _rhsLO_graphs(self, uinbank, foutbank):
+        pass
+
     def rhs(self, t, uinbank, foutbank):
         self._rhs_uin_fout.add((uinbank, foutbank))
         self._prepare_kernels(t, uinbank, foutbank)
 
         for graph in self._rhs_graphs(uinbank, foutbank):
+            self.backend.run_graph(graph)
+
+    def rhsLO(self, t, uinbank, foutbank):
+        self._rhs_uin_fout.add((uinbank, foutbank))
+        self._prepare_kernels(t, uinbank, foutbank)
+
+        for graph in self._rhsLO_graphs(uinbank, foutbank):
             self.backend.run_graph(graph)
 
     def _preproc_graphs(self, uinbank):

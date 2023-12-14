@@ -221,3 +221,10 @@ class BaseAdvectionSystem(BaseSystem):
         k, _ = self._get_kernels(uinbank, None)
 
         self.backend.run_kernels(k['eles/limiter'])
+
+    def correct(self, u1, u2):
+        k, _ = self._get_kernels(u1, u2)
+
+        self.backend.run_kernels(k['eles/copy_soln'])
+        self.backend.run_kernels(k['eles/correct'])
+        self.backend.run_kernels(k['eles/copy_soln2'])

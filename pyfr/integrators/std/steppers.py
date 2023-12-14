@@ -13,7 +13,7 @@ class BaseStdStepper(BaseStdIntegrator):
 class StdEulerStepper(BaseStdStepper):
     stepper_name = 'euler'
     stepper_has_errest = False
-    stepper_nregs = 2
+    stepper_nregs = 3
     stepper_order = 1
 
     @property
@@ -21,16 +21,34 @@ class StdEulerStepper(BaseStdStepper):
         return self.nsteps
 
     def step(self, t, dt):
-        add, rhs = self._add, self.system.rhs
-        preproc, postproc = self.system.preproc, self.system.postproc
-        ut, f = self._regidx
+        if self.cfg.getbool('solver', 'subcell'):
+            add, rhs = self._add, self.system.rhs
+            rhsLO, correct = self.system.rhsLO, self.system.correct
+            preproc, postproc = self.system.preproc, self.system.postproc
+            u1, u2, f = self._regidx
 
-        preproc(t, ut)
-        rhs(t, ut, f)
-        add(1.0, ut, dt, f)
-        postproc(ut)
+            preproc(t, u1)
+            rhsLO(t, u1, f)
+            add(0.0, u2, 1.0, u1, dt, f)
 
-        return ut
+            rhs(t, u1, f)
+            add(1.0, u1, dt, f)
+
+            correct(u1, u2)
+            postproc(u1)
+
+            return u1
+        else:
+            add, rhs = self._add, self.system.rhs
+            preproc, postproc = self.system.preproc, self.system.postproc
+            ut, f, _ = self._regidx
+
+            preproc(t, ut)
+            rhs(t, ut, f)
+            add(1.0, ut, dt, f)
+            postproc(ut)
+
+            return ut
 
 
 class StdTVDRK3Stepper(BaseStdStepper):

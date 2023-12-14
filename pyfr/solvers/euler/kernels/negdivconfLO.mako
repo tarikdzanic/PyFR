@@ -60,7 +60,5 @@ n[1] = 1.0;
 % for i,j in pyfr.ndrange(nupts, nvars):
     tdivtconf[${i}][${j}] = -rcpdjac[0]*tdivtconf[${i}][${j}];
 % endfor
-## printf("%f %f %f %f \n", tdivtconf[0][0], tdivtconf[1][0], tdivtconf[2][0], tdivtconf[3][0]);
-## printf("%f %f %f %f %f %f %f %f %f\n", tdivtconf[0][0], tdivtconf[1][0], tdivtconf[2][0], tdivtconf[3][0], tdivtconf[4][0], tdivtconf[5][0], tdivtconf[6][0], tdivtconf[7][0], tdivtconf[8][0]);
 
 </%pyfr:kernel>

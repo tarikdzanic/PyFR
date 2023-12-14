@@ -76,6 +76,9 @@ class BaseAdvectionElements(BaseElements):
         kernels['copy_soln'] = lambda uin: self._be.kernel(
             'copy', self._scal_upts_cpy, self.scal_upts[uin]
         )
+        kernels['copy_soln2'] = lambda uin: self._be.kernel(
+            'copy', self.scal_upts[uin], self._scal_upts_cpy
+        )
 
         kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconf', tplargs=srctplargs,
