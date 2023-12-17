@@ -142,6 +142,7 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.euler.kernels.tfluxlin')
         self._be.pointwise.register('pyfr.solvers.euler.kernels.negdivconfLO')
         self._be.pointwise.register('pyfr.solvers.euler.kernels.correct')
+        self._be.pointwise.register('pyfr.solvers.euler.kernels.limiter')
 
         # Template parameters for the flux kernels
         tplargs = {
@@ -199,3 +200,27 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             'correct', tplargs=tplargs,
             dims=[self.neles], uHO=self._scal_upts_cpy, uLO=self.scal_upts[fout]
         )
+
+        if self.cfg.getbool('solver', 'cbp') and self.basis.order > 0:
+            tplargs['invvdm'] = self.moninvvdm 
+            tplargs['faceinvvdm'] = self.facemoninvvdm 
+            tplargs['meanwts'] = self.meanwts
+            tplargs['nupts'] = self.nupts
+            tplargs['nfpts'] = self.nfpts
+            tplargs['mdegs'] = self.basis.ubasis.degrees
+            tplargs['nfaces'] = self.nfaces
+            tplargs['nfptsperface'] = self.nfptsperface
+            tplargs['niters'] = self.cfg.getint('solver', 'niters', 3)
+            tplargs['element_type'] = self.basis.name
+            tplargs['apply_entropy_bounds'] = self.cfg.getbool('solver', 'entropy-bounds', False)
+
+            bound_method = self.cfg.get('solver', 'bounds', None)
+            assert bound_method == 'global'
+            tplargs['global_bounds'] = True
+            tplargs['gbnds'] = self.cfg.getliteral('solver', 'global-bounds') # gbnds = [dmin, pmin]
+                            
+            self.kernels['limiter'] = lambda uin: self._be.kernel(
+                'limiter', tplargs=tplargs,
+                dims=[self.neles], u=self.scal_upts[uin], uf=self._scal_fpts,
+                x=self.upts_mat, bounds=self.bounds # ADD FPTS TO UPTS_MAT
+            )
