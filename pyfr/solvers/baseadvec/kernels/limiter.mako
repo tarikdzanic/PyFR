@@ -202,7 +202,7 @@
 
             // Invert Hessian
             det = H[0][0]*H[1][1] - H[0][1]*H[1][0];
-            if (abs(det) > ${eps}) {
+            if (abs(det) > ${eps} && H[0][0] > ${eps}) {
                 invdet = 1.0/det;
                 invH[0][0] =  invdet*H[1][1];
                 invH[0][1] = -invdet*H[0][1];
@@ -370,7 +370,7 @@
             H[1][0] = H[0][1];
             // Invert Hessian
             det = H[0][0]*H[1][1] - H[0][1]*H[1][0];
-            if (abs(det) > ${eps}) {
+            if (abs(det) > ${eps} && H[0][0] > ${eps}) {
                 invdet = 1.0/det;
                 invH[0][0] =  invdet*H[1][1];
                 invH[0][1] = -invdet*H[0][1];
