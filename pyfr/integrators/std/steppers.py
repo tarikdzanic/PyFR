@@ -115,7 +115,7 @@ class StdTVDRK3Stepper(BaseStdStepper):
             preproc, postproc = self.system.preproc, self.system.postproc
 
             # Get the bank indices for each register (n, n+1, rhs)
-            r0, r1, r2 = self._regidx
+            r0, r1, r2, _, _ = self._regidx
 
             # Ensure r0 references the bank containing u(t)
             if r0 != self._idxcurr:
