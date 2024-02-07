@@ -178,7 +178,7 @@ class IntegratePlugin(BasePlugin):
             for j, v in enumerate(self.exprs):
                 if 'amax' in v:
                     # Evaluate the expression at each point
-                    iex = npeval(v.replace('amax', 'abs'), subs)
+                    iex = npeval(v.replace('amax', ''), subs)
 
                     # Accumulate
                     maxvals[j] = max(maxvals[j], np.amax(iex))
