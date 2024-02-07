@@ -136,6 +136,8 @@ class IntegratePlugin(BasePlugin):
 
     def _eval_exprs(self, intg):
         intvals = np.zeros(len(self.exprs))
+        maxvals = np.zeros(len(self.exprs))
+        ops = ['']*len(self.exprs)
 
         # Get the primitive variable names
         pnames = self.elementscls.privarmap[self.ndims]
@@ -175,13 +177,22 @@ class IntegratePlugin(BasePlugin):
                         subs[f'grad_{pname}_{dim}'] = grad
 
             for j, v in enumerate(self.exprs):
-                # Evaluate the expression at each point
-                iex = wts*npeval(v, subs)
+                if 'amax' in v:
+                    # Evaluate the expression at each point
+                    iex = npeval(v.replace('amax', 'abs'), subs)
 
-                # Accumulate
-                intvals[j] += np.sum(iex) - np.sum(iex[emask])
+                    # Accumulate
+                    maxvals[j] = max(maxvals[j], np.amax(iex))
+                    ops[j] = 'max'
+                else:
+                    # Evaluate the expression at each point
+                    iex = wts*npeval(v, subs)
 
-        return intvals
+                    # Accumulate
+                    intvals[j] += np.sum(iex) - np.sum(iex[emask])
+                    ops[j] = 'sum'
+
+        return intvals, maxvals, ops
 
     def __call__(self, intg):
         if intg.nacptsteps % self.nsteps == 0:
@@ -189,16 +200,24 @@ class IntegratePlugin(BasePlugin):
             comm, rank, root = get_comm_rank_root()
 
             # Evaluate the integation expressions
-            iintex = self._eval_exprs(intg)
+            iintex, maxex, ops = self._eval_exprs(intg)
+
 
             # Reduce and output if we're the root rank
             if rank != root:
                 comm.Reduce(iintex, None, op=mpi.SUM, root=root)
+                comm.Reduce(maxex, None, op=mpi.MAX, root=root)
             else:
                 comm.Reduce(mpi.IN_PLACE, iintex, op=mpi.SUM, root=root)
+                comm.Reduce(mpi.IN_PLACE, maxex, op=mpi.MAX, root=root)
+
+                data = np.zeros_like(iintex)
+
+                for i in range(len(iintex)):
+                    data[i] = iintex[i] if ops[i] == 'sum' else maxex[i]
 
                 # Write
-                print(intg.tcurr, *iintex, sep=',', file=self.outf)
+                print(intg.tcurr, *data, sep=',', file=self.outf)
 
                 # Flush to disk
                 self.outf.flush()
