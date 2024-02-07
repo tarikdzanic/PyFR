@@ -28,6 +28,9 @@ class IntegratePlugin(BasePlugin):
         # Underlying system elements class
         self.elementscls = system.elementscls
 
+        # See if computing deviatoric distribution terms
+        self.compute_dev = self.cfg.getbool(cfgsect, f'compute-deviatoric-terms', False)
+
         # Expressions to integrate
         c = self.cfg.items_as('constants', float)
         self.exprs = [self.cfg.getexpr(cfgsect, k, subs=c)
@@ -150,7 +153,10 @@ class IntegratePlugin(BasePlugin):
 
             # Subset and transpose the solution
             soln = soln[..., eset].swapaxes(0, 1)
-            soln = self.elementscls.f_to_vis(soln, self.cfg, M, u, psi, self.ndims)
+            if self.compute_dev:
+                soln = self.elementscls.f_to_vis_with_dev(soln, self.cfg, M, u, psi, self.ndims)
+            else:
+                soln = self.elementscls.f_to_vis(soln, self.cfg, M, u, psi, self.ndims)
 
             # Interpolate the solution to the quadrature points
             if m0 is not None:

@@ -235,6 +235,29 @@ class BGKElements(BaseAdvectionElements):
         for i in range(len(psi2)):
             pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
 
+        return pris
+
+
+    @staticmethod
+    def f_to_vis_with_dev(f, cfg, M, u, psi, ndims):
+        # Compute primitive variables
+        cons = BGKElements.f_to_con(f, cfg, M, u, psi, ndims)
+        pris = BGKElements.con_to_pri(cons, cfg)
+
+        # Compute and append extended moments of f
+        u2 = 0.5*np.linalg.norm(u, axis=1)**2
+        if ndims == 2:
+            psi2 = [u[:,0]*u[:,0], u[:,0]*u[:,1], u[:,1]*u[:,1],
+                    u2*u[:,0],     u2*u[:,1]]
+        elif ndims == 3:
+            psi2 = [u[:,0]*u[:,0], u[:,0]*u[:,1], u[:,0]*u[:,2],
+                    u[:,1]*u[:,1], u[:,1]*u[:,2], u[:,2]*u[:,2],
+                    u2*u[:,0],     u2*u[:,1],     u2*u[:,2]]
+ 
+        nuvars = len(u)
+        for i in range(len(psi2)):
+            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
+
         # Compute Maxwellian state g using DVM
         (_, nupts, neles) = np.shape(f)
         g = np.zeros((nuvars, nupts, neles))
