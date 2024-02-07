@@ -176,9 +176,9 @@ class IntegratePlugin(BasePlugin):
                         subs[f'grad_{pname}_{dim}'] = grad
 
             for j, v in enumerate(self.exprs):
-                if 'amax' in v:
+                if 'dmax' in v:
                     # Evaluate the expression at each point
-                    iex = npeval(v.replace('amax', ''), subs)
+                    iex = npeval(v.replace('dmax', ''), subs)
 
                     # Accumulate
                     maxvals[j] = max(maxvals[j], np.amax(iex))
