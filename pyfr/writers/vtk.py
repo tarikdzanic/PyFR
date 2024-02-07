@@ -406,7 +406,7 @@ class VTKWriter(BaseWriter):
 
     def _post_proc_fields_soln(self, vsoln):
         # Primitive and visualisation variable maps
-        privarmap = self.elementscls.privarmap2[self.ndims]
+        privarmap = self.elementscls.expvarmap[self.ndims]
         visvarmap = self.elementscls.visvarmap[self.ndims]
 
         # Prepare the fields

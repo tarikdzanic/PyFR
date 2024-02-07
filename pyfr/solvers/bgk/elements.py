@@ -114,8 +114,16 @@ class BGKElements(BaseAdvectionElements):
     privarmap = {2: ['rho', 'u', 'v', 'p'],
                  3: ['rho', 'u', 'v', 'w', 'p']}
 
-    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'sxy'],
-                  3: ['rho', 'u', 'v', 'w', 'p', 'sxy', 'sxz', 'syz']}
+    expvarmap = {2: ['rho', 'u', 'v', 'p',
+                     'sxx', 'sxy', 'syy', 
+                     'qx', 'qy',
+                     'dsxx', 'dsxy', 'dsyy', 
+                     'dqx', 'dqy'],
+                 3: ['rho', 'u', 'v', 'w', 'p',
+                     'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
+                     'qx', 'qy', 'qz',
+                     'dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz',
+                     'dqx', 'dqy', 'dqz']}
 
     convarmap = {2: ['1'],
                  3: ['1']}
@@ -126,11 +134,19 @@ class BGKElements(BaseAdvectionElements):
         2: [('density', ['rho']),
             ('velocity', ['u', 'v']),
             ('pressure', ['p']),
-            ('strain', ['sxy'])],
+            ('strain', ['sxx', 'sxy', 'syy']),
+            ('heatflux', ['qx', 'qy']),
+            ('devdensity', ['drho']),
+            ('devstrain', ['sxx', 'sxy', 'syy']),
+            ('devheatflux', ['qx', 'qy'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
-            ('strain', ['sxy', 'sxz', 'syz'])]
+            ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
+            ('heatflux', ['qx', 'qy', 'qz']),
+            ('devdensity', ['drho']),
+            ('defstrain', ['dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz']),
+            ('devheatflux', ['dqx', 'dqy', 'dqz'])]
     }
 
 
@@ -203,15 +219,46 @@ class BGKElements(BaseAdvectionElements):
         cons = BGKElements.f_to_con(f, cfg, M, u, psi, ndims)
         pris = BGKElements.con_to_pri(cons, cfg)
 
-        # Compute and append off-diagonal molecular stresses
+        # Compute and append extended moments of f
+        u2 = 0.5*np.linalg.norm(u, axis=1)**2
         if ndims == 2:
-            psi2 = [u[:,0]*u[:,1]]
+            psi2 = [u[:,0]*u[:,0], u[:,0]*u[:,1], u[:,1]*u[:,1],
+                    u2*u[:,0],     u2*u[:,1]]
         elif ndims == 3:
-            psi2 = [u[:,0]*u[:,1], u[:,0]*u[:,2], u[:,1]*u[:,2]]
+            psi2 = [u[:,0]*u[:,0], u[:,0]*u[:,1], u[:,0]*u[:,2],
+                    u[:,1]*u[:,1], u[:,1]*u[:,2], u[:,2]*u[:,2],
+                    u2*u[:,0],     u2*u[:,1],     u2*u[:,2]]
  
         nuvars = len(u)
         for i in range(len(psi2)):
             pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
+
+        # Compute Maxwellian state g using DVM
+        (_, nupts, neles) = np.shape(f)
+        g = np.zeros((nuvars, nupts, neles))
+        gamma = cfg.getfloat('constants', 'gamma')
+        delta = cfg.getfloat('solver', 'delta')
+        niters = cfg.getint('solver', 'niters')
+
+        for uidx in range(nupts):
+            for eidx in range(neles):
+                # Get local conserved state variables
+                cons_local = np.zeros(ndims+2)
+                for i in range(ndims+2):
+                    cons_local[i] = cons[i] if np.isscalar(cons[i]) else cons[i][uidx, eidx]
+
+                # Compute equilibrium distribution function
+                g[:, uidx, eidx] = iterate_DVM(cons_local, u, ndims, psi, M, gamma, niters, delta)[:nuvars]
+
+        # Compute deviatoric distribution function abs(f-g)
+        df = np.abs(f[:nuvars,:,:]-g)
+
+        # Compute deviatoric distribution density
+        pris.append(np.einsum('i,ijk->jk', M, df))
+
+        # Compute and append extended moments of df
+        for i in range(len(psi2)):
+            pris.append(np.einsum('i,ijk->jk', M*psi2[i], df))
 
         return pris
 

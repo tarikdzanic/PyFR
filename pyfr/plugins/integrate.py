@@ -140,7 +140,7 @@ class IntegratePlugin(BasePlugin):
         ops = ['']*len(self.exprs)
 
         # Get the primitive variable names
-        pnames = self.elementscls.privarmap[self.ndims]
+        pnames = self.elementscls.expvarmap[self.ndims]
         
 
         # Iterate over each element type in the simulation
@@ -150,8 +150,7 @@ class IntegratePlugin(BasePlugin):
 
             # Subset and transpose the solution
             soln = soln[..., eset].swapaxes(0, 1)
-            soln = self.elementscls.f_to_con(soln, self.cfg, M, u, psi, self.ndims)
-            soln = self.elementscls.con_to_pri(soln, self.cfg)
+            soln = self.elementscls.f_to_vis(soln, self.cfg, M, u, psi, self.ndims)
 
             # Interpolate the solution to the quadrature points
             if m0 is not None:
