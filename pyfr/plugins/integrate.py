@@ -149,6 +149,7 @@ class IntegratePlugin(BasePlugin):
             # Subset and transpose the solution
             soln = soln[..., eset].swapaxes(0, 1)
             soln = self.elementscls.f_to_con(soln, self.cfg, M, u, psi, self.ndims)
+            soln = self.elementscls.con_to_pri(soln, self.cfg)
 
             # Interpolate the solution to the quadrature points
             if m0 is not None:
