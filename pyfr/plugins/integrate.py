@@ -139,7 +139,7 @@ class IntegratePlugin(BasePlugin):
 
     def _eval_exprs(self, intg):
         intvals = np.zeros(len(self.exprs))
-        maxvals = np.zeros(len(self.exprs))
+        maxvals = np.ones(len(self.exprs))*-1E20
         ops = ['']*len(self.exprs)
 
         # Get the primitive variable names
