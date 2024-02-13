@@ -116,6 +116,13 @@ class BGKElements(BaseAdvectionElements):
 
     expvarmap = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
+                     'qx', 'qy'],
+                 3: ['rho', 'u', 'v', 'w', 'p',
+                     'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
+                     'qx', 'qy', 'qz']}
+
+    expvarmap2 = {2: ['rho', 'u', 'v', 'p',
+                     'sxx', 'sxy', 'syy', 
                      'qx', 'qy',
                      'dsxx', 'dsxy', 'dsyy', 
                      'dqx', 'dqy',
@@ -130,6 +137,7 @@ class BGKElements(BaseAdvectionElements):
                      'adrho', 'adrhou', 'adrhov', 'adrhow',
                      'adsxx', 'adsxy', 'adsxz', 'adsyy', 'adsyz', 'adszz',
                      'adqx', 'adqy', 'adqz']}
+    
 
     convarmap = {2: ['1'],
                  3: ['1']}
@@ -137,6 +145,19 @@ class BGKElements(BaseAdvectionElements):
     dualcoeffs = convarmap
 
     visvarmap = {
+        2: [('density', ['rho']),
+            ('velocity', ['u', 'v']),
+            ('pressure', ['p']),
+            ('strain', ['sxx', 'sxy', 'syy']),
+            ('heatflux', ['qx', 'qy'])],
+        3: [('density', ['rho']),
+            ('velocity', ['u', 'v', 'w']),
+            ('pressure', ['p']),
+            ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
+            ('heatflux', ['qx', 'qy', 'qz'])]
+    }
+
+    visvarmap2 = {
         2: [('density', ['rho']),
             ('velocity', ['u', 'v']),
             ('pressure', ['p']),

@@ -143,7 +143,7 @@ class IntegratePlugin(BasePlugin):
         ops = ['']*len(self.exprs)
 
         # Get the primitive variable names
-        pnames = self.elementscls.expvarmap[self.ndims]
+        pnames = self.elementscls.expvarmap2[self.ndims]
         
 
         # Iterate over each element type in the simulation
