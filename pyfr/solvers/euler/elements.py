@@ -136,6 +136,8 @@ class BaseFluidElements:
                                                      'ill-tol', 1e-6)
             eftplargs['niters'] = self.cfg.getfloat('solver-entropy-filter',
                                                     'niters', 20)
+            eftplargs['entropy_type'] = self.cfg.get('solver-entropy-filter',
+                                                     'entropy-type', 'log')
 
             # Precompute basis orders for filter
             ubdegs = self.basis.ubasis.degrees
