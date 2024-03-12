@@ -7,7 +7,7 @@
 
 <% beta, tau = c['ldg-beta'], c['ldg-tau'] %>
 
-<%pyfr:kernel name='mpicflux' ndim='1'
+<%pyfr:kernel name='mpicflux_vis' ndim='1'
               ul='inout view fpdtype_t[${str(nvars)}]'
               ur='inout mpi fpdtype_t[${str(nvars)}]'
               gradul='in view fpdtype_t[${str(ndims)}][${str(nvars)}]'

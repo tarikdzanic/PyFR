@@ -37,7 +37,8 @@ class NavierStokesElements(BaseFluidElements, BaseAdvectionDiffusionElements):
 
         # Register our flux kernels
         kprefix = 'pyfr.solvers.navstokes.kernels'
-        self._be.pointwise.register(f'{kprefix}.tflux')
+        self._be.pointwise.register(f'{kprefix}.tflux_inv')
+        self._be.pointwise.register(f'{kprefix}.tflux_vis')
 
         # Handle shock capturing and Sutherland's law
         shock_capturing = self.cfg.get('solver', 'shock-capturing')
@@ -64,6 +65,8 @@ class NavierStokesElements(BaseFluidElements, BaseAdvectionDiffusionElements):
 
         # Gradient + flux kernel fusion
         if self.grad_fusion:
+            # Gradient fusion is disabled for viscous splitting
+            raise ValueError('Gradient fusion is disabled for viscous splitting')
             if c in r:
                 tdisf.append(lambda uin: self._be.kernel(
                     'tflux', tplargs=tplargs | {'ktype': 'curved-fused'},
@@ -88,22 +91,46 @@ class NavierStokesElements(BaseFluidElements, BaseAdvectionDiffusionElements):
             self.kernels['tdisf_fused'] = tdisf_k
         # No gradient + flux kernel fusion
         else:
+            tdisf_inv = []
+            tplargs_inv = tplargs.copy()
+            tplargs_inv['viscous'] = False
+            tdisf_vis = []
+            tplargs_vis = tplargs.copy()
+            tplargs_vis['viscous'] = True
             if c in r:
-                tdisf.append(lambda: self._be.kernel(
-                    'tflux', tplargs=tplargs | {'ktype': 'curved'},
-                    dims=[self.nqpts, r[c]], u=s(self._scal_qpts, c),
-                    f=s(self._vect_qpts, c), artvisc=s(av, c),
+                tdisf_inv.append(lambda uin: self._be.kernel(
+                    'tflux_inv', tplargs=tplargs_inv | {'ktype': 'curved'},
+                    dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
+                    f=s(self._vect_upts, c), artvisc=s(av, c),
+                    smats=self.curved_smat_at('qpts')
+                ))
+                tdisf_vis.append(lambda uin: self._be.kernel(
+                    'tflux_vis', tplargs=tplargs_vis | {'ktype': 'curved'},
+                    dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
+                    f=s(self._vect_upts, c), artvisc=s(av, c),
                     smats=self.curved_smat_at('qpts')
                 ))
             if l in r:
-                tdisf.append(lambda: self._be.kernel(
-                    'tflux', tplargs=tplargs | {'ktype': 'linear'},
-                    dims=[self.nqpts, r[l]], u=s(self._scal_qpts, l),
-                    f=s(self._vect_qpts, l), artvisc=s(av, l),
-                    verts=self.ploc_at('linspts', l), upts=self.qpts
+                tdisf_inv.append(lambda uin: self._be.kernel(
+                    'tflux_inv', tplargs=tplargs_inv | {'ktype': 'linear'},
+                    dims=[self.nupts, r[l]], u=s(self.scal_upts[uin], l),
+                    artvisc=s(av, l), f=s(self._vect_upts, l),
+                    gradu=s(self._grad_upts, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts
+                ))
+                tdisf_vis.append(lambda uin: self._be.kernel(
+                    'tflux_vis', tplargs=tplargs_vis | {'ktype': 'linear'},
+                    dims=[self.nupts, r[l]], u=s(self.scal_upts[uin], l),
+                    artvisc=s(av, l), f=s(self._vect_upts, l),
+                    gradu=s(self._grad_upts, l),
+                    verts=self.ploc_at('linspts', l), upts=self.upts
                 ))
 
-            def tdisf_k():
-                return self._make_sliced_kernel(k() for k in tdisf)
 
-            self.kernels['tdisf'] = tdisf_k
+            def tdisf_inv_k(uin):
+                return self._make_sliced_kernel(k(uin) for k in tdisf_inv)
+            def tdisf_vis_k(uin):
+                return self._make_sliced_kernel(k(uin) for k in tdisf_vis)
+
+            self.kernels['tdisf_inv'] = tdisf_inv_k
+            self.kernels['tdisf_vis'] = tdisf_vis_k

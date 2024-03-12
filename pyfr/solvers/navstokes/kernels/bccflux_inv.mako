@@ -7,7 +7,7 @@
 <%include file='pyfr.solvers.navstokes.kernels.bcs.${bccfluxstate}'/>
 % endif
 
-<%pyfr:kernel name='bccflux' ndim='1'
+<%pyfr:kernel name='bccflux_inv' ndim='1'
               ul='inout view fpdtype_t[${str(nvars)}]'
               gradul='in view fpdtype_t[${str(ndims)}][${str(nvars)}]'
               artviscl='in view fpdtype_t'

@@ -13,7 +13,7 @@ class BaseStdStepper(BaseStdIntegrator):
 class StdEulerStepper(BaseStdStepper):
     stepper_name = 'euler'
     stepper_has_errest = False
-    stepper_nregs = 2
+    stepper_nregs = 3
     stepper_order = 1
 
     @property
@@ -21,19 +21,40 @@ class StdEulerStepper(BaseStdStepper):
         return self.nsteps
 
     def step(self, t, dt):
-        add, rhs_with_postproc = self._add, self.system.rhs
-        ut, f = self._regidx
+        if self.system.splitsystem:
+            add = self._add
+            rhs_inv, rhs_vis = self.system.rhs_inv, self.system.rhs_vis
+            postproc_inv, postproc_vis = self.system.postproc_inv, self.system.postproc_vis
+            preproc = self.system.preproc
+            r0, r1, r2 = self._regidx
 
-        rhs_with_postproc(t, ut, f)
-        add(1.0, ut, dt, f)
+            # Perform any necessary pre-processing
+            preproc(t, r0)
 
-        return ut
+            rhs_inv(t, r0, r1)
+            rhs_vis(t, r0, r2)
+            add(1.0, r2, -1.0, r1) # Subtract out inviscid component from inv+vis component
+
+            add(0.0, r1, 1.0, r0, dt, r1)
+            postproc_inv(r1) # Entropy filter with inviscid component
+            add(1.0, r1, dt, r2) # Add viscous component
+            postproc_vis(r2) # Entropy filter with viscous component
+
+            return r2
+        else:
+            add, rhs_with_postproc = self._add, self.system.rhs
+            ut, f, _ = self._regidx
+
+            rhs_with_postproc(t, ut, f)
+            add(1.0, ut, dt, f)
+
+            return ut
 
 
 class StdTVDRK3Stepper(BaseStdStepper):
     stepper_name = 'tvd-rk3'
     stepper_has_errest = False
-    stepper_nregs = 3
+    stepper_nregs = 4
     stepper_order = 3
 
     @property
@@ -44,33 +65,74 @@ class StdTVDRK3Stepper(BaseStdStepper):
         add, rhs_with_postproc = self._add, self.system.rhs
 
         # Get the bank indices for each register (n, n+1, rhs)
-        r0, r1, r2 = self._regidx
+        r0, r1, r2, r3 = self._regidx # r3 used for split systems
 
         # Ensure r0 references the bank containing u(t)
         if r0 != self._idxcurr:
             r0, r1 = r1, r0
 
-        # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
-        rhs_with_postproc(t, r0, r2)
-        add(0.0, r1, 1.0, r0, dt, r2)
+        if self.system.splitsystem:
+            rhs_inv, rhs_vis = self.system.rhs_inv, self.system.rhs_vis
+            postproc_inv, postproc_vis = self.system.postproc_inv, self.system.postproc_vis
+            preproc = self.system.preproc
 
-        # Second stage; r2 = -∇·f(r1); r1 = 0.75*r0 + 0.25*r1 + 0.25*dt*r2
-        rhs_with_postproc(t + dt, r1, r2)
-        add(0.25, r1, 0.75, r0, 0.25*dt, r2)
+            # Perform any necessary pre-processing
+            preproc(t, r0)
 
-        # Third stage; r2 = -∇·f(r1);
-        #              r1 = 1.0/3.0*r0 + 2.0/3.0*r1 + 2.0/3.0*dt*r2
-        rhs_with_postproc(t + 0.5*dt, r1, r2)
-        add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
+            # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
+            rhs_inv(t, r0, r2)
+            rhs_vis(t, r0, r3)
+            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from inv+vis component
+            add(0.0, r1, 1.0, r0, dt, r2)
+            postproc_inv(r1) # Entropy filter with inviscid component
+            add(1.0, r1, dt, r3) # Add viscous component
+            postproc_vis(r1) # Entropy filter with viscous component
 
-        # Return the index of the bank containing u(t + dt)
-        return r1
+            # Second stage; r2 = -∇·f(r1); r1 = 0.75*r0 + 0.25*r1 + 0.25*dt*r2
+            preproc(t, r1)
+            rhs_inv(t + dt, r1, r2)
+            rhs_vis(t + dt, r1, r3)
+            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from full viscous component
+            add(0.25, r1, 0.75, r0, 0.25*dt, r2)
+            postproc_inv(r1) # Entropy filter with inviscid component
+            add(1.0, r1, 0.25*dt, r3) # Add viscous component
+            postproc_vis(r1) # Entropy filter with viscous component
+
+            # Third stage; r2 = -∇·f(r1);
+            #              r1 = 1.0/3.0*r0 + 2.0/3.0*r1 + 2.0/3.0*dt*r2
+            preproc(t, r1)
+            rhs_inv(t + 0.5*dt, r1, r2)
+            rhs_vis(t + 0.5*dt, r1, r3)
+            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from full viscous component
+            add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
+            postproc_inv(r1) # Entropy filter with inviscid component
+            add(1.0, r1, 2.0/3.0*dt, r3) # Add viscous component
+            postproc_vis(r1) # Entropy filter with viscous component
+
+            # Return the index of the bank containing u(t + dt)
+            return r1
+        else:
+            # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
+            rhs_with_postproc(t, r0, r2)
+            add(0.0, r1, 1.0, r0, dt, r2)
+
+            # Second stage; r2 = -∇·f(r1); r1 = 0.75*r0 + 0.25*r1 + 0.25*dt*r2
+            rhs_with_postproc(t + dt, r1, r2)
+            add(0.25, r1, 0.75, r0, 0.25*dt, r2)
+
+            # Third stage; r2 = -∇·f(r1);
+            #              r1 = 1.0/3.0*r0 + 2.0/3.0*r1 + 2.0/3.0*dt*r2
+            rhs_with_postproc(t + 0.5*dt, r1, r2)
+            add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
+
+            # Return the index of the bank containing u(t + dt)
+            return r1
 
 
 class StdRK4Stepper(BaseStdStepper):
     stepper_name = 'rk4'
     stepper_has_errest = False
-    stepper_nregs = 3
+    stepper_nregs = 4
     stepper_order = 4
 
     @property
@@ -79,46 +141,52 @@ class StdRK4Stepper(BaseStdStepper):
 
     def step(self, t, dt):
         add, rhs_with_postproc = self._add, self.system.rhs
+        rhs_inv, rhs_vis = self.system.rhs_inv, self.system.rhs_vis
+        postproc_inv, postproc_vis = self.system.postproc_inv, self.system.postproc_vis
+        preproc = self.system.preproc
 
         # Get the bank indices for each register
-        r0, r1, r2 = self._regidx
+        r0, r1, r2, r3 = self._regidx #r3 uses for split system
 
         # Ensure r0 references the bank containing u(t)
         if r0 != self._idxcurr:
             r0, r1 = r1, r0
 
-        # First stage; r1 = -∇·f(r0)
-        rhs_with_postproc(t, r0, r1)
+        if self.system.splitsystem:
+            raise ValueError('RK4 not supported for split system.')
+        else:
+            # First stage; r1 = -∇·f(r0)
+            rhs_with_postproc(t, r0, r1)
 
-        # Second stage; r2 = r0 + dt/2*r1; r2 = -∇·f(r2)
-        add(0.0, r2, 1.0, r0, dt/2.0, r1)
-        rhs_with_postproc(t + dt/2.0, r2, r2)
+            # Second stage; r2 = r0 + dt/2*r1; r2 = -∇·f(r2)
+            add(0.0, r2, 1.0, r0, dt/2.0, r1)
+            rhs_with_postproc(t + dt/2.0, r2, r2)
 
-        # As no subsequent stages depend on the first stage we can
-        # reuse its register to start accumulating the solution with
-        # r1 = r0 + dt/6*r1 + dt/3*r2
-        add(dt/6.0, r1, 1.0, r0, dt/3.0, r2)
+            # As no subsequent stages depend on the first stage we can
+            # reuse its register to start accumulating the solution with
+            # r1 = r0 + dt/6*r1 + dt/3*r2
+            add(dt/6.0, r1, 1.0, r0, dt/3.0, r2)
 
-        # Third stage; here we reuse the r2 register
-        # r2 = r0 + dt/2*r2
-        # r2 = -∇·f(r2)
-        add(dt/2.0, r2, 1.0, r0)
-        rhs_with_postproc(t + dt/2.0, r2, r2)
+            # Third stage; here we reuse the r2 register
+            # r2 = r0 + dt/2*r2
+            # r2 = -∇·f(r2)
+            add(dt/2.0, r2, 1.0, r0)
+            rhs_with_postproc(t + dt/2.0, r2, r2)
 
-        # Accumulate; r1 = r1 + dt/3*r2
-        add(1.0, r1, dt/3.0, r2)
+            # Accumulate; r1 = r1 + dt/3*r2
+            add(1.0, r1, dt/3.0, r2)
 
-        # Fourth stage; again we reuse r2
-        # r2 = r0 + dt*r2
-        # r2 = -∇·f(r2)
-        add(dt, r2, 1.0, r0)
-        rhs_with_postproc(t + dt, r2, r2)
+            # Fourth stage; again we reuse r2
+            # r2 = r0 + dt*r2
+            # r2 = -∇·f(r2)
+            add(dt, r2, 1.0, r0)
+            rhs_with_postproc(t + dt, r2, r2)
 
-        # Final accumulation r1 = r1 + dt/6*r2 = u(t + dt)
-        add(1.0, r1, dt/6.0, r2)
+            # Final accumulation r1 = r1 + dt/6*r2 = u(t + dt)
+            add(1.0, r1, dt/6.0, r2)
 
-        # Return the index of the bank containing u(t + dt)
-        return r1
+            # Return the index of the bank containing u(t + dt)
+            return r1
 
 
 class StdRKVdH2RStepper(BaseStdStepper):

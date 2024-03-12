@@ -10,7 +10,7 @@
 <% smats = 'smats_l' if 'linear' in ktype else 'smats' %>
 <% rcpdjac = 'rcpdjac_l' if 'linear' in ktype else 'rcpdjac' %>
 
-<%pyfr:kernel name='tflux' ndim='2'
+<%pyfr:kernel name='tflux_vis' ndim='2'
               u='in fpdtype_t[${str(nvars)}]'
               artvisc='in broadcast-col fpdtype_t'
               f='inout fpdtype_t[${str(ndims)}][${str(nvars)}]'

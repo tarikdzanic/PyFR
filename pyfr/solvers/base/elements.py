@@ -54,7 +54,7 @@ class BaseElements:
         haveqpts = 'flux' in self.antialias
 
         # Always do gradient fusion if flux anti-aliasing is off
-        self.grad_fusion = not haveqpts
+        self.grad_fusion = False # Disable gradient fusion for viscous splitting
 
         # Sizes
         self.nupts = basis.nupts
@@ -225,7 +225,7 @@ class BaseElements:
 
         if 'grad_upts' in sbufs and self.grad_fusion:
             self._grad_upts = valloc('grad_upts', nupts)
-        elif self.grad_fusion:
+        else:
             self._grad_upts = self._vect_upts
 
         # Allocate the storage required by the time integrator

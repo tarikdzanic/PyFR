@@ -85,7 +85,11 @@
     ${pyfr.expand('get_minima', 'u', 'dmin', 'pmin', 'emin')};
 
     // Filter if out of bounds
+    % if enforce_entropy:
     if (dmin < ${d_min} || pmin < ${p_min} || emin < entmin - ${e_tol})
+    % else:
+    if (dmin < ${d_min} || pmin < ${p_min})
+    % endif
     {
         // Compute modal basis
         fpdtype_t umodes[${nupts}][${nvars}];
@@ -120,7 +124,11 @@
             ${pyfr.expand('apply_filter_single', 'up', 'f', 'd', 'p', 'e')};
 
             // Update f if constraints aren't satisfied
+            % if enforce_entropy:
             if (d < ${d_min} || p < ${p_min} || e < entmin - ${e_tol})
+            % else:
+            if (d < ${d_min} || p < ${p_min})
+            % endif
             {
                 // Set root-finding interval
                 f_high = f;
@@ -141,13 +149,15 @@
                     // Compute new guess for each constraint (catch if root is not bracketed)
                     f1 = (d_high > 0.0) ? f_high : (0.5*f_low*d_high - f_high*d_low)/(0.5*d_high - d_low + ${ill_tol});
                     f2 = (p_high > 0.0) ? f_high : (0.5*f_low*p_high - f_high*p_low)/(0.5*p_high - p_low + ${ill_tol});
-                    f3 = (e_high > 0.0) ? f_high : (0.5*f_low*e_high - f_high*e_low)/(0.5*e_high - e_low + ${ill_tol});
 
                     // Compute guess as minima of individual constraints
                     fnew = fmin(f1, f2);
 
                     // Avoid using entropy constraint to guess new bracket if entropy is not well-defined
+                    % if enforce_entropy:
+                    f3 = (e_high > 0.0) ? f_high : (0.5*f_low*e_high - f_high*e_low)/(0.5*e_high - e_low + ${ill_tol});
                     fnew = (fmax(e_low, e_high) < ${0.9*fpdtype_max}) ? fmin(f3, fnew) : fnew;
+                    % endif
 
                     // In case of bracketing failure (due to roundoff errors), revert to bisection
                     fnew = ((fnew > f_high) || (fnew < f_low)) ? 0.5*(f_low + f_high) : fnew;
@@ -156,7 +166,11 @@
                     ${pyfr.expand('apply_filter_single', 'up', 'fnew', 'd', 'p', 'e')};
 
                     // Update brackets
+                    % if enforce_entropy:
                     if (d < ${d_min} || p < ${p_min} || e < entmin - ${e_tol})
+                    % else:
+                    if (d < ${d_min} || p < ${p_min})
+                    % endif
                     {
                         f_high = fnew;
                         d_high = d - ${d_min};
