@@ -258,7 +258,7 @@
         }
 
         // Extrapolate lower bound for hstar
-        fpdtype_t dhJ2 = (${' + '.join(f'pow(J[{i}]*J[{i}]*(xmin[{i}] - xmin_old[{i}]), 2.0)' for i in range(ndims))});
+        fpdtype_t dhJ2 = (${' + '.join(f'pow(J[{i}]*(xmin[{i}] - xmin_old[{i}]), 2.0)' for i in range(ndims))});
         hstar = fmax(-1, hmin - sqrt(dhJ2));
     }
     % endif
