@@ -115,6 +115,7 @@ class ScalarElements(BaseAdvectionElements):
             tplargs['invvdm'] = self.moninvvdm 
             tplargs['faceinvvdm'] = self.facemoninvvdm 
             tplargs['meanwts'] = self.meanwts
+            tplargs['order'] = self.basis.order
             tplargs['nupts'] = self.nupts
             tplargs['nfpts'] = self.nfpts
             tplargs['mdegs'] = self.basis.ubasis.degrees
