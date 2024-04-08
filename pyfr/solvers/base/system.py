@@ -60,12 +60,13 @@ class BaseSystem:
         self._int_inters = self._load_int_inters(rallocs, mesh, elemap)
         self._mpi_inters = self._load_mpi_inters(rallocs, mesh, elemap)
         self._bc_inters = self._load_bc_inters(rallocs, mesh, elemap)
+        self._pint_inters = self._load_periodic_inters(rallocs, mesh, elemap)
         backend.commit()
 
     def commit(self):
         # Prepare the kernels and any associated MPI requests
         self._gen_kernels(self.nregs, self.ele_map.values(), self._int_inters,
-                          self._mpi_inters, self._bc_inters)
+                          self._mpi_inters, self._bc_inters, self._pint_inters)
         self._gen_mpireqs(self._mpi_inters)
         self.backend.commit()
 
@@ -131,7 +132,13 @@ class BaseSystem:
         key = f'con_p{rallocs.prank}'
 
         lhs, rhs = mesh[key].tolist()
-        int_inters = self.intinterscls(self.backend, lhs, rhs, elemap,
+        
+        # Strip periodic BC indices
+        pidxs = list(mesh[key, 'periodic_0'])
+        new_lhs = [v for i, v in enumerate(lhs) if i not in pidxs]
+        new_rhs = [v for i, v in enumerate(rhs) if i not in pidxs]
+
+        int_inters = self.intinterscls(self.backend, new_lhs, new_rhs, elemap,
                                        self.cfg)
 
         return [int_inters]
@@ -172,7 +179,22 @@ class BaseSystem:
 
         return bc_inters
 
-    def _gen_kernels(self, nregs, eles, iint, mpiint, bcint):
+    def _load_periodic_inters(self, rallocs, mesh, elemap):
+        key = f'con_p{rallocs.prank}'
+
+        lhs, rhs = mesh[key].astype('U4,i4,i1,i2').tolist()
+
+        # Strip periodic BC indices
+        pidxs = list(mesh[key, 'periodic_0'])
+        new_lhs = [v for i, v in enumerate(lhs) if i in pidxs]
+        new_rhs = [v for i, v in enumerate(rhs) if i in pidxs]
+
+        pint_inters = self.pintinterscls(self.backend, new_lhs, new_rhs, elemap,
+                                       self.cfg)
+
+        return [pint_inters]
+
+    def _gen_kernels(self, nregs, eles, iint, mpiint, bcint, pint):
         self._kernels = kernels = defaultdict(list)
 
         # Helper function to tag the element type/MPI interface
@@ -185,8 +207,8 @@ class BaseSystem:
             elif pname == 'mpiint':
                 self._ktags[kern] = f'i-{prov.name}'
 
-        provnames = ['eles', 'iint', 'mpiint', 'bcint']
-        provlists = [eles, iint, mpiint, bcint]
+        provnames = ['eles', 'iint', 'mpiint', 'bcint', 'pint']
+        provlists = [eles, iint, mpiint, bcint, pint]
 
         for pn, provs in zip(provnames, provlists):
             for p in provs:

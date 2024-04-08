@@ -50,6 +50,33 @@ class NavierStokesIntInters(TplargsMixin,
         )
 
 
+class NavierStokesPintInters(TplargsMixin,
+                            FluidIntIntersMixin,
+                            BaseAdvectionDiffusionIntInters):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._be.pointwise.register('pyfr.solvers.navstokes.kernels.pintconu')
+        self._be.pointwise.register('pyfr.solvers.navstokes.kernels.pintcflux')
+
+        if self.cfg.getfloat('solver-interfaces', 'ldg-beta') != 0.5:
+            raise ValueError('Rotational periodic BCs requires ldg-beta = 0.5.')
+
+        self.kernels['con_u'] = lambda: self._be.kernel(
+            'pintconu', tplargs=self._tplargs, dims=[self.ninterfpts],
+            ulin=self._scal_lhs, urin=self._scal_rhs,
+            ulout=self._comm_lhs, urout=self._comm_rhs,
+            nl=self._pnorm_lhs, nr=self._pnorm_rhs
+        )
+        self.kernels['comm_flux'] = lambda: self._be.kernel(
+            'pintcflux', tplargs=self._tplargs, dims=[self.ninterfpts],
+            ul=self._scal_lhs, ur=self._scal_rhs,
+            gradul=self._vect_lhs, gradur=self._vect_rhs,
+            artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
+            nl=self._pnorm_lhs, nr=self._pnorm_rhs
+        )
+
+
 class NavierStokesMPIInters(TplargsMixin,
                             FluidMPIIntersMixin,
                             BaseAdvectionDiffusionMPIInters):

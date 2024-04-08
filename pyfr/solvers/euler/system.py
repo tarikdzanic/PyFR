@@ -1,7 +1,7 @@
 from pyfr.solvers.baseadvec import BaseAdvectionSystem
 from pyfr.solvers.euler.elements import EulerElements
 from pyfr.solvers.euler.inters import (EulerIntInters, EulerMPIInters,
-                                       EulerBaseBCInters)
+                                       EulerPintInters, EulerBaseBCInters)
 
 
 class EulerSystem(BaseAdvectionSystem):
@@ -9,5 +9,6 @@ class EulerSystem(BaseAdvectionSystem):
 
     elementscls = EulerElements
     intinterscls = EulerIntInters
+    pintinterscls = EulerPintInters
     mpiinterscls = EulerMPIInters
     bbcinterscls = EulerBaseBCInters
