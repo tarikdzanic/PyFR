@@ -74,7 +74,7 @@ class BaseElements:
     def validate_formulation(form, intg, cfg):
         pass
 
-    def pri_to_con(pris, cfg):
+    def pri_to_con(pris, cfg, rote):
         pass
 
     def con_to_pri(cons, cfg):
@@ -99,7 +99,8 @@ class BaseElements:
         self.scal_upts = np.empty((self.nupts, self.nvars, self.neles))
 
         # Convert from primitive to conservative form
-        for i, v in enumerate(self.pri_to_con(ics, self.cfg)):
+        rote = self.rote_at_np('upts')
+        for i, v in enumerate(self.pri_to_con(ics, self.cfg, rote)):
             self.scal_upts[:, i, :] = v
 
     def set_ics_from_soln(self, solnmat, solncfg):
@@ -130,13 +131,9 @@ class BaseElements:
     @cached_property
     def rotefpts(self):
         ploc = self.plocfpts
-        x = ploc[..., 0]
-        y = ploc[..., 1]
         omg = self.cfg.getfloat('constants', 'omg')
 
-        rote = 0.5*(omg**2)*(x**2 + y**2)
-
-        return rote
+        return self.rote_from_ploc(ploc, omg)
 
     @cached_property
     def _scal_upts_cpy(self):
@@ -322,16 +319,20 @@ class BaseElements:
     def ploc_at(self, name):
         return self._be.const_matrix(self.ploc_at_np(name), tags={'align'})
 
-    @memoize
-    def rote_at_np(self, name):
-        ploc = self.ploc_at_np(name)
-        x = ploc[:, 0, :]
-        y = ploc[:, 1, :]
-        omg = self.cfg.getfloat('constants', 'omg')
+    @staticmethod
+    def rote_from_ploc(ploc, omg):
+        x = ploc[..., 0]
+        y = ploc[..., 1]
 
         rote = 0.5*(omg**2)*(x**2 + y**2)
 
         return rote
+
+    @memoize
+    def rote_at_np(self, name):
+        ploc = self.ploc_at_np(name).swapaxes(1,2)
+        omg = self.cfg.getfloat('constants', 'omg')
+        return self.rote_from_ploc(ploc, omg)
 
     @sliceat
     @memoize

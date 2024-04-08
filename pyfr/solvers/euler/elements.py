@@ -1,5 +1,6 @@
 import numpy as np
 
+from pyfr.solvers.base import BaseElements
 from pyfr.solvers.baseadvec import BaseAdvectionElements
 
 
@@ -22,7 +23,7 @@ class BaseFluidElements:
     }
 
     @staticmethod
-    def pri_to_con(pris, cfg):
+    def pri_to_con(pris, cfg, rote):
         rho, p = pris[0], pris[-1]
 
         # Multiply velocity components by rho
@@ -30,12 +31,12 @@ class BaseFluidElements:
 
         # Compute the energy
         gamma = cfg.getfloat('constants', 'gamma')
-        E = p/(gamma - 1) + 0.5*rho*sum(c*c for c in pris[1:-1])
+        E = p/(gamma - 1) + 0.5*rho*sum(c*c for c in pris[1:-1]) - rho*rote
 
         return [rho, *rhovs, E]
 
     @staticmethod
-    def con_to_pri(cons, cfg):
+    def con_to_pri(cons, cfg, ploc):
         rho, E = cons[0], cons[-1]
 
         # Divide momentum components by rho
@@ -43,7 +44,9 @@ class BaseFluidElements:
 
         # Compute the pressure
         gamma = cfg.getfloat('constants', 'gamma')
-        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs))
+        omg = cfg.getfloat('constants', 'omg')
+        rote = BaseElements.rote_from_ploc(ploc, omg)
+        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs) + rho*rote)
 
         return [rho, *vs, p]
 
