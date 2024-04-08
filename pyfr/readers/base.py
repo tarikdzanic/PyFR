@@ -143,6 +143,14 @@ class NodalMeshAssembler:
                 lfpts = self._nodepts[lfnodes]
                 rfpts = self._nodepts[rfnodes]
 
+                # Convert to polar/cylindrical coordinates for pairing               
+                lfpts[..., 0] = np.sqrt(lfpts[..., 0]**2 + lfpts[..., 1]**2)
+                rfpts[..., 0] = np.sqrt(rfpts[..., 0]**2 + rfpts[..., 1]**2)
+
+                # Assign arbitrary 0/1 to theta value
+                rfpts[..., 1] = np.ones_like(rfpts[..., 1])
+                lfpts[..., 1] = np.zeros_like(lfpts[..., 1])
+
                 lfidx = fuzzysort(lfpts.mean(axis=1).T, range(len(lfnodes)))
                 rfidx = fuzzysort(rfpts.mean(axis=1).T, range(len(rfnodes)))
 
