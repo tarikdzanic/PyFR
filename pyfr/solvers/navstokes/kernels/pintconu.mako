@@ -25,7 +25,7 @@
     % endfor
     ${pyfr.expand('rotate', 'tmpu', 'negnorm_nr', 'norm_nl')};
     % for i in range(nvars):
-    ulout[${i}] = urin[${i}];
+    ulout[${i}] = tmpu[${i}];
     % endfor
     // ----------------------------------------
 
