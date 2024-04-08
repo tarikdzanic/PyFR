@@ -128,6 +128,17 @@ class BaseElements:
         return plocfpts
 
     @cached_property
+    def rotefpts(self):
+        ploc = self.plocfpts
+        x = ploc[..., 0]
+        y = ploc[..., 1]
+        omg = self.cfg.getfloat('constants', 'omg')
+
+        rote = 0.5*(omg**2)*(x**2 + y**2)
+
+        return rote
+
+    @cached_property
     def _scal_upts_cpy(self):
         return self._be.matrix((self.nupts, self.nvars, self.neles),
                                tags={'align'})
@@ -311,6 +322,22 @@ class BaseElements:
     def ploc_at(self, name):
         return self._be.const_matrix(self.ploc_at_np(name), tags={'align'})
 
+    @memoize
+    def rote_at_np(self, name):
+        ploc = self.ploc_at_np(name)
+        x = ploc[:, 0, :]
+        y = ploc[:, 1, :]
+        omg = self.cfg.getfloat('constants', 'omg')
+
+        rote = 0.5*(omg**2)*(x**2 + y**2)
+
+        return rote
+
+    @sliceat
+    @memoize
+    def rote_at(self, name):
+        return self._be.const_matrix(self.rote_at_np(name), tags={'align'})
+
     @cached_property
     def upts(self):
         return self._be.const_matrix(self.basis.upts)
@@ -431,3 +458,7 @@ class BaseElements:
     def get_ploc_for_inter(self, eidx, fidx):
         fpts_idx = self._srtd_face_fpts[fidx][eidx]
         return self.plocfpts[fpts_idx, eidx]
+
+    def get_rote_for_inter(self, eidx, fidx):
+        fpts_idx = self._srtd_face_fpts[fidx][eidx]
+        return self.rotefpts[fpts_idx, eidx]

@@ -191,13 +191,15 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             tdisf.append(lambda uin: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'curved'},
                 dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
-                f=s(self._vect_upts, c), smats=self.curved_smat_at('upts')
+                f=s(self._vect_upts, c), smats=self.curved_smat_at('upts'),
+                rote=self.rote_at('upts', c)
             ))
         elif c in r:
             tdisf.append(lambda: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'curved'},
                 dims=[self.nqpts, r[c]], u=s(self._scal_qpts, c),
-                f=s(self._vect_qpts, c), smats=self.curved_smat_at('qpts')
+                f=s(self._vect_qpts, c), smats=self.curved_smat_at('qpts'),
+                rote=self.rote_at('qpts', c)
             ))
 
         if l in r and 'flux' not in self.antialias:
@@ -205,14 +207,14 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
                 'tflux', tplargs=tplargs | {'ktype': 'linear'},
                 dims=[self.nupts, r[l]], u=s(self.scal_upts[uin], l),
                 f=s(self._vect_upts, l), verts=self.ploc_at('linspts', l),
-                upts=self.upts
+                upts=self.upts, rote=self.rote_at('upts', l)
             ))
         elif l in r:
             tdisf.append(lambda: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'linear'},
                 dims=[self.nqpts, r[l]], u=s(self._scal_qpts, l),
                 f=s(self._vect_qpts, l), verts=self.ploc_at('linspts', l),
-                upts=self.qpts
+                upts=self.qpts, rote=self.rote_at('qpts', l)
             ))
 
         if 'flux' not in self.antialias:
