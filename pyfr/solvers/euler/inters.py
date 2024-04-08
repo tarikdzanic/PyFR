@@ -58,6 +58,20 @@ class EulerIntInters(TplargsMixin, FluidIntIntersMixin,
         )
 
 
+class EulerPintInters(TplargsMixin, FluidIntIntersMixin,
+                      BaseAdvectionIntInters):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._be.pointwise.register('pyfr.solvers.euler.kernels.pintcflux')
+
+        self.kernels['comm_flux'] = lambda: self._be.kernel(
+            'pintcflux', tplargs=self._tplargs, dims=[self.ninterfpts],
+            ul=self._scal_lhs, ur=self._scal_rhs, nl=self._pnorm_lhs,
+            nr=self._pnorm_rhs
+        )
+
+
 class EulerMPIInters(TplargsMixin, FluidMPIIntersMixin,
                      BaseAdvectionMPIInters):
     def __init__(self, *args, **kwargs):
