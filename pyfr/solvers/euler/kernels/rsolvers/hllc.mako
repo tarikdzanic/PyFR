@@ -1,15 +1,15 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 <%include file='pyfr.solvers.euler.kernels.flux'/>
 
-<%pyfr:macro name='rsolve_1d' params='ul, ur, nf'>
+<%pyfr:macro name='rsolve_1d' params='ul, ur, nf, rote'>
     // Compute the left and right fluxes + velocities and pressures
     fpdtype_t fl[${nvars}], fr[${nvars}];
     fpdtype_t vl[${ndims}], vr[${ndims}];
     fpdtype_t pl, pr, fsl, fsr;
     fpdtype_t usl[${nvars}], usr[${nvars}];
 
-    ${pyfr.expand('inviscid_flux_1d', 'ul', 'fl', 'pl', 'vl')};
-    ${pyfr.expand('inviscid_flux_1d', 'ur', 'fr', 'pr', 'vr')};
+    ${pyfr.expand('inviscid_flux_1d', 'ul', 'fl', 'pl', 'vl', 'rote')};
+    ${pyfr.expand('inviscid_flux_1d', 'ur', 'fr', 'pr', 'vr', 'rote')};
 
     // Compute the Roe-averaged enthalpy
     fpdtype_t H = (sqrt(ul[0])*(pr + ur[${ndims + 1}])
