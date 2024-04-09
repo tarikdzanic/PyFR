@@ -5,6 +5,7 @@
 % for i, v in enumerate('uvw'[:ndims]):
     ur[${i + 1}] = (${c['rho']})*(${c[v]});
 % endfor
-    ur[${nvars - 1}] = ${c['p']}/${c['gamma'] - 1} +
-                       0.5*(1.0/ur[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))} - ur[0]*rote;
+    ur[${nvars - 1}] = ${c['p']}/${c['gamma'] - 1}
+                       + 0.5*(1.0/ur[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))}
+                       - ur[0]*rote;
 </%pyfr:macro>

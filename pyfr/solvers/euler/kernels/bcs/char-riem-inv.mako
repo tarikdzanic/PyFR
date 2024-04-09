@@ -15,7 +15,7 @@
                                       for i in range(ndims))});
     fpdtype_t p_i = ${gmo}*ul[${nvars - 1}]
                   - ${0.5*gmo}*inv*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))}
-                  + ul[0]*rote;
+                  + ${gmo}*ul[0]*rote;
     fpdtype_t c_i = sqrt(${gamma}*p_i*inv);
     fpdtype_t R_e = (fabs(V_e) >= cs && V_i >= 0)
                   ? V_i - c_i*${2.0/gmo}

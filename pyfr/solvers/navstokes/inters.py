@@ -116,7 +116,7 @@ class NavierStokesBaseBCInters(TplargsMixin, BaseAdvectionDiffusionBCInters):
             'bcconu', tplargs=self._tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, ulin=self._scal_lhs,
             ulout=self._comm_lhs, nlin=self._pnorm_lhs,
-            **self._external_vals
+            rote=self._rote_lhs, **self._external_vals
         )
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'bccflux', tplargs=self._tplargs, dims=[self.ninterfpts],
