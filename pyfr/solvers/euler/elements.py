@@ -1,5 +1,6 @@
 import numpy as np
 
+from pyfr.solvers.base import BaseElements
 from pyfr.solvers.baseadvec import BaseAdvectionElements
 
 
@@ -22,7 +23,7 @@ class BaseFluidElements:
     }
 
     @staticmethod
-    def pri_to_con(pris, cfg):
+    def pri_to_con(pris, cfg, rote):
         rho, p = pris[0], pris[-1]
 
         # Multiply velocity components by rho
@@ -30,12 +31,12 @@ class BaseFluidElements:
 
         # Compute the energy
         gamma = cfg.getfloat('constants', 'gamma')
-        E = p/(gamma - 1) + 0.5*rho*sum(c*c for c in pris[1:-1])
+        E = p/(gamma - 1) + 0.5*rho*sum(c*c for c in pris[1:-1]) - rho*rote
 
         return [rho, *rhovs, E]
 
     @staticmethod
-    def con_to_pri(cons, cfg):
+    def con_to_pri(cons, cfg, ploc):
         rho, E = cons[0], cons[-1]
 
         # Divide momentum components by rho
@@ -43,7 +44,9 @@ class BaseFluidElements:
 
         # Compute the pressure
         gamma = cfg.getfloat('constants', 'gamma')
-        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs))
+        omg = cfg.getfloat('constants', 'omg')
+        rote = BaseElements.rote_from_ploc(ploc, omg)
+        p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs) + rho*rote)
 
         return [rho, *vs, p]
 
@@ -150,14 +153,16 @@ class BaseFluidElements:
             # Compute local entropy bounds
             self.kernels['local_entropy'] = lambda uin: self._be.kernel(
                 'entropylocal', tplargs=eftplargs, dims=[self.neles],
-                u=self.scal_upts[uin], entmin_int=self.entmin_int
+                u=self.scal_upts[uin], rote=self.rote_at('upts'),
+                entmin_int=self.entmin_int
             )
 
             # Apply entropy filter
             self.kernels['entropy_filter'] = lambda uin: self._be.kernel(
                 'entropyfilter', tplargs=eftplargs, dims=[self.neles],
-                u=self.scal_upts[uin], entmin_int=self.entmin_int,
-                vdm=self.vdm, invvdm=self.invvdm
+                u=self.scal_upts[uin], rote=self.rote_at('upts'),
+                entmin_int=self.entmin_int, vdm=self.vdm,
+                invvdm=self.invvdm
             )
 
 
@@ -191,13 +196,15 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             tdisf.append(lambda uin: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'curved'},
                 dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
-                f=s(self._vect_upts, c), smats=self.curved_smat_at('upts')
+                f=s(self._vect_upts, c), smats=self.curved_smat_at('upts'),
+                rote=self.rote_at('upts', c)
             ))
         elif c in r:
             tdisf.append(lambda: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'curved'},
                 dims=[self.nqpts, r[c]], u=s(self._scal_qpts, c),
-                f=s(self._vect_qpts, c), smats=self.curved_smat_at('qpts')
+                f=s(self._vect_qpts, c), smats=self.curved_smat_at('qpts'),
+                rote=self.rote_at('qpts', c)
             ))
 
         if l in r and 'flux' not in self.antialias:
@@ -205,14 +212,14 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
                 'tflux', tplargs=tplargs | {'ktype': 'linear'},
                 dims=[self.nupts, r[l]], u=s(self.scal_upts[uin], l),
                 f=s(self._vect_upts, l), verts=self.ploc_at('linspts', l),
-                upts=self.upts
+                upts=self.upts, rote=self.rote_at('upts', l)
             ))
         elif l in r:
             tdisf.append(lambda: self._be.kernel(
                 'tflux', tplargs=tplargs | {'ktype': 'linear'},
                 dims=[self.nqpts, r[l]], u=s(self._scal_qpts, l),
                 f=s(self._vect_qpts, l), verts=self.ploc_at('linspts', l),
-                upts=self.qpts
+                upts=self.qpts, rote=self.rote_at('qpts', l)
             ))
 
         if 'flux' not in self.antialias:

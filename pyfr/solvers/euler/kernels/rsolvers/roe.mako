@@ -3,15 +3,15 @@
 
 <% eps = 0.001 %>
 
-<%pyfr:macro name='rsolve_1d' params='ul, ur, nf'>
+<%pyfr:macro name='rsolve_1d' params='ul, ur, nf, rote'>
     // Compute the left and right fluxes + velocities and pressures
     fpdtype_t fl[${nvars}], fr[${nvars}];
     fpdtype_t vl[${ndims}], vr[${ndims}];
     fpdtype_t pl, pr;
     fpdtype_t va[${ndims}], dv[${ndims}];
 
-    ${pyfr.expand('inviscid_flux_1d', 'ul', 'fl', 'pl', 'vl')};
-    ${pyfr.expand('inviscid_flux_1d', 'ur', 'fr', 'pr', 'vr')};
+    ${pyfr.expand('inviscid_flux_1d', 'ul', 'fl', 'pl', 'vl', 'rote')};
+    ${pyfr.expand('inviscid_flux_1d', 'ur', 'fr', 'pr', 'vr', 'rote')};
 
     // Compute Roe averaged density and enthalpy
     fpdtype_t roa = sqrt(ul[0])*sqrt(ur[0]);

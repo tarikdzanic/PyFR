@@ -16,7 +16,8 @@
               artviscl='in view fpdtype_t'
               artviscr='in view fpdtype_t'
               nl='in fpdtype_t[${str(ndims)}]'
-              nr='in fpdtype_t[${str(ndims)}]'>
+              nr='in fpdtype_t[${str(ndims)}]'
+              rote='in fpdtype_t'>
     fpdtype_t mag_nl = sqrt(${pyfr.dot('nl[{i}]', i=ndims)});
     fpdtype_t norm_nl[] = ${pyfr.array('(1 / mag_nl)*nl[{i}]', i=ndims)};
 
@@ -27,11 +28,11 @@
 
     // Perform the Riemann solve
     fpdtype_t ficomm[${nvars}];
-    ${pyfr.expand('rsolve', 'ul', 'ur', 'norm_nl', 'ficomm')};
+    ${pyfr.expand('rsolve', 'ul', 'ur', 'norm_nl', 'ficomm', 'rote')};
 
     // ----- Assumes c['ldg-beta'] == 0.5 -----
     fpdtype_t fvl[${ndims}][${nvars}] = {{0}};
-    ${pyfr.expand('viscous_flux_add', 'ul', 'gradul', 'fvl')};
+    ${pyfr.expand('viscous_flux_add', 'ul', 'gradul', 'fvl', 'rote')};
     ${pyfr.expand('artificial_viscosity_add', 'gradul', 'fvl', 'artviscl')};
     // ----------------------------------------
 

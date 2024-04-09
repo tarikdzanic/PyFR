@@ -46,7 +46,7 @@ class NavierStokesIntInters(TplargsMixin,
             ul=self._scal_lhs, ur=self._scal_rhs,
             gradul=self._vect_lhs, gradur=self._vect_rhs,
             artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
-            nl=self._pnorm_lhs
+            nl=self._pnorm_lhs, rote=self._rote_lhs
         )
 
 
@@ -73,7 +73,7 @@ class NavierStokesPintInters(TplargsMixin,
             ul=self._scal_lhs, ur=self._scal_rhs,
             gradul=self._vect_lhs, gradur=self._vect_rhs,
             artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
-            nl=self._pnorm_lhs, nr=self._pnorm_rhs
+            nl=self._pnorm_lhs, nr=self._pnorm_rhs, rote=self._rote_lhs
         )
 
 
@@ -95,7 +95,7 @@ class NavierStokesMPIInters(TplargsMixin,
             ul=self._scal_lhs, ur=self._scal_rhs,
             gradul=self._vect_lhs, gradur=self._vect_rhs,
             artviscl=self._artvisc_lhs, artviscr=self._artvisc_rhs,
-            nl=self._pnorm_lhs
+            nl=self._pnorm_lhs, rote=self._rote_lhs
         )
 
 
@@ -116,13 +116,14 @@ class NavierStokesBaseBCInters(TplargsMixin, BaseAdvectionDiffusionBCInters):
             'bcconu', tplargs=self._tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, ulin=self._scal_lhs,
             ulout=self._comm_lhs, nlin=self._pnorm_lhs,
-            **self._external_vals
+            rote=self._rote_lhs, **self._external_vals
         )
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'bccflux', tplargs=self._tplargs, dims=[self.ninterfpts],
             extrns=self._external_args, ul=self._scal_lhs,
             gradul=self._vect_lhs, nl=self._pnorm_lhs,
-            artviscl=self._artvisc_lhs, **self._external_vals
+            artviscl=self._artvisc_lhs, rote=self._rote_lhs,
+            **self._external_vals
         )
 
         if self.cfg.get('solver', 'shock-capturing') == 'entropy-filter':
@@ -133,7 +134,8 @@ class NavierStokesBaseBCInters(TplargsMixin, BaseAdvectionDiffusionBCInters):
             self.kernels['comm_entropy'] = lambda: self._be.kernel(
                 'bccent', tplargs=self._tplargs, dims=[self.ninterfpts],
                 extrns=self._external_args, entmin_lhs=self._entmin_lhs,
-                nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+                nl=self._pnorm_lhs, ul=self._scal_lhs, rote=self._rote_lhs,
+                **self._external_vals
             )
 
 

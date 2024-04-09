@@ -18,7 +18,8 @@
               smats='in fpdtype_t[${str(ndims)}][${str(ndims)}]'
               rcpdjac='in fpdtype_t'
               verts='in broadcast-col fpdtype_t[${str(nverts)}][${str(ndims)}]'
-              upts='in broadcast-row fpdtype_t[${str(ndims)}]'>
+              upts='in broadcast-row fpdtype_t[${str(ndims)}]'
+              rote='in fpdtype_t'>
 % if 'linear' in ktype:
     // Compute the S matrices
     fpdtype_t ${smats}[${ndims}][${ndims}], djac;
@@ -34,8 +35,8 @@
     // Compute the flux (F = Fi + Fv)
     fpdtype_t ftemp[${ndims}][${nvars}];
     fpdtype_t p, v[${ndims}];
-    ${pyfr.expand('inviscid_flux', 'u', 'ftemp', 'p', 'v')};
-    ${pyfr.expand('viscous_flux_add', 'u', gradu, 'ftemp')};
+    ${pyfr.expand('inviscid_flux', 'u', 'ftemp', 'p', 'v', 'rote')};
+    ${pyfr.expand('viscous_flux_add', 'u', gradu, 'ftemp', 'rote')};
     ${pyfr.expand('artificial_viscosity_add', gradu, 'ftemp', 'artvisc')};
 
     // Transform the fluxes

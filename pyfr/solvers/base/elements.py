@@ -74,7 +74,7 @@ class BaseElements:
     def validate_formulation(form, intg, cfg):
         pass
 
-    def pri_to_con(pris, cfg):
+    def pri_to_con(pris, cfg, rote):
         pass
 
     def con_to_pri(cons, cfg):
@@ -99,7 +99,8 @@ class BaseElements:
         self.scal_upts = np.empty((self.nupts, self.nvars, self.neles))
 
         # Convert from primitive to conservative form
-        for i, v in enumerate(self.pri_to_con(ics, self.cfg)):
+        rote = self.rote_at_np('upts')
+        for i, v in enumerate(self.pri_to_con(ics, self.cfg, rote)):
             self.scal_upts[:, i, :] = v
 
     def set_ics_from_soln(self, solnmat, solncfg):
@@ -126,6 +127,13 @@ class BaseElements:
         plocfpts = plocfpts.reshape(self.nfpts, self.neles, self.ndims)
 
         return plocfpts
+
+    @cached_property
+    def rotefpts(self):
+        ploc = self.plocfpts
+        omg = self.cfg.getfloat('constants', 'omg')
+
+        return self.rote_from_ploc(ploc, omg)
 
     @cached_property
     def _scal_upts_cpy(self):
@@ -311,6 +319,26 @@ class BaseElements:
     def ploc_at(self, name):
         return self._be.const_matrix(self.ploc_at_np(name), tags={'align'})
 
+    @staticmethod
+    def rote_from_ploc(ploc, omg):
+        x = ploc[..., 0]
+        y = ploc[..., 1]
+
+        rote = 0.5*(omg**2)*(x**2 + y**2)
+
+        return rote
+
+    @memoize
+    def rote_at_np(self, name):
+        ploc = self.ploc_at_np(name).swapaxes(1,2)
+        omg = self.cfg.getfloat('constants', 'omg')
+        return self.rote_from_ploc(ploc, omg)
+
+    @sliceat
+    @memoize
+    def rote_at(self, name):
+        return self._be.const_matrix(self.rote_at_np(name), tags={'align'})
+
     @cached_property
     def upts(self):
         return self._be.const_matrix(self.basis.upts)
@@ -431,3 +459,7 @@ class BaseElements:
     def get_ploc_for_inter(self, eidx, fidx):
         fpts_idx = self._srtd_face_fpts[fidx][eidx]
         return self.plocfpts[fpts_idx, eidx]
+
+    def get_rote_for_inter(self, eidx, fidx):
+        fpts_idx = self._srtd_face_fpts[fidx][eidx]
+        return self.rotefpts[fpts_idx, eidx]

@@ -1,6 +1,6 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
-<%pyfr:macro name='inviscid_flux' params='s, f, p, v'>
+<%pyfr:macro name='inviscid_flux' params='s, f, p, v, rote'>
     fpdtype_t invrho = 1.0/s[0], E = s[${nvars - 1}];
 
     // Compute the velocities
@@ -11,7 +11,7 @@
 % endfor
 
     // Compute the pressure
-    p = ${c['gamma'] - 1}*(E - 0.5*invrho*${pyfr.dot('rhov[{i}]', i=ndims)});
+    p = ${c['gamma'] - 1}*(E - 0.5*invrho*${pyfr.dot('rhov[{i}]', i=ndims)} + s[0]*rote);
 
     // Density and energy fluxes
 % for i in range(ndims):
@@ -25,7 +25,7 @@
 % endfor
 </%pyfr:macro>
 
-<%pyfr:macro name='inviscid_flux_1d' params='s, f, p, v'>
+<%pyfr:macro name='inviscid_flux_1d' params='s, f, p, v, rote'>
     fpdtype_t invrho = 1.0/s[0], E = s[${nvars - 1}];
 
     // Compute the velocities
@@ -33,8 +33,7 @@
     v[${i}] = invrho*s[${i + 1}];
 % endfor
 
-    // Compute the pressure
-    p = ${c['gamma'] - 1}*(E - 0.5*invrho*${pyfr.dot('s[{i}]', i=(1, ndims + 1))});
+    p = ${c['gamma'] - 1}*(E - 0.5*invrho*${pyfr.dot('s[{i}]', i=(1, ndims + 1))} + s[0]*rote);
 
     // Density and energy fluxes
     f[0] = s[1];

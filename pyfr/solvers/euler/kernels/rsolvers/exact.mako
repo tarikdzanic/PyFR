@@ -29,7 +29,7 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='primitives' params='s, p, v, c'>
+<%pyfr:macro name='primitives' params='s, p, v, c, rote'>
     fpdtype_t invrho = 1/s[0], E = s[${nvars - 1}];
 
     // Compute the velocities
@@ -38,7 +38,7 @@
 % endfor
 
     // Compute the pressure
-    p = ${gamma - 1}*(E - 0.5*invrho*${pyfr.dot('s[{i}]', i=(1, ndims + 1))});
+    p = ${gamma - 1}*(E - 0.5*invrho*${pyfr.dot('s[{i}]', i=(1, ndims + 1))} + s[0]*rote);
 
     // Compute the local sound speed
     c = sqrt(${gamma}*p*invrho);
@@ -46,15 +46,15 @@
 
 <% kmax = 3 %>
 
-<%pyfr:macro name='rsolve_1d' params='ul, ur, nf'>
+<%pyfr:macro name='rsolve_1d' params='ul, ur, nf, rote'>
     fpdtype_t vl[${ndims}], pl, cl, fsl, fdl;
     fpdtype_t vr[${ndims}], pr, cr, fsr, fdr;
     fpdtype_t p0, p1;
     fpdtype_t w0[${nvars}];
 
     // Compute the left/right primitives
-    ${pyfr.expand('primitives', 'ul', 'pl', 'vl', 'cl')};
-    ${pyfr.expand('primitives', 'ur', 'pr', 'vr', 'cr')};
+    ${pyfr.expand('primitives', 'ul', 'pl', 'vl', 'cl', 'rote')};
+    ${pyfr.expand('primitives', 'ur', 'pr', 'vr', 'cr', 'rote')};
 
     // Inital pressure guess
     fpdtype_t rl = ul[0];

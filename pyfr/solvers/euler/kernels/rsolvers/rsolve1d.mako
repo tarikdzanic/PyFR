@@ -2,7 +2,7 @@
 
 <%include file='pyfr.solvers.baseadvec.kernels.transform'/>
 
-<%pyfr:macro name='rsolve' params='ul, ur, n, nf'>
+<%pyfr:macro name='rsolve' params='ul, ur, n, nf, rote'>
     fpdtype_t utl[${nvars}], utr[${nvars}], ntf[${nvars}];
 
     utl[0] = ul[0];
