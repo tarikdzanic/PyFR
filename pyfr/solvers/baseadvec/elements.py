@@ -14,7 +14,11 @@ class BaseAdvectionElements(BaseElements):
         self._srctplargs = {
             'ndims': self.ndims,
             'nvars': self.nvars,
-            'src_macros': []
+            'src_macros': [],
+            'omg': self.cfg.getfloat('constants', 'omg'),
+            'mu': self.cfg.getfloat('constants', 'mu', 0.0),
+            'gamma': self.cfg.getfloat('constants', 'gamma', 0.0),
+            'Pr': self.cfg.getfloat('constants', 'Pr', 0.0)
         }
 
         self._ploc_in_src_macros = False
@@ -100,11 +104,8 @@ class BaseAdvectionElements(BaseElements):
         )
 
         def copy_soln(uin):
-            if self._soln_in_src_macros:
-                return self._be.kernel('copy', self._scal_upts_cpy,
-                                       self.scal_upts[uin])
-            else:
-                return NullKernel()
+            return self._be.kernel('copy', self._scal_upts_cpy,
+                                    self.scal_upts[uin])
 
         kernels['copy_soln'] = copy_soln
 
@@ -113,8 +114,7 @@ class BaseAdvectionElements(BaseElements):
             'negdivconf', tplargs=self._srctplargs,
             dims=[self.nupts, self.neles], extrns=self._external_args,
             tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
-            ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
-            u=self._scal_upts_cpy if self._soln_in_src_macros else None,
+            ploc=self.ploc_at('upts'), u=self._scal_upts_cpy,
             **self._external_vals
         )
 
