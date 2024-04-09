@@ -2,9 +2,9 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 <%include file='pyfr.solvers.euler.kernels.entropy'/>
 
-<%pyfr:macro name='get_minima' params='u, dmin, pmin, emin'>
+<%pyfr:macro name='get_minima' params='u, dmin, pmin, emin, rote'>
     fpdtype_t d, p, e;
-    fpdtype_t ui[${nvars}];
+    fpdtype_t ui[${nvars}], ri;
 
     dmin = ${fpdtype_max}; pmin = ${fpdtype_max}; emin = ${fpdtype_max};
 
@@ -13,8 +13,9 @@
     % for j in range(nvars):
         ui[${j}] = u[i][${j}];
     % endfor
+        ri = rote[i];
 
-        ${pyfr.expand('compute_entropy', 'ui', 'd', 'p', 'e')};
+        ${pyfr.expand('compute_entropy', 'ui', 'd', 'p', 'e', 'ri')};
         dmin = fmin(dmin, d); pmin = fmin(pmin, p); emin = fmin(emin, e);
     }
 </%pyfr:macro>
@@ -48,7 +49,7 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='apply_filter_single' params='up, f, d, p, e'>
+<%pyfr:macro name='apply_filter_single' params='up, f, d, p, e, ri'>
     // Start accumulation
     fpdtype_t ui[${nvars}];
 % for vidx in range(nvars):
@@ -67,11 +68,12 @@
         % endfor
     }
 
-    ${pyfr.expand('compute_entropy', 'ui', 'd', 'p', 'e' )};
+    ${pyfr.expand('compute_entropy', 'ui', 'd', 'p', 'e', 'ri')};
 </%pyfr:macro>
 
 <%pyfr:kernel name='entropyfilter' ndim='1'
               u='inout fpdtype_t[${str(nupts)}][${str(nvars)}]'
+              rote='in fpdtype_t[${str(nupts)}]'
               entmin_int='inout fpdtype_t[${str(nfaces)}]'
               vdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'
               invvdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'>
@@ -82,7 +84,7 @@
     for (int fidx = 0; fidx < ${nfaces}; fidx++) entmin = fmin(entmin, entmin_int[fidx]);
 
     // Check if solution is within bounds
-    ${pyfr.expand('get_minima', 'u', 'dmin', 'pmin', 'emin')};
+    ${pyfr.expand('get_minima', 'u', 'dmin', 'pmin', 'emin', 'rote')};
 
     // Filter if out of bounds
     if (dmin < ${d_min} || pmin < ${p_min} || emin < entmin - ${e_tol})
@@ -96,6 +98,9 @@
                 umodes[uidx][vidx] = ${pyfr.dot('invvdm[uidx][{k}]', 'u[{k}][vidx]', k=nupts)};
             }
         }
+
+        // Initialize rotational energy placeholder;
+        fpdtype_t ri;
 
         // Setup filter (solve for f = exp(-zeta))
         fpdtype_t f = 1.0;
@@ -115,8 +120,11 @@
                                                    for k, dd in enumerate(ubdegs) if dd == pidx)});
         % endfor
 
+            // Set rotational energy
+            ri = rote[uidx];
+
             // Compute constraints with current minimum f value
-            ${pyfr.expand('apply_filter_single', 'up', 'f', 'd', 'p', 'e')};
+            ${pyfr.expand('apply_filter_single', 'up', 'f', 'd', 'p', 'e', 'ri')};
 
             // Update f if constraints aren't satisfied
             if (d < ${d_min} || p < ${p_min} || e < entmin - ${e_tol})
@@ -127,7 +135,7 @@
 
                 // Compute brackets
                 d_high = d; p_high = p; e_high = e;
-                ${pyfr.expand('apply_filter_single', 'up', 'f_low', 'd_low', 'p_low', 'e_low')};
+                ${pyfr.expand('apply_filter_single', 'up', 'f_low', 'd_low', 'p_low', 'e_low', 'ri')};
 
                 // Regularize constraints to be around zero
                 d_low -= ${d_min}; d_high -= ${d_min};
@@ -141,7 +149,7 @@
                     fnew = 0.5*(f_low + f_high);
 
                     // Compute filtered state
-                    ${pyfr.expand('apply_filter_single', 'up', 'fnew', 'd', 'p', 'e')};
+                    ${pyfr.expand('apply_filter_single', 'up', 'fnew', 'd', 'p', 'e', 'ri')};
 
                     // Update brackets
                     if (d < ${d_min} || p < ${p_min} || e < entmin - ${e_tol})
@@ -169,7 +177,7 @@
         ${pyfr.expand('apply_filter_full', 'umodes', 'vdm', 'u', 'f')};
 
         // Calculate minimum entropy from filtered solution
-        ${pyfr.expand('get_minima', 'u', 'dmin', 'pmin', 'emin')};
+        ${pyfr.expand('get_minima', 'u', 'dmin', 'pmin', 'emin', 'rote')};
     }
 
     // Set new minimum entropy within element for next stage

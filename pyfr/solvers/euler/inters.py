@@ -12,8 +12,7 @@ class FluidIntIntersMixin:
 
             self.kernels['comm_entropy'] = lambda: self._be.kernel(
                 'intcent', tplargs={}, dims=[self.ninters],
-                entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs,
-                rote=self._rote_lhs
+                entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
             )
 
 
@@ -42,8 +41,7 @@ class FluidMPIIntersMixin:
 
             self.kernels['comm_entropy'] = lambda: self._be.kernel(
                 'mpicent', tplargs={}, dims=[self.ninters],
-                entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs,
-                rote=self._rote_lhs
+                entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
             )
 
 
