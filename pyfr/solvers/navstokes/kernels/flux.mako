@@ -1,7 +1,7 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 
 % if ndims == 2:
-<%pyfr:macro name='viscous_flux_add' params='uin, grad_uin, fout'>
+<%pyfr:macro name='viscous_flux_add' params='uin, grad_uin, fout, rote'>
     fpdtype_t rho = uin[0], rhou = uin[1], rhov = uin[2], E = uin[3];
 
     fpdtype_t rcprho = 1.0/rho;
@@ -21,7 +21,7 @@
 
 % if visc_corr == 'sutherland':
     // Compute the temperature and viscosity
-    fpdtype_t cpT = ${c['gamma']}*(rcprho*E - 0.5*(u*u + v*v));
+    fpdtype_t cpT = ${c['gamma']}*(rcprho*E - 0.5*(u*u + v*v) + rote);
     fpdtype_t Trat = ${1/c['cpTref']}*cpT;
     fpdtype_t mu_c = ${c['mu']*(c['cpTref'] + c['cpTs'])}*Trat*sqrt(Trat)
                    / (cpT + ${c['cpTs']});
@@ -45,7 +45,7 @@
     fout[1][3] += u*t_xy + v*t_yy + -mu_c*${c['gamma']/c['Pr']}*T_y;
 </%pyfr:macro>
 % elif ndims == 3:
-<%pyfr:macro name='viscous_flux_add' params='uin, grad_uin, fout'>
+<%pyfr:macro name='viscous_flux_add' params='uin, grad_uin, fout, rote'>
     fpdtype_t rho  = uin[0];
     fpdtype_t rhou = uin[1], rhov = uin[2], rhow = uin[3];
     fpdtype_t E    = uin[4];
@@ -74,7 +74,7 @@
 
 % if visc_corr == 'sutherland':
     // Compute the temperature and viscosity
-    fpdtype_t cpT = ${c['gamma']}*(rcprho*E - 0.5*(u*u + v*v + w*w));
+    fpdtype_t cpT = ${c['gamma']}*(rcprho*E - 0.5*(u*u + v*v + w*w) + rote);
     fpdtype_t Trat = ${1/c['cpTref']}*cpT;
     fpdtype_t mu_c = ${c['mu']*(c['cpTref'] + c['cpTs'])}*Trat*sqrt(Trat)
                    / (cpT + ${c['cpTs']});
