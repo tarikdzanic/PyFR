@@ -26,7 +26,39 @@
 <%pyfr:macro name='cost2' params='ui, uavg, h, bounds'>
     ${pyfr.expand('g2', 'ui' ,'gu', 'bounds')};
     ${pyfr.expand('g2', 'uavg' ,'gavg', 'bounds')};
-    ${pyfr.expand('h_from_g', 'gu' ,'gavg', 'h')};
+    if (gu >= 0) {
+        h = gu/gavg;
+    }
+    else {
+        fpdtype_t rho = ui[0];
+        fpdtype_t drho = uavg[0] - ui[0];
+
+        fpdtype_t m[${ndims}], dm[${ndims}], dm2 = 0, m2 = 0, dmm = 0;
+        % for i in range(ndims):
+        m[${i}] = ui[${i+1}];
+        dm[${i}] = uavg[${i+1}] - ui[${i+1}];
+        dm2 += dm[${i}]*dm[${i}];
+        m2 += m[${i}]*m[${i}];
+        dmm += dm[${i}]*m[${i}];
+        % endfor
+
+        fpdtype_t E = ui[${nvars-1}];
+        fpdtype_t dE = uavg[${nvars-1}]- ui[${nvars-1}];
+
+        fpdtype_t A = drho*dE - 0.5*dm2;
+        fpdtype_t B = E*drho + rho*dE - dmm - drho*${gbnds[1]/(c['gamma'] - 1)};
+        fpdtype_t C = rho*E - 0.5*m2 + rho*${gbnds[1]/(c['gamma'] - 1)};
+
+        if (abs(A) < ${eps}) {
+            h = -1;
+        }
+        else {
+            fpdtype_t a1 = (-B + sqrt(B*B - 4*A*C))/(2*A);
+            fpdtype_t a2 = (-B - sqrt(B*B - 4*A*C))/(2*A);
+
+            h = -max(a1, a2);
+        }
+    }
 </%pyfr:macro>
 
 <%include file='pyfr.solvers.baseadvec.kernels.limiter'/>
