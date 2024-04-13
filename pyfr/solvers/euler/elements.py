@@ -205,6 +205,8 @@ class EulerElements(BaseFluidElements, BaseAdvectionElements):
             tplargs['invvdm'] = self.moninvvdm 
             tplargs['faceinvvdm'] = self.facemoninvvdm 
             tplargs['meanwts'] = self.meanwts
+            tplargs['order'] = self.basis.order
+            tplargs['ndims'] = self.ndims
             tplargs['nupts'] = self.nupts
             tplargs['nfpts'] = self.nfpts
             tplargs['mdegs'] = self.basis.ubasis.degrees
