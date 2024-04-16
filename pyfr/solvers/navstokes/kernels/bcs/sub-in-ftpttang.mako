@@ -5,10 +5,11 @@
     fpdtype_t pl = ${c['gamma'] - 1.0}*(ul[${nvars - 1}]
                  - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))}
                  + ul[0]*rote);
-    fpdtype_t udotu = ${2.0*c['cpTt']}*(1.0
+    fpdtype_t udotu = ${2.0*c['cpTt']}*fmax(0, 1.0
                     - ${c['pt']**(-c['Rdcp'])}*pow(pl, ${c['Rdcp']}));
 
     ur[0] = ${1.0/c['Rdcp']}*pl/(${c['cpTt']} - 0.5*udotu);
+
 % for i, v in enumerate(c['vc']):
     ur[${i + 1}] = ${v}*ur[0]*sqrt(udotu);
 % endfor

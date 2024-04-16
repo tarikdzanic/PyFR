@@ -13,7 +13,7 @@
     ${pyfr.expand('transform_to', 'n', 'ul', 'utl', off=1)};
     ${pyfr.expand('transform_to', 'n', 'ur', 'utr', off=1)};
 
-    ${pyfr.expand('rsolve_1d', 'utl', 'utr', 'ntf')};
+    ${pyfr.expand('rsolve_1d', 'utl', 'utr', 'ntf', 'rote')};
 
     nf[0] = ntf[0];
     nf[${nvars - 1}] = ntf[${nvars - 1}];
