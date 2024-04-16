@@ -56,7 +56,7 @@
             fpdtype_t a1 = (-B + sqrt(B*B - 4*A*C))/(2*A);
             fpdtype_t a2 = (-B - sqrt(B*B - 4*A*C))/(2*A);
 
-            h = -max(a1, a2);
+            h = -fmax(a1, a2);
         }
     }
 </%pyfr:macro>
