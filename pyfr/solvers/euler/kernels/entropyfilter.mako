@@ -104,7 +104,6 @@
         // Setup filter (solve for f = exp(-zeta))
         fpdtype_t f = 1.0;
         fpdtype_t f_low, f_high, fnew;
-        fpdtype_t f1, f2, f3;
 
         fpdtype_t d, p, e;
         fpdtype_t d_low, p_low, e_low;
@@ -143,7 +142,7 @@
                 p_low -= ${p_min}; p_high -= ${p_min};
                 e_low -= entmin - ${e_tol}; e_high -= entmin - ${e_tol};
 
-                // Iterate filter strength with Illinois algorithm
+                // Iterate filter strength with bisection algorithm
                 for (int iter = 0; iter < ${niters} && f_high - f_low > ${f_tol}; iter++)
                 {
                     // Compute next guess using bisection
