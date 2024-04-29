@@ -1,101 +1,22 @@
 <%inherit file='base'/>
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
-<%include file='pyfr.solvers.euler.kernels.rsolvers.${rsolver}'/>
-
-<%pyfr:macro name='calc_tdivtconf_LO', params='u, rcpdjac, ffpts, pnx, pny, pnz, tdivtconf'>
-    fpdtype_t nf[${nvars}], n[${ndims}], ul[${nvars}], ur[${nvars}], magn;
-
-% for i,j in pyfr.ndrange(nupts, nvars):
-    tdivtconf[${i}][${j}] = 0.0;
+% for mod, name in src_macros:
+    <%include file='${mod}'/>
 % endfor
 
-% if ndims == 2:
-    <% uidx = lambda i,j : i + (p+1)*(j) %>
-    <% fidx = lambda face, i : i + face*(p+1) %>
-
-    % for i,j in pyfr.ndrange(p, p+1):
-        // Create left/right states from u_i and u_i+1
-        % for k in range(nvars):
-            ul[${k}] = u[${uidx(i,j)  }][${k}];
-            ur[${k}] = u[${uidx(i+1,j)}][${k}];
-        % endfor
-        // Compute normal vector (averaged over left/right states for curved elements)
-        % for k in range(ndims):
-            n[${k}] = 0.5*(pnx[${uidx(i,j)}][${k}] + pnx[${uidx(i+1,j)}][${k}]);
-        % endfor
-        magn = sqrt(${pyfr.dot('n[{i}]', i=ndims)});
-        % for k in range(ndims):
-            n[${k}] /= magn;
-        % endfor
-        // Compute f_i+1/2
-        ${pyfr.expand('rsolve', 'ul', 'ur', 'n', 'nf')};
-        // Compute component of divF(u_i) and divF(u_i+1)
-        % for k in range(nvars):
-            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[i])  }*nf[${k}]*magn;
-            tdivtconf[${uidx(i+1,j)}][${k}] += ${-1.0/(wts[i+1])}*nf[${k}]*magn;
-        % endfor
-    % endfor
-
-    % for i,j in pyfr.ndrange(p+1, p):
-        // Create left/right states from u_j and u_j+1
-        % for k in range(nvars):
-            ul[${k}] = u[${uidx(i,j)  }][${k}];
-            ur[${k}] = u[${uidx(i,j+1)}][${k}];
-        % endfor
-        // Compute normal vector multiplied by face area (averaged over left/right states for curved elements)
-        % for k in range(ndims):
-            n[${k}] = 0.5*(pny[${uidx(i,j)}][${k}] + pny[${uidx(i,j+1)}][${k}]);
-        % endfor
-        magn = sqrt(${pyfr.dot('n[{i}]', i=ndims)});
-        % for k in range(ndims):
-            n[${k}] /= magn;
-        % endfor
-        // Compute f_j+1/2
-        ${pyfr.expand('rsolve', 'ul', 'ur', 'n', 'nf')};
-        % for k in range(nvars):
-            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[j])  }*nf[${k}]*magn;
-            tdivtconf[${uidx(i,j+1)}][${k}] += ${-1.0/(wts[j+1])}*nf[${k}]*magn;
-        % endfor
-    % endfor
-
-    // Add face terms (assume symmetric weights: w[0] = w[-1])
-    % for idx, k in pyfr.ndrange(p+1, nvars):
-        tdivtconf[${uidx(idx, 0)}][${k}] += ffpts[${fidx(0, idx)}][${k}]*${1.0/wts[0]}; // Bottom face
-        tdivtconf[${uidx(p, idx)}][${k}] += ffpts[${fidx(1, idx)}][${k}]*${1.0/wts[0]}; // Right face
-        tdivtconf[${uidx(idx, p)}][${k}] += ffpts[${fidx(2, idx)}][${k}]*${1.0/wts[0]}; // Top face
-        tdivtconf[${uidx(0, idx)}][${k}] += ffpts[${fidx(3, idx)}][${k}]*${1.0/wts[0]}; // Left face
-    % endfor
-% endif
-
-% for i,j in pyfr.ndrange(nupts, nvars):
-    tdivtconf[${i}][${j}] = -rcpdjac[${i}]*tdivtconf[${i}][${j}]; /// CHANGE rcpdjac HEREEE
-% endfor
-</%pyfr:macro>
-
-              
-<%pyfr:kernel name='negdivconf' ndim='1'
+<%pyfr:kernel name='negdivconf' ndim='2'
               t='scalar fpdtype_t'
-              tdivtconf='inout fpdtype_t[${str(nupts)}][${str(nvars)}]'
-              u='in fpdtype_t[${str(nupts)}][${str(nvars)}]'
-              rcpdjac='in fpdtype_t[${str(nupts)}]'
-              ffpts='in fpdtype_t[${str(nfpts)}][${str(nvars)}]'
-              pnx='in fpdtype_t[${str(nupts)}][${str(ndims)}]'
-              pny='in fpdtype_t[${str(nupts)}][${str(ndims)}]'
-              pnz='in fpdtype_t[${str(nupts)}][${str(ndims)}]'>
+              tdivtconf='inout fpdtype_t[${str(nvars)}]'
+              ploc='in fpdtype_t[${str(ndims)}]'
+              u='in fpdtype_t[${str(nvars)}]'
+              rcpdjac='in fpdtype_t'>
+fpdtype_t src[${nvars}] = {};
 
-fpdtype_t tdivtconf_HO[${nupts}][${nvars}] = {{}};
-fpdtype_t tdivtconf_LO[${nupts}][${nvars}] = {{}};
-
-% for i,j in pyfr.ndrange(nupts, nvars):
-    tdivtconf_HO[${i}][${j}] = -rcpdjac[${i}]*tdivtconf[${i}][${j}];
+% for mod, name in src_macros:
+    ${pyfr.expand(name, 't', 'u', 'ploc', 'src')};
 % endfor
 
-${pyfr.expand('calc_tdivtconf_LO', 'u', 'rcpdjac', 'ffpts', 'pnx', 'pny', 'pnz', 'tdivtconf_LO')};
-
-fpdtype_t alpha = 1.0;
-% for i, j in pyfr.ndrange(nupts, nvars):
-    tdivtconf[${i}][${j}] = (1 - alpha)*tdivtconf_HO[${i}][${j}] + alpha*tdivtconf_LO[${i}][${j}];
+% for i in range(nvars):
+    tdivtconf[${i}] = -rcpdjac*tdivtconf[${i}] + src[${i}];
 % endfor
-
-// Add sources separately
 </%pyfr:kernel>

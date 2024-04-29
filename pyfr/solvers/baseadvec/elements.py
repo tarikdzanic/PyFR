@@ -1,5 +1,6 @@
 from pyfr.backends.base import NullKernel
 from pyfr.solvers.base import BaseElements
+from pyfr.polys import get_polybasis
 from pyfr.quadrules import get_quadrule
 
 import numpy as np
@@ -115,40 +116,13 @@ class BaseAdvectionElements(BaseElements):
             return self._be.kernel('copy', self._scal_upts_cpy,
                                     self.scal_upts[uin])
 
-        kernels['copy_soln'] = copy_soln
-
-        if self.ndims == 2:
-            self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0]])).swapaxes(1,2))
-            self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1]])).swapaxes(1,2))
-            self.pnz = None
-        elif self.ndims == 3:
-            self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0,0]])).swapaxes(1,2))
-            self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1,0]])).swapaxes(1,2))
-            self.pnz = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,0,1]])).swapaxes(1,2))
-
-        # Transformed to physical divergence kernel + source term
-        kernels['negdivconf'] = lambda fout: self._be.kernel(
-            'negdivconf', tplargs=self._srctplargs,
-            dims=[self.neles], extrns=self._external_args,
-            tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
-            u=self._scal_upts_cpy, ffpts=self._scal_fpts, 
-            pnx=self.pnx, pny=self.pny, pnz=self.pnz,
-            **self._external_vals
-        )
+        kernels['copy_soln'] = copy_soln           
 
         kernels['evalsrcmacros'] = lambda uin: self._be.kernel(
             'evalsrcmacros', tplargs=self._srctplargs,
             dims=[self.nupts, self.neles], extrns=self._external_args,
             ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
             u=self.scal_upts[uin], **self._external_vals
-        )
-
-        kernels['addsources'] = lambda fout: self._be.kernel(
-            'addsources', tplargs=self._srctplargs,
-            dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
-            ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
-            u=self._scal_upts_cpy if self._soln_in_src_macros else None,
-            **self._external_vals
         )
 
         # In-place solution filter
@@ -181,6 +155,79 @@ class BaseAdvectionElements(BaseElements):
             self.invvdm = self._be.const_matrix(self.basis.ubasis.invvdm.T)
         else:
             self.entmin_int = None
+        
+        if shock_capturing == 'subcell':
+            # Obtain the name, degrees, and order of our solution basis
+            ubname = self.basis.ubasis.name
+            ubdegs = self.basis.ubasis.degrees
+            uborder = self.basis.ubasis.order
+
+            # Obtain the degrees of a basis whose order is one lower
+            lub1degs = get_polybasis(ubname, max(0, uborder - 1)).degrees
+            lub2degs = get_polybasis(ubname, max(0, uborder - 2)).degrees
+
+            # Compute the intersection
+            ind1_modes = [d not in lub1degs for d in ubdegs]
+            ind2_modes = [d not in lub2degs for d in ubdegs]
+
+            a = self.cfg.getfloat('solver-subcell', 'a', 0.5)
+            c = self.cfg.getfloat('solver-subcell', 'c', 1.8)
+            s = self.cfg.getfloat('solver-subcell', 's', 9.21024)
+            Tn = a*10**(-c*(self.basis.order+1)**0.25)
+
+            self._srctplargs['ind1_modes'] = ind1_modes
+            self._srctplargs['ind2_modes'] = ind2_modes
+            self._srctplargs['s'] = s
+            self._srctplargs['alpha_cutoff'] = self.cfg.getfloat('solver-subcell', 'alpha-cutoff', 0.001)
+            self._srctplargs['alpha_max'] = self.cfg.getfloat('solver-subcell', 'alpha-max', 0.5)
+            self._srctplargs['Tn'] = Tn
+            self._srctplargs['invvdm'] = self.basis.ubasis.invvdm.T
+
+            if self.ndims == 2:
+                self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0]])).swapaxes(1,2))
+                self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1]])).swapaxes(1,2))
+                self.pnz = None
+            elif self.ndims == 3:
+                self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0,0]])).swapaxes(1,2))
+                self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1,0]])).swapaxes(1,2))
+                self.pnz = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,0,1]])).swapaxes(1,2))
+
+            # Transformed to physical divergence kernel + source term
+            self._be.pointwise.register(
+                'pyfr.solvers.baseadvec.kernels.negdivconfsc'
+            )
+
+            kernels['negdivconf'] = lambda fout: self._be.kernel(
+                'negdivconfsc', tplargs=self._srctplargs,
+                dims=[self.neles], extrns=self._external_args,
+                tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
+                u=self._scal_upts_cpy, ffpts=self._scal_fpts, 
+                pnx=self.pnx, pny=self.pny, pnz=self.pnz,
+                **self._external_vals
+            )
+
+            kernels['addsources'] = lambda fout: self._be.kernel(
+                'addsources', tplargs=self._srctplargs,
+                dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
+                ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
+                u=self._scal_upts_cpy if self._soln_in_src_macros else None,
+                **self._external_vals
+            )
+
+            kernels['pp_limiter'] = lambda uin: self._be.kernel(
+                'pplimiter', tplargs=self._srctplargs, dims=[self.neles],
+                u=self.scal_upts[uin]
+            )
+        else:
+            # Transformed to physical divergence kernel + source term
+            kernels['negdivconf'] = lambda fout: self._be.kernel(
+                'negdivconf', tplargs=self._srctplargs,
+                dims=[self.nupts, self.neles], extrns=self._external_args,
+                tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
+                ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
+                u=self._scal_upts_cpy if self._soln_in_src_macros else None,
+                **self._external_vals
+            )
 
     def get_entmin_int_fpts_for_inter(self, eidx, fidx):
         return (self.entmin_int.mid,), (fidx,), (eidx,)
