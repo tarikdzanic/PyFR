@@ -73,6 +73,10 @@ class BaseAdvectionElements(BaseElements):
         self._be.pointwise.register(
             'pyfr.solvers.baseadvec.kernels.evalsrcmacros'
         )
+        
+        self._be.pointwise.register(
+            'pyfr.solvers.baseadvec.kernels.addsources'
+        )
 
         # What anti-aliasing options we're running with
         fluxaa = 'flux' in self.antialias
@@ -137,6 +141,14 @@ class BaseAdvectionElements(BaseElements):
             dims=[self.nupts, self.neles], extrns=self._external_args,
             ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
             u=self.scal_upts[uin], **self._external_vals
+        )
+
+        kernels['addsources'] = lambda fout: self._be.kernel(
+            'addsources', tplargs=self._srctplargs,
+            dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
+            ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
+            u=self._scal_upts_cpy if self._soln_in_src_macros else None,
+            **self._external_vals
         )
 
         # In-place solution filter

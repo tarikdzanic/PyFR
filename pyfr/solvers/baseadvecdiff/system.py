@@ -87,6 +87,10 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         for k1, k2 in zip_longest(k['eles/tdivtconf'], k['eles/negdivconf']):
             self._group(g2, [k1, k2])
 
+        # Add necessary source terms
+        for l in k['eles/addsources']:
+            g2.add(l, deps=deps(l, 'eles/negdivconf'))
+
         g2.commit()
 
         return g1, g2
@@ -240,6 +244,10 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         # Group tdivtconf and negdivconf kernels
         for k1, k2 in zip_longest(k['eles/tdivtconf'], k['eles/negdivconf']):
             self._group(g3, [k1, k2])
+
+        # Add necessary source terms
+        for l in k['eles/addsources']:
+            g2.add(l, deps=deps(l, 'eles/negdivconf'))
 
         g3.commit()
 
@@ -396,6 +404,10 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         # Group tdivtconf and negdivconf kernels
         for k1, k2 in zip_longest(k['eles/tdivtconf'], k['eles/negdivconf']):
             self._group(g3, [k1, k2])
+
+        # Add necessary source terms
+        for l in k['eles/addsources']:
+            g2.add(l, deps=deps(l, 'eles/negdivconf'))
 
         g3.commit()
 
