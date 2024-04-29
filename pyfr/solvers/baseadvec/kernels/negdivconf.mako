@@ -3,7 +3,7 @@
 <%include file='pyfr.solvers.euler.kernels.rsolvers.${rsolver}'/>
 
 <%pyfr:macro name='calc_tdivtconf_LO', params='u, rcpdjac, ffpts, pnx, pny, pnz, tdivtconf'>
-    fpdtype_t nf[${nvars}], n[${ndims}], ul[${nvars}], ur[${nvars}];
+    fpdtype_t nf[${nvars}], n[${ndims}], ul[${nvars}], ur[${nvars}], magn;
 
 % for i,j in pyfr.ndrange(nupts, nvars):
     tdivtconf[${i}][${j}] = 0.0;
@@ -19,16 +19,20 @@
             ul[${k}] = u[${uidx(i,j)  }][${k}];
             ur[${k}] = u[${uidx(i+1,j)}][${k}];
         % endfor
-        // Compute normal vector multiplied by face area (averaged over left/right states for curved elements)
+        // Compute normal vector (averaged over left/right states for curved elements)
         % for k in range(ndims):
             n[${k}] = 0.5*(pnx[${uidx(i,j)}][${k}] + pnx[${uidx(i+1,j)}][${k}]);
+        % endfor
+        magn = sqrt(${pyfr.dot('n[{i}]', i=ndims)});
+        % for k in range(ndims):
+            n[${k}] /= magn;
         % endfor
         // Compute f_i+1/2
         ${pyfr.expand('rsolve', 'ul', 'ur', 'n', 'nf')};
         // Compute component of divF(u_i) and divF(u_i+1)
         % for k in range(nvars):
-            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[i])  }*nf[${k}];
-            tdivtconf[${uidx(i+1,j)}][${k}] += ${-1.0/(wts[i+1])}*nf[${k}];
+            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[i])  }*nf[${k}]*magn;
+            tdivtconf[${uidx(i+1,j)}][${k}] += ${-1.0/(wts[i+1])}*nf[${k}]*magn;
         % endfor
     % endfor
 
@@ -42,11 +46,15 @@
         % for k in range(ndims):
             n[${k}] = 0.5*(pny[${uidx(i,j)}][${k}] + pny[${uidx(i,j+1)}][${k}]);
         % endfor
+        magn = sqrt(${pyfr.dot('n[{i}]', i=ndims)});
+        % for k in range(ndims):
+            n[${k}] /= magn;
+        % endfor
         // Compute f_j+1/2
         ${pyfr.expand('rsolve', 'ul', 'ur', 'n', 'nf')};
         % for k in range(nvars):
-            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[j])  }*nf[${k}];
-            tdivtconf[${uidx(i,j+1)}][${k}] += ${-1.0/(wts[j+1])}*nf[${k}];
+            tdivtconf[${uidx(i,j)  }][${k}] += ${ 1.0/(wts[j])  }*nf[${k}]*magn;
+            tdivtconf[${uidx(i,j+1)}][${k}] += ${-1.0/(wts[j+1])}*nf[${k}]*magn;
         % endfor
     % endfor
 
