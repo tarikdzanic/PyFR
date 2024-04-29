@@ -1,6 +1,8 @@
 from pyfr.backends.base import NullKernel
 from pyfr.solvers.base import BaseElements
+from pyfr.quadrules import get_quadrule
 
+import numpy as np
 
 class BaseAdvectionElements(BaseElements):
     def __init__(self, *kargs, **kwargs):
@@ -14,7 +16,13 @@ class BaseAdvectionElements(BaseElements):
         self._srctplargs = {
             'ndims': self.ndims,
             'nvars': self.nvars,
-            'src_macros': []
+            'c': self.cfg.items_as('constants', float),
+            'src_macros': [],
+            'rsolver': self.cfg.get('solver-interfaces', 'riemann-solver'),
+            'p': self.basis.order,
+            'nupts': self.basis.nupts,
+            'nfpts': self.basis.nfpts,
+            'wts': get_quadrule('line', 'gauss-legendre-lobatto', max(2, self.basis.order+1)).wts
         }
 
         self._ploc_in_src_macros = False
@@ -100,11 +108,8 @@ class BaseAdvectionElements(BaseElements):
         )
 
         def copy_soln(uin):
-            if self._soln_in_src_macros:
-                return self._be.kernel('copy', self._scal_upts_cpy,
-                                       self.scal_upts[uin])
-            else:
-                return NullKernel()
+            return self._be.kernel('copy', self._scal_upts_cpy,
+                                    self.scal_upts[uin])
 
         kernels['copy_soln'] = copy_soln
 
@@ -113,17 +118,15 @@ class BaseAdvectionElements(BaseElements):
             'negdivconf', tplargs=self._srctplargs,
             dims=[self.nupts, self.neles], extrns=self._external_args,
             tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
-            ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
-            u=self._scal_upts_cpy if self._soln_in_src_macros else None,
-            **self._external_vals
+            ploc=self.ploc_at('upts'), u=self._scal_upts_cpy,
+            ffpts=self._scal_fpts, **self._external_vals
         )
 
         kernels['evalsrcmacros'] = lambda uin: self._be.kernel(
             'evalsrcmacros', tplargs=self._srctplargs,
             dims=[self.nupts, self.neles], extrns=self._external_args,
             ploc=self.ploc_at('upts') if self._ploc_in_src_macros else None,
-            u=self.scal_upts[uin],
-            **self._external_vals
+            u=self.scal_upts[uin], **self._external_vals
         )
 
         # In-place solution filter
