@@ -247,7 +247,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         # Add necessary source terms
         for l in k['eles/addsources']:
-            g2.add(l, deps=deps(l, 'eles/negdivconf'))
+            g3.add(l, deps=deps(l, 'eles/negdivconf'))
 
         g3.commit()
 
@@ -407,7 +407,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
 
         # Add necessary source terms
         for l in k['eles/addsources']:
-            g2.add(l, deps=deps(l, 'eles/negdivconf'))
+            g3.add(l, deps=deps(l, 'eles/negdivconf'))
 
         g3.commit()
 
