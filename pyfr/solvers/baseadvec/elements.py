@@ -113,13 +113,23 @@ class BaseAdvectionElements(BaseElements):
 
         kernels['copy_soln'] = copy_soln
 
+        if self.ndims == 2:
+            self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0]])))
+            self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1]])))
+            self.pnz = None
+        elif self.ndims == 3:
+            self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0,0]])))
+            self.pny = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,1,0]])))
+            self.pnz = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,0,1]])))
+
         # Transformed to physical divergence kernel + source term
         kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconf', tplargs=self._srctplargs,
-            dims=[self.nupts, self.neles], extrns=self._external_args,
+            dims=[self.neles], extrns=self._external_args,
             tdivtconf=self.scal_upts[fout], rcpdjac=self.rcpdjac_at('upts'),
-            ploc=self.ploc_at('upts'), u=self._scal_upts_cpy,
-            ffpts=self._scal_fpts, **self._external_vals
+            u=self._scal_upts_cpy, ffpts=self._scal_fpts, 
+            pnx=self.pnx, pny=self.pny, pnz=self.pnz,
+            **self._external_vals
         )
 
         kernels['evalsrcmacros'] = lambda uin: self._be.kernel(
