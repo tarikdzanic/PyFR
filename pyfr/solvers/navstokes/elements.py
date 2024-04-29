@@ -102,13 +102,13 @@ class NavierStokesElements(BaseFluidElements, BaseAdvectionDiffusionElements):
                     'tflux_inv', tplargs=tplargs_inv | {'ktype': 'curved'},
                     dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
                     f=s(self._vect_upts, c), artvisc=s(av, c),
-                    smats=self.curved_smat_at('qpts')
+                    smats=self.curved_smat_at('upts')
                 ))
                 tdisf_vis.append(lambda uin: self._be.kernel(
                     'tflux_vis', tplargs=tplargs_vis | {'ktype': 'curved'},
                     dims=[self.nupts, r[c]], u=s(self.scal_upts[uin], c),
                     f=s(self._vect_upts, c), artvisc=s(av, c),
-                    smats=self.curved_smat_at('qpts')
+                    smats=self.curved_smat_at('upts')
                 ))
             if l in r:
                 tdisf_inv.append(lambda uin: self._be.kernel(
