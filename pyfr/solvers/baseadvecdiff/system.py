@@ -463,8 +463,10 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
         k, _ = self._get_kernels(uinbank, None)
 
         self.backend.run_kernels(k['eles/entropy_filter'])
+        self.backend.run_kernels(k['eles/pp_limiter'])
 
     def postproc_vis(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)
 
         self.backend.run_kernels(k['eles/entropy_filter_vis'])
+        self.backend.run_kernels(k['eles/pp_limiter'])

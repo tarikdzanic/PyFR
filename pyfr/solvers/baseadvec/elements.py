@@ -156,7 +156,7 @@ class BaseAdvectionElements(BaseElements):
         else:
             self.entmin_int = None
         
-        if shock_capturing == 'subcell':
+        if shock_capturing == 'subcell' and self.basis.order > 0:
             # Obtain the name, degrees, and order of our solution basis
             ubname = self.basis.ubasis.name
             ubdegs = self.basis.ubasis.degrees
@@ -182,6 +182,9 @@ class BaseAdvectionElements(BaseElements):
             self._srctplargs['alpha_max'] = self.cfg.getfloat('solver-subcell', 'alpha-max', 0.5)
             self._srctplargs['Tn'] = Tn
             self._srctplargs['invvdm'] = self.basis.ubasis.invvdm.T
+            self._srctplargs['meanwts'] = self.basis.ubasis.invvdm[:,0]/np.sum(self.basis.ubasis.invvdm[:,0])
+            self._srctplargs['d_min'] = self.cfg.getfloat('solver-subcell', 'd-min', 1e-6)
+            self._srctplargs['p_min'] = self.cfg.getfloat('solver-subcell', 'p-min', 1e-6)
 
             if self.ndims == 2:
                 self.pnx = self._be.const_matrix(self.pnorm_at('upts', np.array([[1,0]])).swapaxes(1,2))
@@ -193,9 +196,8 @@ class BaseAdvectionElements(BaseElements):
                 self.pnz = self._be.const_matrix(self.pnorm_at('upts', np.array([[0,0,1]])).swapaxes(1,2))
 
             # Transformed to physical divergence kernel + source term
-            self._be.pointwise.register(
-                'pyfr.solvers.baseadvec.kernels.negdivconfsc'
-            )
+            self._be.pointwise.register('pyfr.solvers.baseadvec.kernels.negdivconfsc')
+            self._be.pointwise.register('pyfr.solvers.baseadvec.kernels.pplimiter')
 
             kernels['negdivconf'] = lambda fout: self._be.kernel(
                 'negdivconfsc', tplargs=self._srctplargs,
