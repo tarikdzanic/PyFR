@@ -163,8 +163,8 @@ class BaseAdvectionElements(BaseElements):
             uborder = self.basis.ubasis.order
 
             # Obtain the degrees of a basis whose order is one lower
-            lub1degs = get_polybasis(ubname, max(0, uborder - 1)).degrees
-            lub2degs = get_polybasis(ubname, max(0, uborder - 2)).degrees
+            lub1degs = get_polybasis(ubname, max(1, uborder - 1)).degrees
+            lub2degs = get_polybasis(ubname, max(1, uborder - 2)).degrees
 
             # Compute the intersection
             ind1_modes = [d not in lub1degs for d in ubdegs]
