@@ -22,9 +22,15 @@
     fpdtype_t ficomm[${nvars}];
     ${pyfr.expand('rsolve', 'ul', 'ur', 'nl', 'ficomm')};
 
-% for i in range(nvars):
+% if viscous:
+    % for i in range(nvars):
     ul[${i}] = magnl*(ficomm[${i}]);
-% endfor
+    % endfor
+% else:
+    % for i in range(nvars):
+    ul[${i}] = 0.0;
+    % endfor
+% endif
 </%pyfr:macro>
 
 <%pyfr:alias name='bc_ldg_state' func='bc_rsolve_state'/>

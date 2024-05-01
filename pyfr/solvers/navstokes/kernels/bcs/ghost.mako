@@ -19,18 +19,15 @@
 
     // Inviscid (Riemann solve) state
     ${pyfr.expand('bc_rsolve_state', 'ul', 'nl', 'ur')};
-
-    // Perform the Riemann solve
-    fpdtype_t ficomm[${nvars}], fvcomm;
-    ${pyfr.expand('rsolve', 'ul', 'ur', 'nl', 'ficomm')};
-
+    
+    fpdtype_t fvcomm;
 % for i in range(nvars):
     fvcomm = ${' + '.join(f'nl[{j}]*fvr[{j}][{i}]' for j in range(ndims))};
 % if tau != 0.0:
     fvcomm += ${tau}*(ul[${i}] - ur[${i}]);
 % endif
 
-    ul[${i}] = magnl*(ficomm[${i}] + fvcomm);
+    ul[${i}] = magnl*(fvcomm);
 % endfor
 % else:
     // Inviscid (Riemann solve) state

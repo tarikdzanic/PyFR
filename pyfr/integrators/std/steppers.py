@@ -33,7 +33,6 @@ class StdEulerStepper(BaseStdStepper):
 
             rhs_inv(t, r0, r1)
             rhs_vis(t, r0, r2)
-            add(1.0, r2, -1.0, r1) # Subtract out inviscid component from inv+vis component
 
             add(0.0, r1, 1.0, r0, dt, r1)
             postproc_inv(r1) # Entropy filter with inviscid component
@@ -82,7 +81,6 @@ class StdTVDRK3Stepper(BaseStdStepper):
             # First stage; r2 = -∇·f(r0); r1 = r0 + dt*r2
             rhs_inv(t, r0, r2)
             rhs_vis(t, r0, r3)
-            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from inv+vis component
             add(0.0, r1, 1.0, r0, dt, r2)
             postproc_inv(r1) # Entropy filter with inviscid component
             add(1.0, r1, dt, r3) # Add viscous component
@@ -92,7 +90,6 @@ class StdTVDRK3Stepper(BaseStdStepper):
             preproc(t, r1)
             rhs_inv(t + dt, r1, r2)
             rhs_vis(t + dt, r1, r3)
-            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from full viscous component
             add(0.25, r1, 0.75, r0, 0.25*dt, r2)
             postproc_inv(r1) # Entropy filter with inviscid component
             add(1.0, r1, 0.25*dt, r3) # Add viscous component
@@ -103,7 +100,6 @@ class StdTVDRK3Stepper(BaseStdStepper):
             preproc(t, r1)
             rhs_inv(t + 0.5*dt, r1, r2)
             rhs_vis(t + 0.5*dt, r1, r3)
-            add(1.0, r3, -1.0, r2) # Subtract out inviscid component from full viscous component
             add(2.0/3.0, r1, 1.0/3.0, r0, 2.0/3.0*dt, r2)
             postproc_inv(r1) # Entropy filter with inviscid component
             add(1.0, r1, 2.0/3.0*dt, r3) # Add viscous component

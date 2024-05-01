@@ -19,8 +19,7 @@
     fpdtype_t norm_nl[] = ${pyfr.array('(1 / mag_nl)*nl[{i}]', i=ndims)};
 
     // Perform the Riemann solve
-    fpdtype_t ficomm[${nvars}], fvcomm;
-    ${pyfr.expand('rsolve', 'ul', 'ur', 'norm_nl', 'ficomm')};
+    fpdtype_t fvcomm;
 
 % if beta != -0.5:
     fpdtype_t fvl[${ndims}][${nvars}] = {{0}};
@@ -49,6 +48,6 @@
     fvcomm += ${tau}*(ul[${i}] - ur[${i}]);
 % endif
 
-    ul[${i}] = mag_nl*(ficomm[${i}] + fvcomm);
+    ul[${i}] = mag_nl*(fvcomm);
 % endfor
 </%pyfr:kernel>
