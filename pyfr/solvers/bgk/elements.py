@@ -116,26 +116,30 @@ class BGKElements(BaseAdvectionElements):
 
     expvarmap = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
-                     'qx', 'qy'],
+                     'qx', 'qy', 'h'],
                  3: ['rho', 'u', 'v', 'w', 'p',
                      'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
-                     'qx', 'qy', 'qz']}
+                     'qx', 'qy', 'qz', 'h']}
 
     expvarmap2 = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
                      'qx', 'qy',
                      'dsxx', 'dsxy', 'dsyy', 
-                     'dqx', 'dqy',
+                     'dqx', 'dqy', 'h',
                      'adrho', 'adrhou', 'adrhov',
+                     'ad2rho', 'ad2rhou', 'ad2rhov',
                      'adsxx', 'adsxy', 'adsyy', 
+                     'adpxx', 'adpxy', 'adpyy',
                      'adqx', 'adqy'],
                  3: ['rho', 'u', 'v', 'w', 'p',
                      'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
-                     'qx', 'qy', 'qz',
+                     'qx', 'qy', 'qz', 'h',
                      'dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz',
                      'dqx', 'dqy', 'dqz',
                      'adrho', 'adrhou', 'adrhov', 'adrhow',
+                     'ad2rho', 'ad2rhou', 'ad2rhov', 'ad2rhow',
                      'adsxx', 'adsxy', 'adsxz', 'adsyy', 'adsyz', 'adszz',
+                     'adpxx', 'adpxy', 'adpxz', 'adpyy', 'adpyz', 'adpzz',
                      'adqx', 'adqy', 'adqz']}
     
 
@@ -149,12 +153,14 @@ class BGKElements(BaseAdvectionElements):
             ('velocity', ['u', 'v']),
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'syy']),
-            ('heatflux', ['qx', 'qy'])],
+            ('heatflux', ['qx', 'qy']),
+            ('entropy', ['h'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
-            ('heatflux', ['qx', 'qy', 'qz'])]
+            ('heatflux', ['qx', 'qy', 'qz']),
+            ('entropy', ['h'])]
     }
 
     visvarmap2 = {
@@ -163,22 +169,30 @@ class BGKElements(BaseAdvectionElements):
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'syy']),
             ('heatflux', ['qx', 'qy']),
+            ('entropy', ['h']),
             ('devstrain', ['dsxx', 'dsxy', 'dsyy']),
             ('devheatflux', ['dqx', 'dqy']),
             ('absdevdensity', ['adrho']),
+            ('absdev2density', ['ad2rho']),
             ('absdevmomentum', ['adrhou', 'adrhov']),
+            ('absdev2momentum', ['ad2rhou', 'adrhov']),
             ('absdevstrain', ['adsxx', 'adsxy', 'adsyy']),
+            ('absdevsecmom', ['adpxx', 'adpxy', 'adpyy']),
             ('absdevheatflux', ['adqx', 'adqy'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
+            ('entropy', ['h']),
             ('heatflux', ['qx', 'qy', 'qz']),
             ('devstrain', ['dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz']),
             ('devheatflux', ['dqx', 'dqy', 'dqz']),
             ('absdevdensity', ['adrho']),
+            ('absdev2density', ['ad2rho']),
             ('absdevmomentum', ['adrhou', 'adrhov', 'adrhow']),
+            ('absdev2momentum', ['ad2rhou', 'ad2rhov', 'ad2rhow']),
             ('absdevstrain', ['adsxx', 'adsxy', 'adsxz', 'adsyy', 'adsyz', 'adszz']),
+            ('absdevsecmom', ['adpxx', 'adpxy', 'adpxz', 'adpyy', 'adpyz', 'adpzz']),
             ('absdevheatflux', ['adqx', 'adqy', 'adqz'])]
     }
 
@@ -294,6 +308,12 @@ class BGKElements(BaseAdvectionElements):
             Q_i += np.einsum('i,ijk->jk', M, f[nuvars:,:,:]*c[i,...]) # <G*c_i>
             data.append(Q_i)
 
+        # Append entropy 
+        # H = <<f*log(f)>> (doesn't fully hold for polyatomic but good enough)
+        ff = np.clip(f[:nuvars,:,:], 1e-15, np.inf)
+        h = np.einsum('i,ijk->jk', M, ff*np.log(ff))
+        data.append(h)
+
         return data
 
     @staticmethod
@@ -329,6 +349,12 @@ class BGKElements(BaseAdvectionElements):
             Q_i =  np.einsum('i,ijk->jk', M, f[:nuvars,:,:]*0.5*c2*c[i,...]) # <F*(0.5*c.c)*c_i>
             Q_i += np.einsum('i,ijk->jk', M, f[nuvars:,:,:]*c[i,...]) # <G*c_i>
             data.append(Q_i)
+
+        # Append entropy 
+        # H = <<f*log(f)>> (doesn't fully hold for polyatomic but good enough)
+        ff = np.clip(f[:nuvars,:,:], 1e-15, np.inf)
+        h = np.einsum('i,ijk->jk', M, ff*np.log(ff))
+        data.append(h)
   
         # Compute Maxwellian state g using DVM
         g = np.zeros((nuvars, nupts, neles))
@@ -346,6 +372,7 @@ class BGKElements(BaseAdvectionElements):
         df[:nuvars,:,:] = f[:nuvars,:,:]-g
         df[nuvars:,:,:] = f[nuvars:,:,:]-g*theta[None,:,:]*delta/2.0
         adf = np.abs(df)
+        a2df = adf**2
 
         # Compute and append extended moments of df
         for i in range(ndims):
@@ -362,8 +389,10 @@ class BGKElements(BaseAdvectionElements):
 
         # Compute absolute deviatoric distribution density
         data.append(np.einsum('i,ijk->jk', M, adf[:nuvars,:,:]))
+        data.append(np.einsum('i,ijk->jk', M, a2df[:nuvars,:,:]))
         for i in range(ndims):
             data.append(np.einsum('i,ijk->jk', M*u[:,i], adf[:nuvars,:,:]))
+            data.append(np.einsum('i,ijk->jk', M*u[:,i], a2df[:nuvars,:,:]))
 
         # Compute and append extended moments of adf
         for i in range(ndims):
@@ -371,6 +400,12 @@ class BGKElements(BaseAdvectionElements):
                 P_ij = np.einsum('i,ijk->jk', M, adf[:nuvars,:,:]*c[i,...]*c[j,...])
                 S_ij = P_ij - P if i == j else P_ij
                 data.append(S_ij)
+
+        # Compute and append extended moments of adf
+        for i in range(ndims):
+            for j in range(i,ndims):
+                P_ij = np.einsum('i,ijk->jk', M, ((adf[:nuvars,:,:].T)*u[:,i]*u[:,j]).T)
+                data.append(P_ij)
  
         c2 = np.linalg.norm(c, axis=0)**2
         for i in range(ndims):
