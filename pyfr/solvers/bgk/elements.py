@@ -123,9 +123,9 @@ class BGKElements(BaseAdvectionElements):
 
     expvarmap2 = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
-                     'qx', 'qy',
+                     'qx', 'qy', 'h',
                      'dsxx', 'dsxy', 'dsyy', 
-                     'dqx', 'dqy', 'h',
+                     'dqx', 'dqy', 
                      'adrho', 'adrhou', 'adrhov',
                      'ad2rho', 'ad2rhou', 'ad2rhov',
                      'adsxx', 'adsxy', 'adsyy', 
