@@ -21,7 +21,7 @@ class BaseAdvectionSystem(BaseSystem):
         g1.add_all(k['eles/limiter'])
 
         # Compute and store macroscopic state
-        g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
+        # g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
 
         if optimize_memory:
             # Separate interior flux calculation by dimension
