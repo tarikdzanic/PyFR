@@ -123,7 +123,7 @@ class BGKElements(BaseAdvectionElements):
 
     expvarmap2 = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
-                     'qx', 'qy', 'h',
+                     'qx', 'qy', 'h', 'cf', 'cg',
                      'dsxx', 'dsxy', 'dsyy', 
                      'dqx', 'dqy', 
                      'adrho', 'adrhou', 'adrhov',
@@ -133,7 +133,7 @@ class BGKElements(BaseAdvectionElements):
                      'adqx', 'adqy'],
                  3: ['rho', 'u', 'v', 'w', 'p',
                      'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
-                     'qx', 'qy', 'qz', 'h',
+                     'qx', 'qy', 'qz', 'h', 'cf', 'cg',
                      'dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz',
                      'dqx', 'dqy', 'dqz',
                      'adrho', 'adrhou', 'adrhov', 'adrhow',
@@ -170,6 +170,7 @@ class BGKElements(BaseAdvectionElements):
             ('strain', ['sxx', 'sxy', 'syy']),
             ('heatflux', ['qx', 'qy']),
             ('entropy', ['h']),
+            ('cfg', ['cf', 'cg']),
             ('devstrain', ['dsxx', 'dsxy', 'dsyy']),
             ('devheatflux', ['dqx', 'dqy']),
             ('absdevdensity', ['adrho']),
@@ -184,6 +185,7 @@ class BGKElements(BaseAdvectionElements):
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
             ('entropy', ['h']),
+            ('cfg', ['cf', 'cg']),
             ('heatflux', ['qx', 'qy', 'qz']),
             ('devstrain', ['dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz']),
             ('devheatflux', ['dqx', 'dqy', 'dqz']),
@@ -373,6 +375,10 @@ class BGKElements(BaseAdvectionElements):
         df[nuvars:,:,:] = f[nuvars:,:,:]-g*theta[None,:,:]*delta/2.0
         adf = np.abs(df)
         a2df = adf**2
+
+        # Compute <C(f,f')*tau*log(f)> = <(g-f)*log(f)> (need to divide by tau in integrator)
+        data.append(np.einsum('i,ijk->jk', M, (-df[:nuvars,:,:] * np.log(np.clip(f[:nuvars,:,:], 1e-15, np.inf)))))
+        data.append(np.einsum('i,ijk->jk', M, (-df[nuvars:,:,:] * np.log(np.clip(f[nuvars:,:,:], 1e-15, np.inf)))))
 
         # Compute and append extended moments of df
         for i in range(ndims):
