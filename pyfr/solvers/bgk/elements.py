@@ -555,7 +555,7 @@ class BGKElements(BaseAdvectionElements):
 
             self.kernels['limiter'] = lambda uin: self._be.kernel(
                 'limiter', tplargs=tplargs,
-                dims=[self.neles], f=self.scal_upts[uin]
+                dims=[self.neles*self.nvars], f=self.scal_upts[uin]
             )
         
         # Compute and store macroscopic variables
