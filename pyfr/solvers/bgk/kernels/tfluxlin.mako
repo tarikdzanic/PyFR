@@ -10,18 +10,19 @@
               upts='in broadcast-row fpdtype_t[${str(ndims)}]'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'>
     // Compute the S matrices
-    fpdtype_t smats[${ndims}][${ndims}], djac;
+    fpdtype_t smats[${ndims}][${ndims}], djac, smu[${ndims}];
     ${pyfr.expand('calc_smats_detj', 'verts', 'upts', 'smats', 'djac')};
 
     // Compute and transform the fluxes
     for (int j = 0; j < ${nuvars}; j++) {
         % for i in range(ndims):
-        F[${i}][j] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j]' for k in range(ndims))};
+        smu[${i}] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]' for k in range(ndims))};
+        F[${i}][j] = smu[${i}]*f[j];
         % endfor
 
         % if delta:
         % for i in range(ndims):
-        F[${i}][j + ${nuvars}] = ${' + '.join(f'smats[{i}][{k}]*u[j][{k}]*f[j + {nuvars}]' for k in range(ndims))};
+        F[${i}][j + ${nuvars}] = smu[${i}]*f[j + ${nuvars}];
         % endfor
         % endif
     }
