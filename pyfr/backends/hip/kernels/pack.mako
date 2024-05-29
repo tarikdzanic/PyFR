@@ -9,14 +9,14 @@ pack_view(int n, int nrv, int ncv,
           fpdtype_t* __restrict__ pmat)
 {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int c = blockIdx.y*blockDim.y + threadIdx.y;
 
     if (i < n && ncv == 1)
         pmat[i] = v[vix[i]];
-    else if (i < n && nrv == 1)
-        for (int c = 0; c < ncv; ++c)
-            pmat[c*n + i] = v[vix[i] + SOA_SZ*c];
-    else if (i < n)
+    else if (i < n && c < ncv && nrv == 1)
+        pmat[c*n + i] = v[vix[i] + SOA_SZ*c];
+    // Not used for BGK, only for systems using gradients
+    else if (i < n && c < ncv)
         for (int r = 0; r < nrv; ++r)
-            for (int c = 0; c < ncv; ++c)
-                pmat[(r*ncv + c)*n + i] = v[vix[i] + vrstri[i]*r + SOA_SZ*c];
+            pmat[(r*ncv + c)*n + i] = v[vix[i] + vrstri[i]*r + SOA_SZ*c];
 }
