@@ -11,25 +11,26 @@
               magnl='in fpdtype_t'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'>
     // Perform the Riemann solve and write out the common normal fluxes
+    fpdtype_t Fn, ui[${ndims}], fli, fri;
     for (int i = 0; i < ${nuvars}; i++) {
-        fpdtype_t un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
-        fpdtype_t mun = magnl*un;
+        % for j in range(ndims):
+        ui[${j}] = u[i][${j}];
+        % endfor
 
-        if (un > 0.0) {
-            fl[i] = mun*fl[i];
-            fr[i] = -fl[i];
-            % if delta:
-            fl[i + ${nuvars}] = mun*fl[i + ${nuvars}];
-            fr[i + ${nuvars}] = -fl[i + ${nuvars}];
-            % endif
-        }
-        else {
-            fl[i] = mun*fr[i];
-            fr[i] = -fl[i];
-            % if delta:
-            fl[i + ${nuvars}] = mun*fr[i + ${nuvars}];
-            fr[i + ${nuvars}] = -fl[i + ${nuvars}];
-            % endif
-        }
+        fli = fl[i];
+        fri = fr[i];
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
+
+        fl[i] =  magnl*Fn;
+        fr[i] = -magnl*Fn;
+
+        % if delta:
+        fli = fl[i + ${nuvars}];
+        fri = fr[i + ${nuvars}];
+        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
+
+        fl[i + ${nuvars}] =  magnl*Fn;
+        fr[i + ${nuvars}] = -magnl*Fn;
+        % endif
     }
 </%pyfr:kernel>
