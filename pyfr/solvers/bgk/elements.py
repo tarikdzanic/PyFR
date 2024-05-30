@@ -546,9 +546,10 @@ class BGKElements(BaseAdvectionElements):
             f=self._scal_upts_cpy, u=self.umat, M=self.Mmat
         )
     
+        # Is this broadcasting rcpdjac properly?
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconfbgk', tplargs=tplargs,
-            dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
+            dims=[self.nupts, self.neles*self.nvars], tdivtconf=self.scal_upts[fout],
             rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, coll=self._scal_upts_cpy
         )
 
