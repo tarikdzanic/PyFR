@@ -7,6 +7,7 @@ from pyfr.backends.base.generator import BaseKernelGenerator
 
 class HIPKernelGenerator(BaseKernelGenerator):
     block1d = None
+    block1dp = None
     block2d = None
 
     def __init__(self, *args, **kwargs):
@@ -70,7 +71,10 @@ class HIPKernelGenerator(BaseKernelGenerator):
                     kargs.append(f'int ld{va.name}')
 
         # Determine the launch bounds for the kernel
-        nthrds = prod(self.block1d if self.ndim == 1 else self.block2d)
+        if self.ndim == 1:
+            nthrds = prod(self.block1dp if 'cflux' in self.name else self.block1d)
+        else:
+            nthrds = prod(self.block2d)
         kattrs = f'__global__ __launch_bounds__({nthrds})'
 
         return '{0} void {1}({2})'.format(kattrs, self.name, ', '.join(kargs))

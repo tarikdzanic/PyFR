@@ -161,7 +161,7 @@ class BasePointwiseKernelProvider(BaseKernelProvider):
             argb, argmv = self._build_arglst(dims, argn, argt, kwargs)
 
             # Return a Kernel subclass instance
-            return self._instantiate_kernel(dims, fun, argb, argmv)
+            return self._instantiate_kernel(dims, fun, argb, argmv, name)
 
         # Attach the module to the method as an attribute
         kernel_meth._mod = mod
