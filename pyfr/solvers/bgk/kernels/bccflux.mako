@@ -11,9 +11,9 @@
               magnl='in fpdtype_t'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
               M='in broadcast fpdtype_t[1][${str(nuvars)}]'>
-    // Compute the RHS
-    fpdtype_t fr[${nvars}];
-    ${pyfr.expand('bc_rsolve_state', 'fl', 'nl', 'fr', 'u', 'M')};
+    
+
+    // Temp commit for free BCs
 
     // Perform the Riemann solve and write out the common normal fluxes
     fpdtype_t Fn, ui[${ndims}], fli, fri;
@@ -23,15 +23,12 @@
         % endfor
 
         fli = fl[i];
-        fri = fr[i];
-        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
-
+        ${pyfr.expand('rsolve', 'fli', 'fli', 'nl', 'Fn', 'ui')};
         fl[i] = magnl*Fn;
 
         % if delta:
         fli = fl[i + ${nuvars}];
-        fri = fr[i + ${nuvars}];
-        ${pyfr.expand('rsolve', 'fli', 'fri', 'nl', 'Fn', 'ui')};
+        ${pyfr.expand('rsolve', 'fli', 'fli', 'nl', 'Fn', 'ui')};
 
         fl[i + ${nuvars}] = magnl*Fn;
         % endif
