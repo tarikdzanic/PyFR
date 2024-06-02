@@ -47,7 +47,7 @@ class CUDAPointwiseKernelProvider(CUDAKernelProvider,
                                   BasePointwiseKernelProvider):
     kernel_generator_cls = CUDAKernelGenerator
 
-    def _instantiate_kernel(self, dims, fun, arglst, argmv, name):
+    def _instantiate_kernel(self, dims, fun, arglst, argmv):
         rtargs = []
 
         # Declare a preference for L1 cache over shared memory
@@ -55,8 +55,7 @@ class CUDAPointwiseKernelProvider(CUDAKernelProvider,
 
         # Determine the block size
         if len(dims) == 1:
-            n = 16 if 'cflux' in name else 1
-            block = (64, n, 1)
+            block = (64, 1, 1)
         else:
             block = (64, 4, 1)
 

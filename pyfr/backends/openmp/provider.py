@@ -89,7 +89,7 @@ class OpenMPPointwiseKernelProvider(OpenMPKernelProvider,
 
         self.kernel_generator_cls = KernelGenerator
 
-    def _instantiate_kernel(self, dims, fun, arglst, argmv, name):
+    def _instantiate_kernel(self, dims, fun, arglst, argmv):
         rtargs = []
 
         # Process the arguments
