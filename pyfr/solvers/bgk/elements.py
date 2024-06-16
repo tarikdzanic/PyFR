@@ -116,14 +116,14 @@ class BGKElements(BaseAdvectionElements):
 
     expvarmap = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
-                     'qx', 'qy', 'h'],
+                     'qx', 'qy', 'h1', 'h2'],
                  3: ['rho', 'u', 'v', 'w', 'p',
                      'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
-                     'qx', 'qy', 'qz', 'h']}
+                     'qx', 'qy', 'qz', 'h1', 'h2']}
 
     expvarmap2 = {2: ['rho', 'u', 'v', 'p',
                      'sxx', 'sxy', 'syy', 
-                     'qx', 'qy', 'h', 'cf', 'cg',
+                     'qx', 'qy', 'h1', 'h2', 'cf', 'cg',
                      'dsxx', 'dsxy', 'dsyy', 
                      'dqx', 'dqy', 
                      'adrho', 'adrhou', 'adrhov',
@@ -133,7 +133,7 @@ class BGKElements(BaseAdvectionElements):
                      'adqx', 'adqy'],
                  3: ['rho', 'u', 'v', 'w', 'p',
                      'sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz',
-                     'qx', 'qy', 'qz', 'h', 'cf', 'cg',
+                     'qx', 'qy', 'qz', 'h1', 'h2', 'cf', 'cg',
                      'dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz',
                      'dqx', 'dqy', 'dqz',
                      'adrho', 'adrhou', 'adrhov', 'adrhow',
@@ -154,13 +154,13 @@ class BGKElements(BaseAdvectionElements):
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'syy']),
             ('heatflux', ['qx', 'qy']),
-            ('entropy', ['h'])],
+            ('entropy', ['h1', 'h2'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
             ('heatflux', ['qx', 'qy', 'qz']),
-            ('entropy', ['h'])]
+            ('entropy', ['h1', 'h2'])]
     }
 
     visvarmap2 = {
@@ -169,7 +169,7 @@ class BGKElements(BaseAdvectionElements):
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'syy']),
             ('heatflux', ['qx', 'qy']),
-            ('entropy', ['h']),
+            ('entropy', ['h1', 'h2']),
             ('cfg', ['cf', 'cg']),
             ('devstrain', ['dsxx', 'dsxy', 'dsyy']),
             ('devheatflux', ['dqx', 'dqy']),
@@ -184,7 +184,7 @@ class BGKElements(BaseAdvectionElements):
             ('velocity', ['u', 'v', 'w']),
             ('pressure', ['p']),
             ('strain', ['sxx', 'sxy', 'sxz', 'syy', 'syz', 'szz']),
-            ('entropy', ['h']),
+            ('entropy', ['h1', 'h2']),
             ('cfg', ['cf', 'cg']),
             ('heatflux', ['qx', 'qy', 'qz']),
             ('devstrain', ['dsxx', 'dsxy', 'dsxz', 'dsyy', 'dsyz', 'dszz']),
@@ -313,8 +313,10 @@ class BGKElements(BaseAdvectionElements):
         # Append entropy 
         # H = <<f*log(f)>> (doesn't fully hold for polyatomic but good enough)
         ff = np.clip(f[:nuvars,:,:], 1e-15, np.inf)
-        h = np.einsum('i,ijk->jk', M, ff*np.log(ff))
-        data.append(h)
+        h1 = np.einsum('i,ijk->jk', M, ff*np.log(ff))
+        h2 = np.einsum('i,ijk->jk', M, ff*np.log(ff) - ff)
+        data.append(h1)
+        data.append(h2)
 
         return data
 
@@ -355,8 +357,11 @@ class BGKElements(BaseAdvectionElements):
         # Append entropy 
         # H = <<f*log(f)>> (doesn't fully hold for polyatomic but good enough)
         ff = np.clip(f[:nuvars,:,:], 1e-15, np.inf)
-        h = np.einsum('i,ijk->jk', M, ff*np.log(ff))
-        data.append(h)
+        h1 = np.einsum('i,ijk->jk', M, ff*np.log(ff))
+        h2 = np.einsum('i,ijk->jk', M, ff*np.log(ff) - ff)
+        data.append(h1)
+        data.append(h2)
+
   
         # Compute Maxwellian state g using DVM
         g = np.zeros((nuvars, nupts, neles))
