@@ -7,12 +7,21 @@ class FluidIntIntersMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
         if self.cfg.get('solver', 'shock-capturing') == 'entropy-filter':
             self._be.pointwise.register('pyfr.solvers.euler.kernels.intcent')
 
             self.kernels['comm_entropy'] = lambda: self._be.kernel(
                 'intcent', tplargs={}, dims=[self.ninters],
                 entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
+            )
+        elif self.cfg.get('solver', 'shock-capturing') == 'bgk-limiter':
+            self._be.pointwise.register('pyfr.solvers.euler.kernels.intcex')
+
+            tplargs = {'nvars' : self.nvars}
+            self.kernels['comm_exch'] = lambda: self._be.kernel(
+                'intcex', tplargs=tplargs, dims=[self.ninterfpts],
+                ul=self._scal_lhs, ur=self._scal_rhs,
             )
 
 
@@ -43,6 +52,14 @@ class FluidMPIIntersMixin:
                 'mpicent', tplargs={}, dims=[self.ninters],
                 entmin_lhs=self._entmin_lhs, entmin_rhs=self._entmin_rhs
             )
+        elif self.cfg.get('solver', 'shock-capturing') == 'bgk-limiter':
+            self._be.pointwise.register('pyfr.solvers.euler.kernels.mpicex')
+
+            tplargs = {'nvars' : self.nvars}
+            self.kernels['comm_exch'] = lambda: self._be.kernel(
+                'mpicex', tplargs=tplargs, dims=[self.ninterfpts],
+                ul=self._scal_lhs, ur=self._scal_rhs
+            )
 
 
 class EulerIntInters(TplargsMixin, FluidIntIntersMixin,
@@ -64,6 +81,7 @@ class EulerMPIInters(TplargsMixin, FluidMPIIntersMixin,
         super().__init__(*args, **kwargs)
 
         self._be.pointwise.register('pyfr.solvers.euler.kernels.mpicflux')
+        self._be.pointwise.register('pyfr.solvers.euler.kernels.mpi')
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', self._tplargs, dims=[self.ninterfpts],
@@ -94,6 +112,14 @@ class EulerBaseBCInters(TplargsMixin, BaseAdvectionBCInters):
                 'bccent', tplargs=self._tplargs, dims=[self.ninterfpts],
                 extrns=self._external_args, entmin_lhs=self._entmin_lhs,
                 nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
+            )
+        elif self.cfg.get('solver', 'shock-capturing') == 'bgk-limiter':
+            self._be.pointwise.register('pyfr.solvers.euler.kernels.bccex')
+
+            self.kernels['comm_exch'] = lambda: self._be.kernel(
+                'bccex', tplargs=self._tplargs, dims=[self.ninterfpts],
+                extrns=self._external_args, ul=self._scal_lhs,
+                nl=self._pnorm_lhs, **self._external_vals
             )
 
 

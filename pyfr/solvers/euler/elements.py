@@ -157,6 +157,60 @@ class BaseFluidElements:
                 u=self.scal_upts[uin], entmin_int=self.entmin_int,
                 vdm=self.vdm, invvdm=self.invvdm
             )
+        elif shock_capturing == 'bgk-limiter' and self.basis.order != 0:
+            self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.bgkbounds'
+            )
+            self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.bgklimiter'
+            )
+
+
+            ub = self.basis.ubasis
+            meanwts = ub.invvdm[:,0]/np.sum(ub.invvdm[:,0])
+
+            gamma = self.cfg.getfloat('constants', 'gamma')
+            delta = 2./(gamma - 1.) - self.ndims
+            delta = max(0, delta)
+
+            bltplargs = {
+                'ndims': self.ndims,
+                'nupts': self.nupts,
+                'nfpts': self.nfpts,
+                'nvars': self.nvars,
+                'c': self.cfg.items_as('constants', float),
+                'delta': delta,
+                'meanwts': meanwts,
+                'pi': np.pi
+            }
+
+            # Minimum density/pressure constraints
+            bltplargs['d_min'] = self.cfg.getfloat('solver-bgk-limiter',
+                                                   'd-min', 1e-6)
+            bltplargs['p_min'] = self.cfg.getfloat('solver-bgk-limiter',
+                                                   'p-min', 1e-6)
+            # Relaxation factor
+            bltplargs['r_fac'] = self.cfg.getfloat('solver-bgk-limiter',
+                                                   'r-fac', 1e-3)
+            # Number of integration points per dimension
+            bltplargs['nintpts'] = self.cfg.getint('solver-bgk-limiter',
+                                                   'nintpts', 20)
+            # Number of standard deviations to use for integration bounds
+            bltplargs['sigma'] = self.cfg.getint('solver-bgk-limiter',
+                                                 'sigma', 6)
+            
+            self.kernels['compute_bounds'] = lambda uin: self._be.kernel(
+                'bgkbounds', tplargs=bltplargs, dims=[self.neles],
+                u=self.scal_upts[uin], uf=self._scal_fpts,
+                bounds=self.bgk_bounds
+            )
+            
+            self.kernels['bgk_limiter'] = lambda uin: self._be.kernel(
+                'bgklimiter', tplargs=bltplargs, dims=[self.neles],
+                u=self.scal_upts[uin], uf=self._scal_fpts,
+                bounds=self.bgk_bounds
+            )
+            
 
 
 class EulerElements(BaseFluidElements, BaseAdvectionElements):

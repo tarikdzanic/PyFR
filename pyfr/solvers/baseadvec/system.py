@@ -103,10 +103,10 @@ class BaseAdvectionSystem(BaseSystem):
         def deps(dk, *names): return self._kdeps(k, dk, *names)
 
         g1 = self.backend.graph()
-        g1.add_mpi_reqs(m['ent_fpts_recv'])
+        g1.add_mpi_reqs(m['scal_fpts_recv'] + m['ent_fpts_recv'])
 
         # Interpolate the solution to the flux points
-        if 'eles/local_entropy' in k:
+        if 'eles/local_entropy' in k or 'iint/comm_exch' in k:
             g1.add_all(k['eles/disu'])
 
         # Compute local minimum entropy within element
@@ -117,26 +117,47 @@ class BaseAdvectionSystem(BaseSystem):
         for send, pack in zip(m['ent_fpts_send'], k['mpiint/ent_fpts_pack']):
             g1.add_mpi_req(send, deps=[pack])
 
+        # Pack and send these interpolated solutions to our neighbours
+        g1.add_all(k['mpiint/scal_fpts_pack'], deps=k['eles/disu'])
+        for send, pack in zip(m['scal_fpts_send'], k['mpiint/scal_fpts_pack']):
+            g1.add_mpi_req(send, deps=[pack])
+
         # Compute common entropy minima at internal/boundary interfaces
         g1.add_all(k['iint/comm_entropy'], deps=k['eles/local_entropy'])
         g1.add_all(k['bcint/comm_entropy'],
                    deps=k['eles/local_entropy'] + k['eles/disu'])
-        g1.commit()
+        
+        # Exchange solution a at internal/boundary interfaces
+        g1.add_all(k['iint/comm_exch'], deps=k['eles/disu'])
+        g1.add_all(k['bcint/comm_exch'], deps=k['eles/disu'])
 
-        if 'mpiint/comm_entropy' in k:
+        if 'mpiint/comm_entropy' in k or 'mpiint/comm_exch' in k:
+            g1.commit()
             # Compute common entropy minima at MPI interfaces
             g2 = self.backend.graph()
 
             g2.add_all(k['mpiint/ent_fpts_unpack'])
             for l in k['mpiint/comm_entropy']:
                 g2.add(l, deps=deps(l, 'mpiint/ent_fpts_unpack'))
+
+            g2.add_all(k['mpiint/scal_fpts_unpack'])
+            for l in k['mpiint/comm_exch']:
+                g2.add(l, deps=deps(l, 'mpiint/scal_fpts_unpack'))
+            
+            g2.add_all(k['eles/compute_bounds'], deps=k['mpiint/comm_exch'])
             g2.commit()
 
             return g1, g2
         else:
+            g1.add_all(k['eles/compute_bounds'], 
+                       deps=k['iint/comm_exch'] + k['bcint/comm_exch'])
+            g1.commit()
             return g1,
 
     def postproc(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)
 
         self.backend.run_kernels(k['eles/entropy_filter'])
+        if 'eles/bgk_limiter' in k:
+            self.backend.run_kernels(k['eles/disu'])
+            self.backend.run_kernels(k['eles/bgk_limiter'])

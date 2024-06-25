@@ -156,6 +156,13 @@ class BaseAdvectionElements(BaseElements):
             self.invvdm = self._be.const_matrix(self.basis.ubasis.invvdm.T)
         else:
             self.entmin_int = None
+            
+        if shock_capturing == 'bgk-limiter':
+            tags = {'align'}
+            ext = nonce + 'bgk_bounds'
+            self.bgk_bounds = self._be.matrix((self.nvars*2, self.neles),
+                                              tags=tags, extent=ext)
+
 
     def get_entmin_int_fpts_for_inter(self, eidx, fidx):
         return (self.entmin_int.mid,), (fidx,), (eidx,)
