@@ -11,7 +11,6 @@
         fpdtype_t d, v[${ndims}], p, theta[${nupts + 2*nfpts}];
         fpdtype_t avmax = 0, thetamax = 0;
 
-
         // Compute interior flux point values
         fpdtype_t uf2[${nfpts}][${nvars}];
         for (int fidx = 0; fidx < ${nfpts}; fidx++) {
@@ -82,10 +81,16 @@
                 f_min = ${fpdtype_max}; f_max = ${-fpdtype_max};
                 g_min = ${fpdtype_max}; g_max = ${-fpdtype_max};
                 % for i in range(nupts + 2*nfpts):
-                f = alpha[${i}][0];
-                for (int d = 0; d < ${ndims}; d++) {
-                    f *= exp(-alpha[${i}][1]*(uu[d] - alpha[${i}][2+d])*(uu[d] - alpha[${i}][2+d]));
-                }
+                % if ndims == 2:
+                f = alpha[${i}][0]*exp(-alpha[${i}][1]*(
+                        (uu[0] - alpha[${i}][2])*(uu[0] - alpha[${i}][2]) +
+                        (uu[1] - alpha[${i}][3])*(uu[1] - alpha[${i}][3])));
+                % elif ndims == 3:
+                f = alpha[${i}][0]*exp(-alpha[${i}][1]*(
+                        (uu[0] - alpha[${i}][2])*(uu[0] - alpha[${i}][2]) +
+                        (uu[1] - alpha[${i}][3])*(uu[1] - alpha[${i}][3]) +
+                        (uu[2] - alpha[${i}][4])*(uu[2] - alpha[${i}][4])));
+                % endif
                 g = theta[${i}]*${delta/2.0}*f;
 
                 f_min = fmin(f_min, (1.0 - ${r_fac})*f);

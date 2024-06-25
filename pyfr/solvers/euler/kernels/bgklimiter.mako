@@ -54,24 +54,30 @@
                   uf2[fidx][vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
             }
       }
-      fpdtype_t pmin = ${fpdtype_max}, pbar = 0.0, d, v[${ndims}], p;
-      % for i in range(nupts + nfpts):
-      % if i < nupts:
-            d = u[${i}][0];
-            % for j in range(ndims):
-            v[${j}] = u[${i}][${1+j}]/d;
-            % endfor
-            p = ${c['gamma']-1}*(u[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
-            pbar += ${meanwts[i]}*p;
-      % else:
-            d = uf2[${i}][0];
-            % for j in range(ndims):
-            v[${j}] = uf2[${i}][${1+j}]/d;
-            % endfor
-            p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
+      fpdtype_t pmin = ${fpdtype_max}, pbar = 0.0, d, v[${ndims}], p, m2;
+% for i in range(nupts + nfpts):
+% if i < nupts:
+      % if ndims == 2:
+      p = ${c['gamma']-1}*(u[${i}][${nvars-1}] - (0.5/u[${i}][0])*(  u[${i}][1]*u[${i}][1]
+                                                                   + u[${i}][2]*u[${i}][2]));
+      % elif ndims == 3:
+      p = ${c['gamma']-1}*(u[${i}][${nvars-1}] - (0.5/u[${i}][0])*(  u[${i}][1]*u[${i}][1]
+                                                                   + u[${i}][2]*u[${i}][2]
+                                                                   + u[${i}][3]*u[${i}][3]));
       % endif
-            pmin = fmin(pmin, p);
-      % endfor
+      pbar += ${meanwts[i]}*p;
+% else:
+      % if ndims == 2:
+      p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - (0.5/uf2[${i}][0])*(  uf2[${i}][1]*uf2[${i}][1]
+                                                                       + uf2[${i}][2]*uf2[${i}][2]));
+      % elif ndims == 3:
+      p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - (0.5/uf2[${i}][0])*(  uf2[${i}][1]*uf2[${i}][1]
+                                                                       + uf2[${i}][2]*uf2[${i}][2]
+                                                                       + uf2[${i}][3]*uf2[${i}][3]));
+      % endif
+% endif
+      pmin = fmin(pmin, p);
+% endfor
 
       // Apply limiting for pressure if necessary
       if (pmin < ${p_min} && abs(pmin - pbar) > ${eps}) {
