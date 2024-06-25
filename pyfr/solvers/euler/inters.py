@@ -21,7 +21,7 @@ class FluidIntIntersMixin:
             tplargs = {'nvars' : self.nvars}
             self.kernels['comm_exch'] = lambda: self._be.kernel(
                 'intcex', tplargs=tplargs, dims=[self.ninterfpts],
-                ul=self._scal_lhs, ur=self._scal_rhs,
+                ul=self._scal_lhs, ur=self._scal_rhs
             )
 
 

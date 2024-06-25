@@ -54,7 +54,7 @@
                   uf2[fidx][vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
             }
       }
-      fpdtype_t pmin = ${-fpdtype_max}, pbar = 0.0, d, v[${ndims}], p;
+      fpdtype_t pmin = ${fpdtype_max}, pbar = 0.0, d, v[${ndims}], p;
       % for i in range(nupts + nfpts):
       % if i < nupts:
             d = u[${i}][0];
