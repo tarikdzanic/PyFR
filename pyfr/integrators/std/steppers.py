@@ -21,11 +21,14 @@ class StdEulerStepper(BaseStdStepper):
         return self.nsteps
 
     def step(self, t, dt):
-        add, rhs_with_postproc = self._add, self.system.rhs
+        add, rhs = self._add, self.system.rhs
+        preproc, postproc = self.system.preproc, self.system.postproc
         ut, f = self._regidx
 
-        rhs_with_postproc(t, ut, f)
+        preproc(t, ut)
+        rhs(t, ut, f)
         add(1.0, ut, dt, f)
+        postproc(ut)
 
         return ut
 

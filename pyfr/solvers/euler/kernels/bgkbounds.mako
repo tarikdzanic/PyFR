@@ -4,37 +4,54 @@
 <%pyfr:kernel name='bgkbounds' ndim='1'
               u='in fpdtype_t[${str(nupts)}][${str(nvars)}]'
               uf='in fpdtype_t[${str(nfpts)}][${str(nvars)}]'
-              bounds='out fpdtype_t[${str(nvars*2)}]'>
+              bounds='out fpdtype_t[${str(nvars*2)}]'
+              m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'>
 
-        fpdtype_t alpha[${nupts + nfpts}][${nvars}];
-        fpdtype_t d, v[${ndims}], p, theta[${nupts + nfpts}];
+        fpdtype_t alpha[${nupts + 2*nfpts}][${nvars}];
+        fpdtype_t d, v[${ndims}], p, theta[${nupts + 2*nfpts}];
         fpdtype_t avmax = 0, thetamax = 0;
 
-% for i in range(nupts + nfpts):
+
+        // Compute interior flux point values
+        fpdtype_t uf2[${nfpts}][${nvars}];
+        for (int fidx = 0; fidx < ${nfpts}; fidx++) {
+            for (int vidx = 0; vidx < ${nvars}; vidx++) {
+                uf2[fidx][vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
+            }
+        }
+
+        // Compute alpha vector and theta over upts+fpts
+    % for i in range(nupts + 2*nfpts):
     % if i < nupts:
         d = u[${i}][0];
         % for j in range(ndims):
         v[${j}] = u[${i}][${1+j}]/d;
         % endfor
         p = ${c['gamma']-1}*(u[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
-    % else:
+    % elif i < nupts + nfpts:
         d = uf[${i}][0];
         % for j in range(ndims):
         v[${j}] = uf[${i}][${1+j}]/d;
         % endfor
         p = ${c['gamma']-1}*(uf[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
+    % else:
+        d = uf2[${i}][0];
+        % for j in range(ndims):
+        v[${j}] = uf2[${i}][${1+j}]/d;
+        % endfor
+        p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
     % endif
         theta[${i}] = p/d;
 
         alpha[${i}][0] = d*pow(${2*pi}*theta[${i}], ${-ndims/2.0});
-        alpha[${i}][1] = exp(-1.0/(2.0*theta[${i}])); // Precompute exp(-a_1) and store
+        alpha[${i}][1] = 1.0/(2.0*theta[${i}]);
         % for j in range(ndims):
         alpha[${i}][${2+j}] = v[${j}];
         avmax = fmax(avmax, abs(v[${j}]));
         % endfor
 
         thetamax = fmax(thetamax, theta[${i}]);
-% endfor
+    % endfor
 
         // Zero bounds
         % for i in range(nvars*2):
@@ -45,7 +62,7 @@
         fpdtype_t umin = -avmax - ${sigma}*sqrt(thetamax);
         fpdtype_t dumm = 2*(avmax + ${sigma}*sqrt(thetamax));
         fpdtype_t du = dumm/${(nintpts-1.0)}; // Step size
-
+      
         // Compute trapezoid rule integration weight (for interior points)
         fpdtype_t M = pow(du, ${float(ndims)});
 
@@ -53,9 +70,9 @@
         fpdtype_t uu[${ndims}], mi;
         % if ndims == 2:
         for (int i = 0; i < ${nintpts}; i++) {
-            uu[i] = umin + i*du;
+            uu[0] = umin + i*du;
             for (int j = 0; j < ${nintpts}; j++) {
-                uu[j] = umin + j*du;
+                uu[1] = umin + j*du;
 
                 // Compute local integration weight
                 mi = M;
@@ -64,10 +81,10 @@
 
                 f_min = ${fpdtype_max}; f_max = ${-fpdtype_max};
                 g_min = ${fpdtype_max}; g_max = ${-fpdtype_max};
-                % for i in range(nupts + nfpts):
-                f = alpha[${i}][0]*alpha[${i}][1];
+                % for i in range(nupts + 2*nfpts):
+                f = alpha[${i}][0];
                 for (int d = 0; d < ${ndims}; d++) {
-                    f *= exp((uu[d] - alpha[${i}][2+d])*(uu[d] - alpha[${i}][2+d]));
+                    f *= exp(-alpha[${i}][1]*(uu[d] - alpha[${i}][2+d])*(uu[d] - alpha[${i}][2+d]));
                 }
                 g = theta[${i}]*${delta/2.0}*f;
 
@@ -96,5 +113,4 @@
 
         // Apply minimum density bound
         bounds[0] = fmax(bounds[0], ${d_min});
-
 </%pyfr:kernel>

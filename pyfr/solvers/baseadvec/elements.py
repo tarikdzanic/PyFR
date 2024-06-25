@@ -162,6 +162,7 @@ class BaseAdvectionElements(BaseElements):
             ext = nonce + 'bgk_bounds'
             self.bgk_bounds = self._be.matrix((self.nvars*2, self.neles),
                                               tags=tags, extent=ext)
+            self.m0 = self._be.const_matrix(self.basis.m0)
 
 
     def get_entmin_int_fpts_for_inter(self, eidx, fidx):
