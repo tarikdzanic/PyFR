@@ -159,9 +159,15 @@ class BaseAdvectionElements(BaseElements):
             
         if shock_capturing == 'bgk-limiter':
             tags = {'align'}
-            ext = nonce + 'bgk_bounds'
+            nalpha = self.nupts + 2*self.nfpts
+            self.bgk_alpha = self._be.matrix((nalpha, self.nvars, self.neles),
+                                              tags=tags, extent=nonce + 'bgk_alpha')
+            self.bgk_umin = self._be.matrix((1, self.neles),
+                                            tags=tags, extent=nonce + 'bgk_umin')
+            self.bgk_du = self._be.matrix((1, self.neles),
+                                          tags=tags, extent=nonce + 'bgk_du')
             self.bgk_bounds = self._be.matrix((self.nvars*2, self.neles),
-                                              tags=tags, extent=ext)
+                                              tags=tags, extent=nonce + 'bgk_bounds')
             self.m0 = self._be.const_matrix(self.basis.m0)
 
 

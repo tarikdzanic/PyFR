@@ -159,6 +159,9 @@ class BaseFluidElements:
             )
         elif shock_capturing == 'bgk-limiter' and self.basis.order != 0:
             self._be.pointwise.register(
+                'pyfr.solvers.euler.kernels.bgkpdf'
+            )
+            self._be.pointwise.register(
                 'pyfr.solvers.euler.kernels.bgkbounds'
             )
             self._be.pointwise.register(
@@ -194,15 +197,22 @@ class BaseFluidElements:
                                                    'r-fac', 1e-3)
             # Number of integration points per dimension
             bltplargs['nintpts'] = self.cfg.getint('solver-bgk-limiter',
-                                                   'nintpts', 20)
+                                                   'nintpts', 30)
             # Number of standard deviations to use for integration bounds
-            bltplargs['sigma'] = self.cfg.getint('solver-bgk-limiter',
-                                                 'sigma', 3)
+            bltplargs['sigma'] = self.cfg.getfloat('solver-bgk-limiter',
+                                                   'sigma', 3.5)
+            
+            self.kernels['compute_pdf'] = lambda uin: self._be.kernel(
+                'bgkpdf', tplargs=bltplargs, dims=[self.neles],
+                u=self.scal_upts[uin], uf=self._scal_fpts,
+                m0=self.m0, alpha=self.bgk_alpha, bounds=self.bgk_bounds,
+                umin=self.bgk_umin, du=self.bgk_du
+            )
             
             self.kernels['compute_bounds'] = lambda uin: self._be.kernel(
                 'bgkbounds', tplargs=bltplargs, dims=[self.neles],
-                u=self.scal_upts[uin], uf=self._scal_fpts,
-                bounds=self.bgk_bounds, m0=self.m0
+                alpha=self.bgk_alpha, bounds=self.bgk_bounds,
+                umin=self.bgk_umin, du=self.bgk_du
             )
             
             self.kernels['bgk_limiter'] = lambda uin: self._be.kernel(

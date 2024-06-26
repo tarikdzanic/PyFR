@@ -144,13 +144,15 @@ class BaseAdvectionSystem(BaseSystem):
             for l in k['mpiint/comm_exch']:
                 g2.add(l, deps=deps(l, 'mpiint/scal_fpts_unpack'))
             
-            g2.add_all(k['eles/compute_bounds'], deps=k['mpiint/comm_exch'])
+            g2.add_all(k['eles/compute_pdf'], deps=k['mpiint/comm_exch'])
+            g2.add_all(k['eles/compute_bounds'], deps=k['eles/compute_pdf'])
             g2.commit()
 
             return g1, g2
         else:
-            g1.add_all(k['eles/compute_bounds'], 
+            g1.add_all(k['eles/compute_pdf'], 
                        deps=k['iint/comm_exch'] + k['bcint/comm_exch'])
+            g1.add_all(k['eles/compute_bounds'], deps=k['eles/compute_pdf'])
             g1.commit()
             return g1,
 
