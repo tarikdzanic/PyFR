@@ -69,12 +69,12 @@
       % endif
 % else:
       % if ndims == 2:
-      p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - (0.5/uf2[${i}][0])*(  uf2[${i}][1]*uf2[${i}][1]
-                                                                       + uf2[${i}][2]*uf2[${i}][2]));
+      p = ${c['gamma']-1}*(uf2[${i-nupts}][${nvars-1}] - (0.5/uf2[${i-nupts}][0])*(  uf2[${i-nupts}][1]*uf2[${i-nupts}][1]
+                                                                                   + uf2[${i-nupts}][2]*uf2[${i-nupts}][2]));
       % elif ndims == 3:
-      p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - (0.5/uf2[${i}][0])*(  uf2[${i}][1]*uf2[${i}][1]
-                                                                       + uf2[${i}][2]*uf2[${i}][2]
-                                                                       + uf2[${i}][3]*uf2[${i}][3]));
+      p = ${c['gamma']-1}*(uf2[${i-nupts}][${nvars-1}] - (0.5/uf2[${i-nupts}][0])*(  uf2[${i-nupts}][1]*uf2[${i-nupts}][1]
+                                                                                   + uf2[${i-nupts}][2]*uf2[${i-nupts}][2]
+                                                                                   + uf2[${i-nupts}][3]*uf2[${i-nupts}][3]));
       % endif
 % endif
       pmin = fmin(pmin, p);
