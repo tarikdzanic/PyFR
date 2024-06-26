@@ -54,7 +54,9 @@
                   uf2[fidx][vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
             }
       }
-      fpdtype_t pmin = ${fpdtype_max}, pbar = 0.0, d, v[${ndims}], p, m2;
+
+      // Compute minimum pressure within element
+      fpdtype_t pmin = ${fpdtype_max}, d, v[${ndims}], p, m2;
 % for i in range(nupts + nfpts):
 % if i < nupts:
       % if ndims == 2:
@@ -65,7 +67,6 @@
                                                                    + u[${i}][2]*u[${i}][2]
                                                                    + u[${i}][3]*u[${i}][3]));
       % endif
-      pbar += ${meanwts[i]}*p;
 % else:
       % if ndims == 2:
       p = ${c['gamma']-1}*(uf2[${i}][${nvars-1}] - (0.5/uf2[${i}][0])*(  uf2[${i}][1]*uf2[${i}][1]
@@ -78,6 +79,16 @@
 % endif
       pmin = fmin(pmin, p);
 % endfor
+
+      // Compute mean pressure
+      % if ndims == 2:
+      fpdtype_t pbar = ${c['gamma']-1}*(uavg[${nvars-1}] - (0.5/uavg[0])*(  uavg[1]*uavg[1]
+                                                                          + uavg[2]*uavg[2]));
+      % elif ndims == 3:
+      fpdtype_t pbar = ${c['gamma']-1}*(uavg[${nvars-1}] - (0.5/uavg[0])*(  uavg[1]*uavg[1]
+                                                                          + uavg[2]*uavg[2]
+                                                                          + uavg[3]*uavg[3]));
+      % endif
 
       // Apply limiting for pressure if necessary
       if (pmin < ${p_min} && abs(pmin - pbar) > ${eps}) {

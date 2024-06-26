@@ -197,7 +197,7 @@ class BaseFluidElements:
                                                    'nintpts', 20)
             # Number of standard deviations to use for integration bounds
             bltplargs['sigma'] = self.cfg.getint('solver-bgk-limiter',
-                                                 'sigma', 4)
+                                                 'sigma', 3)
             
             self.kernels['compute_bounds'] = lambda uin: self._be.kernel(
                 'bgkbounds', tplargs=bltplargs, dims=[self.neles],
