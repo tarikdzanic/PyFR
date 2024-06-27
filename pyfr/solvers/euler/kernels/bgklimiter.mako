@@ -7,18 +7,21 @@
               uf='in fpdtype_t[${str(nfpts)}][${str(nvars)}]'
               bounds='in fpdtype_t[${str(nvars*2)}]'
               m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'>
-     
-      
+           
       // Compute min/max of variables within element (and flux points)
-      fpdtype_t umin[${nvars}] = {${ fpdtype_max}};
-      fpdtype_t umax[${nvars}] = {${-fpdtype_max}};
+      fpdtype_t umin[${nvars}];
+      fpdtype_t umax[${nvars}];
+
 % for i,j in pyfr.ndrange(nupts + nfpts, nvars):
-      % if i < nupts:
+      % if i == 0:
+      umin[${j}] = u[${i}][${j}];
+      umax[${j}] = u[${i}][${j}];
+      % elif i < nupts:
       umin[${j}] = fmin(umin[${j}], u[${i}][${j}]);
       umax[${j}] = fmax(umax[${j}], u[${i}][${j}]);
       % else:
-      umin[${j}] = fmin(umin[${j}], uf[${i}][${j}]);
-      umax[${j}] = fmax(umax[${j}], uf[${i}][${j}]);
+      umin[${j}] = fmin(umin[${j}], uf[${i - nupts}][${j}]);
+      umax[${j}] = fmax(umax[${j}], uf[${i - nupts}][${j}]);
       % endif
 % endfor
 
@@ -33,7 +36,11 @@
       fpdtype_t theta = 1.0;
       % for i in range(nvars):
       if (abs(umin[${i}] - uavg[${i}]) > ${eps}) {
-            theta = fmin(theta, abs( (bounds[${i}      ] - uavg[${i}])/(umin[${i}] - uavg[${i}]) ));
+            % if i == 0:
+            theta = fmin(theta, abs( (fmax(bounds[0], ${d_min}) - uavg[${i}])/(umin[${i}] - uavg[${i}]) ));
+            % else:
+            theta = fmin(theta, abs( (bounds[${i}]              - uavg[${i}])/(umin[${i}] - uavg[${i}]) ));
+            % endif
       }
       if (abs(umax[${i}] - uavg[${i}]) > ${eps}) {
             theta = fmin(theta, abs( (bounds[${i+nvars}] - uavg[${i}])/(umax[${i}] - uavg[${i}]) ));
@@ -45,7 +52,6 @@
       % for i,j in pyfr.ndrange(nupts, nvars):
       u[${i}][${j}] = uavg[${j}] + theta*(u[${i}][${j}] - uavg[${j}]);
       % endfor
-
 
       // Recompute flux point values and check for minimum pressure bound
       fpdtype_t uf2[${nfpts}][${nvars}];

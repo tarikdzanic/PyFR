@@ -29,21 +29,21 @@
         % for j in range(ndims):
         v[${j}] = rcpd*u[${i}][${1+j}];
         % endfor
-        theta = rcpd*${c['gamma']-1}*(u[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
+        theta = rcpd*${c['gamma']-1}*(u[${i}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{j}]', j=ndims)});
     % elif i < nupts + nfpts:
         d = uf[${i-nupts}][0];
         rcpd = 1.0/d;
         % for j in range(ndims):
         v[${j}] = rcpd*uf[${i-nupts}][${1+j}];
         % endfor
-        theta = rcpd*${c['gamma']-1}*(uf[${i-nupts}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
+        theta = rcpd*${c['gamma']-1}*(uf[${i-nupts}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{j}]', j=ndims)});
     % else:
         d = uf2[${i-nupts-nfpts}][0];
         rcpd = 1.0/d;
         % for j in range(ndims):
         v[${j}] = rcpd*uf2[${i-nupts-nfpts}][${1+j}];
         % endfor
-        theta = rcpd*${c['gamma']-1}*(uf2[${i-nupts-nfpts}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{i}]', i=ndims)});
+        theta = rcpd*${c['gamma']-1}*(uf2[${i-nupts-nfpts}][${nvars-1}] - 0.5*d*${pyfr.dot('v[{j}]', j=ndims)});
     % endif
 
         alpha[${i}][0] = d*pow(${2*pi}*theta, ${-ndims/2.0});

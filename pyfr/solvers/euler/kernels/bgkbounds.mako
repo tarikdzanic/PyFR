@@ -61,7 +61,4 @@
             }
         }
         % endif
-
-        // Apply minimum density bound
-        bounds[0] = fmax(bounds[0], ${d_min});
 </%pyfr:kernel>

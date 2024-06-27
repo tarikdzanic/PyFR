@@ -1,6 +1,7 @@
 from pyfr.backends.base import NullKernel
 from pyfr.solvers.base import BaseElements
 
+import numpy as np
 
 class BaseAdvectionElements(BaseElements):
     def __init__(self, *kargs, **kwargs):
@@ -166,8 +167,11 @@ class BaseAdvectionElements(BaseElements):
                                             tags=tags, extent=nonce + 'bgk_umin')
             self.bgk_du = self._be.matrix((1, self.neles),
                                           tags=tags, extent=nonce + 'bgk_du')
+            bounds_init = np.array([-self._be.fpdtype_max]*self.nvars + [self._be.fpdtype_max]*self.nvars)
+            bounds_init = np.repeat(bounds_init[:,np.newaxis], self.neles, axis=1)
             self.bgk_bounds = self._be.matrix((self.nvars*2, self.neles),
-                                              tags=tags, extent=nonce + 'bgk_bounds')
+                                              tags=tags, extent=nonce + 'bgk_bounds',
+                                              initval=bounds_init)
             self.m0 = self._be.const_matrix(self.basis.m0)
 
 
