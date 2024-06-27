@@ -150,7 +150,7 @@ class BasePointwiseKernelProvider(BaseKernelProvider):
 
         return arglst, argmats, argviews
 
-    def _instantiate_kernel(self, dims, fun, arglst, argmv, name):
+    def _instantiate_kernel(self, dims, fun, arglst, argmv):
         pass
 
     def register(self, mod):
@@ -180,7 +180,7 @@ class BasePointwiseKernelProvider(BaseKernelProvider):
             argb, argm, argv = self._build_arglst(dims, argn, argt, kwargs)
 
             # Return a Kernel subclass instance
-            return self._instantiate_kernel(dims, fun, argb, argm, argv, name)
+            return self._instantiate_kernel(dims, fun, argb, argm, argv)
 
         # Attach the module to the method as an attribute
         kernel_meth._mod = mod

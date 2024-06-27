@@ -36,10 +36,7 @@ class HIPKernelGenerator(BaseGPUKernelGenerator):
                 kargs.append(f'ixdtype_t ld{va.name}')
 
         # Determine the launch bounds for the kernel
-        if self.ndim == 1:
-            nthrds = prod(self.block1dp if 'bgkbounds' in self.name else self.block1d)
-        else:
-            nthrds = prod(self.block2d)
+        nthrds = prod(self.block1d if self.ndim == 1 else self.block2d)
         kattrs = f'__global__ __launch_bounds__({nthrds})'
 
         return '{0} void {1}({2})'.format(kattrs, self.name, ', '.join(kargs))

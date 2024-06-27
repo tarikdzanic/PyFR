@@ -78,7 +78,7 @@ class OpenCLPointwiseKernelProvider(OpenCLKernelProvider,
 
         self.kernel_generator_cls = KernelGenerator
 
-    def _instantiate_kernel(self, dims, fun, arglst, argm, argv, name):
+    def _instantiate_kernel(self, dims, fun, arglst, argm, argv):
         rtargs = []
 
         # Determine the work group sizes

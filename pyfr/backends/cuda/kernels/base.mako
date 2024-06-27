@@ -27,16 +27,4 @@ __device__ void atomic_min_fpdtype(fpdtype_t* addr, fpdtype_t val)
 % endif
 }
 
-__device__ void atomic_sum_fpdtype(fpdtype_t* addr, fpdtype_t val)
-{
-% if pyfr.npdtype_to_ctype(fpdtype) == 'float':
-    if (!signbit(val))
-        atomicAdd((int*) addr, __float_as_int(val));
-    else
-        atomicAdd((unsigned int*) addr, __float_as_uint(val));
-% else:
-    atomicAdd((unsigned long long*) addr, (unsigned long long) __double_as_longlong(val));
-% endif
-}
-
 ${next.body()}
