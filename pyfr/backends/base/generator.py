@@ -13,7 +13,7 @@ class Arg:
         specptn = r'''
             (?:(in|inout|out)\s+)?                            # Intent
             (?:(broadcast(?:-row|-col)?|mpi|scalar|view)\s+)? # Attrs
-            (?:reduce\((min)\)\s+)?                           # Reduction
+            (?:reduce\((min|sum)\)\s+)?                           # Reduction
             ([A-Za-z_]\w*)                                    # Data type
             ((?:\[\d+\]){0,2})$                               # Dimensions
         '''

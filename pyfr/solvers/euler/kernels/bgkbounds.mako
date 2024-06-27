@@ -5,7 +5,10 @@
               alpha='in fpdtype_t[${str(nupts+2*nfpts)}][${str(nvars)}]'
               umin='in fpdtype_t'
               du='in fpdtype_t'
-              bounds='inout fpdtype_t[${str(nvars*2)}]'>
+              bounds='out reduce(sum) fpdtype_t[${str(nvars*2)}]'>
+
+        // Allocate local bounds
+        fpdtype_t lbounds[${nvars*2}] = {0};
 
         // Compute trapezoid rule integration weight (for interior points)
         fpdtype_t M = pow(du, ${float(ndims)});
@@ -13,7 +16,7 @@
         fpdtype_t f, g, f_min, f_max, g_min, g_max, theta; 
         fpdtype_t uu[${ndims}], mi;
         % if ndims == 2:
-        for (int i = 0; i < ${nintpts}; i++) {
+        for (int i = threadIdx.y; i < ${nintpts}; i += blockDim.y) {
             uu[0] = umin + i*du;
             for (int j = 0; j < ${nintpts}; j++) {
                 uu[1] = umin + j*du;
@@ -47,18 +50,22 @@
                 % endfor
 
                 // Integrate bounds (rho_min, ru_min, rv_min, E_min, rho_max, ru_max, rv_max, E_max)
-                bounds[0] += f_min*mi; bounds[4] += f_max*mi;
+                lbounds[0] += f_min*mi; lbounds[4] += f_max*mi;
                 for (int d = 0; d < ${ndims}; d++) {
                     if (uu[d] < 0) {
-                        bounds[1+d] += f_max*mi*uu[d]; bounds[5+d] += f_min*mi*uu[d];
+                        lbounds[1+d] += f_max*mi*uu[d]; lbounds[5+d] += f_min*mi*uu[d];
                     }
                     else {
-                        bounds[1+d] += f_min*mi*uu[d]; bounds[5+d] += f_max*mi*uu[d];
+                        lbounds[1+d] += f_min*mi*uu[d]; lbounds[5+d] += f_max*mi*uu[d];
                     }
                 }
-                bounds[3] += f_min*mi*0.5*(uu[0]*uu[0] + uu[1]*uu[1]); bounds[7] += f_max*mi*0.5*(uu[0]*uu[0] + uu[1]*uu[1]);
-                bounds[3] += g_min*mi;                                 bounds[7] += g_max*mi;
+                lbounds[3] += f_min*mi*0.5*(uu[0]*uu[0] + uu[1]*uu[1]); lbounds[7] += f_max*mi*0.5*(uu[0]*uu[0] + uu[1]*uu[1]);
+                lbounds[3] += g_min*mi;                                 lbounds[7] += g_max*mi;
             }
         }
         % endif
+
+        % for i in range(2*nvars):
+        bounds[${i}] = lbounds[${i}];
+        % endfor
 </%pyfr:kernel>

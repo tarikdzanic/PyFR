@@ -63,18 +63,23 @@ class CUDAPointwiseKernelProvider(CUDAKernelProvider,
         super().__init__(*args, **kwargs)
 
         self._block1d = (64, 1, 1)
+        self._block1dp = (64, 16, 1)
         self._block2d = (32, 8, 1)
 
         # Pass these block sizes to the generator
         class KernelGenerator(CUDAKernelGenerator):
             block1d = self._block1d
+            block1dp = self._block1dp
             block2d = self._block2d
 
         self.kernel_generator_cls = KernelGenerator
 
-    def _instantiate_kernel(self, dims, fun, arglst, argm, argv):
+    def _instantiate_kernel(self, dims, fun, arglst, argm, argv, name):
         rtargs = []
-        block = self._block1d if len(dims) == 1 else self._block2d
+        if len(dims) == 1:
+            block = self._block1dp if 'bgkbounds' in name else self._block1d
+        else:
+            block = self._block2d
         grid = get_grid_for_block(block, dims[-1])
 
         # Set shared memory carveout locally for kernel
