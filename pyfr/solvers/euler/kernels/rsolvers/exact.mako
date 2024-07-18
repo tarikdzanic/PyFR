@@ -202,7 +202,8 @@
     nf[${i}] = nf[0]*w0[${i}];
 % endfor
     nf[${nvars - 1}] = (${grgm}*w0[${nvars - 1}] +
-                        0.5*w0[0]*(${pyfr.dot('w0[{i}]', i=(1, ndims + 1))}))*w0[1];
+                        0.5*w0[0]*(${pyfr.dot('w0[{i}]', i=(1, ndims + 1))})
+                        -w0[0]*rote)*w0[1];
 
 </%pyfr:macro>
 
