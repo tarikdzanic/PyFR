@@ -13,6 +13,10 @@
 % for i, v in enumerate(c['vc']):
     ur[${i + 1}] = ${v}*ur[0]*sqrt(udotu);
 % endfor
+
+    ur[1] +=  ur[0]*ploc[1]*${c['omg']};
+    ur[2] += -ur[0]*ploc[0]*${c['omg']};
+
     ur[${nvars - 1}] = ${1.0/(c['gamma'] - 1.0)}*pl + 0.5*ur[0]*udotu - ur[0]*rote;
 </%pyfr:macro>
 
