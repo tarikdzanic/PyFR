@@ -29,7 +29,7 @@ fpdtype_t src[${nvars}] = {};
 tdivtconf[1] += ${omg**2}*u[0]*ploc[0] + ${2*omg}*u[2];
 tdivtconf[2] += ${omg**2}*u[0]*ploc[1] - ${2*omg}*u[1];
 % if mu:
-tdivtconf[${nvars-1}] += ${-2*(mu*gamma/Pr)*omg**2};
+tdivtconf[${nvars-1}] += ${2*(mu*gamma/Pr)*omg**2};
 % endif
 % endif
 </%pyfr:kernel>

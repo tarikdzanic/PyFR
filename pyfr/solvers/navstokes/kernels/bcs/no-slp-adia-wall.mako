@@ -18,7 +18,7 @@
                      - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))};
 </%pyfr:macro>
 
-<%pyfr:macro name='bc_ldg_grad_state' params='ul, nl, grad_ul, grad_ur, rote'>
+<%pyfr:macro name='bc_ldg_grad_state' params='ul, nl, grad_ul, grad_ur, rote' externs='ploc, t'>
     fpdtype_t rcprho = 1.0/ul[0];
 
 % if ndims == 2:
@@ -31,9 +31,11 @@
 
     // Compute temperature derivatives (c_v*rho*dT/d[x,y,z])
     fpdtype_t Tl_x = grad_ul[0][3] - (rcprho*grad_ul[0][0]*ul[3]
-                                      + u*u_x + v*v_x);
+                                      + u*u_x + v*v_x)
+                                   + ul[0]*${omg**2}*ploc[0];
     fpdtype_t Tl_y = grad_ul[1][3] - (rcprho*grad_ul[1][0]*ul[3]
-                                      + u*u_y + v*v_y);
+                                      + u*u_y + v*v_y)
+                                   + ul[0]*${omg**2}*ploc[1];
 
     // Copy all fluid-side gradients across to wall-side gradients
     ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur')};
@@ -58,11 +60,14 @@
 
     // Compute temperature derivatives (c_v*rho*dT/d[x,y,z])
     fpdtype_t Tl_x = grad_ul[0][4] - (rcprho*grad_ul[0][0]*ul[4]
-                                      + u*u_x + v*v_x + w*w_x);
+                                      + u*u_x + v*v_x + w*w_x)
+                                   + ul[0]*${omg**2}*ploc[0];
     fpdtype_t Tl_y = grad_ul[1][4] - (rcprho*grad_ul[1][0]*ul[4]
-                                      + u*u_y + v*v_y + w*w_y);
+                                      + u*u_y + v*v_y + w*w_y)
+                                   + ul[0]*${omg**2}*ploc[1];
     fpdtype_t Tl_z = grad_ul[2][4] - (rcprho*grad_ul[2][0]*ul[4]
-                                      + u*u_z + v*v_z + w*w_z);
+                                      + u*u_z + v*v_z + w*w_z)
+                                   + ul[0]*${omg**2}*ploc[2];
 
     // Copy all fluid-side gradients across to wall-side gradients
     ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur')};
