@@ -197,10 +197,10 @@ class BaseFluidElements:
                                                    'r-fac', 1e-3)
             # Number of integration points per dimension
             bltplargs['nintpts'] = self.cfg.getint('solver-bgk-limiter',
-                                                   'nintpts', 30)
+                                                   'nintpts', 32)
             # Number of standard deviations to use for integration bounds
             bltplargs['sigma'] = self.cfg.getfloat('solver-bgk-limiter',
-                                                   'sigma', 3.5)
+                                                   'sigma', 4)
             
             self.kernels['compute_pdf'] = lambda uin: self._be.kernel(
                 'bgkpdf', tplargs=bltplargs, dims=[self.neles],
