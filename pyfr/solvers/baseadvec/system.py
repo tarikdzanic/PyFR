@@ -20,6 +20,12 @@ class BaseAdvectionSystem(BaseSystem):
         # Apply positivity-preserving limiter
         g1.add_all(k['eles/limiter'])
 
+        # Make a copy of the solution
+        g1.add_all(k['eles/copy_soln'], deps=k['eles/limiter'])
+
+        # Make a copy of the solution
+        g1.add_all(k['eles/collision'], deps=k['eles/copy_soln'])
+
         # Compute and store macroscopic state
         g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
 
@@ -63,9 +69,6 @@ class BaseAdvectionSystem(BaseSystem):
             # Compute the transformed divergence of the corrected flux
             g2.add_all(k['eles/tdivtconf'], deps=k['mpiint/comm_flux'])
 
-            # Make a copy of the solution (if used by source terms)
-            g2.add_all(k['eles/copy_soln'], deps=k['eles/tdivtconf'])
-
             # Obtain the physical divergence of the corrected flux
             for l in k['eles/negdivconf']:
                 g2.add(l, deps=deps(l, 'eles/tdivtconf', 'eles/copy_soln'))
@@ -85,9 +88,6 @@ class BaseAdvectionSystem(BaseSystem):
             g1.add_all(k['iint/comm_flux'],
                     deps=k['eles/disu'] + k['mpiint/scal_fpts_pack'])
             g1.add_all(k['bcint/comm_flux'], deps=k['eles/disu'])
-
-            # Make a copy of the solution (if used by source terms)
-            g1.add_all(k['eles/copy_soln'], deps=k['eles/limiter'])
 
             # Interpolate the solution to the quadrature points
             g1.add_all(k['eles/qptsu'], deps=k['eles/limiter'])

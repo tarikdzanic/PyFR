@@ -35,10 +35,10 @@ class IntegratePlugin(BasePlugin):
                       if k.startswith('int-')]
 
         # Integration region pre-processing
-        esetmask = self._prepare_esetmask(intg)
+        rinfo = self._prepare_region_info(intg)
 
         # Gradient pre-processing
-        self._init_gradients(intg)
+        self._init_gradients(intg, rinfo)
 
         # Save a reference to the physical solution point locations
         self.plocs = system.ele_ploc_upts
@@ -56,7 +56,7 @@ class IntegratePlugin(BasePlugin):
 
         # Prepare the per element-type info list
         self.eleinfo = eleinfo = []
-        for ename, eles in system.ele_map.items():
+        for (ename, eles), (eset, emask) in zip(system.ele_map.items(), rinfo):
             # Obtain quadrature info
             rname = self.cfg.get(f'solver-elements-{ename}', 'soln-pts')
 
@@ -85,9 +85,6 @@ class IntegratePlugin(BasePlugin):
             # Locations of each quadrature point
             ploc = eles.ploc_at_np(r.pts).swapaxes(0, 1)
 
-            # Obtain the region mask
-            eset, emask = esetmask(ploc)
-
             # Use this to subset the quadrature points
             ploc = ploc[..., eset]
 
@@ -98,21 +95,26 @@ class IntegratePlugin(BasePlugin):
             eleinfo.append((ploc, r.wts[:, None] / rcpdjacs, m0, m4, eset, emask,
                             eles.M, eles.u, eles.psi))
 
-    def _prepare_esetmask(self, intg):
-        region = self.cfg.get(self.cfgsect, 'region', '*')
-
+    def _prepare_region_info(self, intg):
         # All elements
-        if region == '*':
-            return lambda pts: (slice(None), ([], []))
-        # Elements inside of a paramaterised shape
+        if self.cfg.get(self.cfgsect, 'region', '*') == '*':
+            return [(slice(None), ([], []))]*len(intg.system.ele_types)
+        # Elements inside of a box
         else:
-            crgn = ConstructiveRegion(region)
+            x0, x1 = self.cfg.getliteral(self.cfgsect, 'region')
 
-            def esetmask(pts):
-                inside = crgn.pts_in_region(np.moveaxis(pts, 0, 2))
+            rinfo = []
+            for etype in intg.system.ele_types:
+                pts = intg.system.mesh[f'spt_{etype}_p{intg.rallocs.prank}']
+                pts = np.moveaxis(pts, 2, 0)
+
+                # Determine which points are inside the box
+                inside = np.ones(pts.shape[1:], dtype=np.bool)
+                for l, p, u in zip(x0, pts, x1):
+                    inside &= (l <= p) & (p <= u)
 
                 if np.all(inside):
-                    return slice(None), ([], [])
+                    rinfo.append((slice(None), ([], [])))
                 else:
                     # Determine which elements have some points inside the box
                     eset = np.any(inside, axis=0).nonzero()[0]
@@ -120,15 +122,32 @@ class IntegratePlugin(BasePlugin):
                     # Mask any points outside of the box
                     emask = (~inside[:, eset]).nonzero()
 
-                    return eset, emask
+                    rinfo.append((eset, emask))
 
-            return esetmask
+            return rinfo
 
-    def _init_gradients(self, intg):
+    def _init_gradients(self, intg, rinfo):
         # Determine what gradients, if any, are required
-        gradpnames = set()
+        self._gradpnames = gradpnames = set()
         for ex in self.exprs:
             gradpnames.update(re.findall(r'\bgrad_(.+?)_[xyz]\b', ex))
+
+        # If gradients are required then form the relevant operators
+        if gradpnames:
+            emap = intg.system.ele_map
+
+            self._gradop, self._rcpjact = [], []
+            for eles, (eset, emask) in zip(emap.values(), rinfo):
+                self._gradop.append(eles.basis.m4)
+
+                # Get the smats at the solution points and subset
+                smat = eles.smat_at_np('upts')[..., eset]
+
+                # Get |J|^-1 at the solution points and subset
+                rcpdjac = eles.rcpdjac_at_np('upts')[:, eset]
+
+                # Product to give J^-T at the solution points
+                self._rcpjact.append(rcpdjac*smat.transpose(2, 0, 1, 3))
 
         privarmap = self.elementscls.privarmap[self.ndims]
         self._gradpinfo = [(pname, privarmap.index(pname))
@@ -162,16 +181,27 @@ class IntegratePlugin(BasePlugin):
 
             # Prepare any required gradients
             if self._gradpinfo:
-                # Compute the gradients
-                grad_soln = m4 @ soln
-
-                # Interpolate the gradients to the quadrature points
-                if m0 is not None:
-                    grad_soln = m0 @ grad_soln
+                # Gradient operator and J^-T matrix
+                gradop, rcpjact = self._gradop[i], self._rcpjact[i]
+                nupts = gradop.shape[1]
 
                 # Add them to the substitutions dictionary
                 for pname, idx in self._gradpinfo:
-                    for dim, grad in zip('xyz', grad_soln[idx]):
+                    psoln = subs[pname]
+
+                    # Compute the transformed gradient
+                    tgradpn = gradop @ psoln
+                    tgradpn = tgradpn.reshape(self.ndims, nupts, -1)
+
+                    # Untransform this to get the physical gradient
+                    gradpn = np.einsum('ijkl,jkl->ikl', rcpjact, tgradpn)
+                    gradpn = gradpn.reshape(self.ndims, nupts, -1)
+
+                    # Interpolate the gradients to the quadrature points
+                    if m0 is not None:
+                        grad_soln = m0 @ grad_soln
+
+                    for dim, grad in zip('xyz', gradpn):
                         subs[f'grad_{pname}_{dim}'] = grad
 
             for j, v in enumerate(self.exprs):

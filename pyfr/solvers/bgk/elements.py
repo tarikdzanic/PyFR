@@ -248,6 +248,7 @@ class BGKElements(BaseAdvectionElements):
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.tflux')
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.tfluxlin')
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.negdivconfbgk')
+        self._be.pointwise.register('pyfr.solvers.bgk.kernels.collision')
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.limiter')
         self._be.pointwise.register('pyfr.solvers.bgk.kernels.macrostate')
 
@@ -334,11 +335,15 @@ class BGKElements(BaseAdvectionElements):
         plocsrc = self._ploc_in_src_exprs
         plocupts = self.ploc_at('upts') if plocsrc else None
     
+        self.kernels['collision'] = lambda : self._be.kernel(
+            'collision', tplargs=tplargs, dims=[self.nupts, self.neles],
+            f=self._scal_upts_cpy, u=self.umat, M=self.Mmat
+        )
+    
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(
             'negdivconfbgk', tplargs=tplargs,
             dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
-            rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, f=self._scal_upts_cpy,
-            u=self.umat, M=self.Mmat
+            rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts, coll=self._scal_upts_cpy
         )
 
         # Positivity-preserving squeeze limiter
@@ -349,7 +354,7 @@ class BGKElements(BaseAdvectionElements):
 
             self.kernels['limiter'] = lambda uin: self._be.kernel(
                 'limiter', tplargs=tplargs,
-                dims=[self.neles], f=self.scal_upts[uin]
+                dims=[self.neles*self.nvars], f=self.scal_upts[uin]
             )
         
         # Compute and store macroscopic variables
