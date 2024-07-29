@@ -179,7 +179,7 @@ class BaseElements:
 
     @cached_property
     def optimize_memory(self):
-        return self.cfg.getbool('solver', 'optimize-memory', True)
+        return self.cfg.getbool('solver', 'optimize-memory', False)
 
     def set_backend(self, backend, nscalupts, nonce, linoff):
         self._be = backend
