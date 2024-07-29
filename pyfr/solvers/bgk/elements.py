@@ -256,6 +256,10 @@ class BGKElements(BaseAdvectionElements):
         self.umat = self._be.const_matrix(self.u)
         self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
+        
+        # Allocate space for the collision time vector
+        self.tau = self._be.matrix((self.nupts, self.neles),
+                                   extent=nonce + 'tau', tags={'align'})
 
         # Get solver constants
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
@@ -337,7 +341,7 @@ class BGKElements(BaseAdvectionElements):
     
         self.kernels['collision'] = lambda : self._be.kernel(
             'collision', tplargs=tplargs, dims=[self.nupts, self.neles],
-            f=self._scal_upts_cpy, u=self.umat, M=self.Mmat
+            f=self._scal_upts_cpy, u=self.umat, M=self.Mmat, tau=self.tau
         )
     
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(

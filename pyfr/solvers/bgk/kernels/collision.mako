@@ -8,7 +8,8 @@
               t='scalar fpdtype_t'
               f='inout fpdtype_t[${str(nvars)}]'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
-              M='in broadcast fpdtype_t[1][${str(nuvars)}]'>
+              M='in broadcast fpdtype_t[1][${str(nuvars)}]'
+              tau='out fpdtype_t'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
@@ -43,15 +44,15 @@
     fpdtype_t p = q[${ndims+1}];
     fpdtype_t theta = p/q[0];
     % if viscosity_law == 'constant-tau':
-    fpdtype_t tau = ${tau_ref/Pr};
+    tau = ${tau_ref/Pr};
     % elif viscosity_law == 'constant-viscosity':
-    fpdtype_t tau = ${tau_ref*P_ref/Pr}/p;
+    tau = ${tau_ref*P_ref/Pr}/p;
     % elif viscosity_law == 'power-law':
-    fpdtype_t tau = ${tau_ref/Pr}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
+    tau = ${tau_ref/Pr}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
     % elif viscosity_law == 'sutherland':
     // mu = mu_ref*(T/T_ref)^1.5 * (T_ref + T_s)/(T + T_s)
     fpdtype_t theta_rat = theta/${theta_ref};
-    fpdtype_t tau = (${tau_ref*P_ref*(theta_ref + theta_s)/Pr}/p)*theta_rat*sqrt(theta_rat)/(theta + ${theta_s});
+    tau = (${tau_ref*P_ref*(theta_ref + theta_s)/Pr}/p)*theta_rat*sqrt(theta_rat)/(theta + ${theta_s});
     % endif
 
     // Set source term
