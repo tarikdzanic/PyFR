@@ -370,3 +370,39 @@ class BGKElements(BaseAdvectionElements):
             dims=[self.nupts, self.neles], f=self.scal_upts[uin],
             mvars=self.mvars, u=self.umat, M=self.Mmat
         )
+
+        # Helper kernels for IMEX schemes
+        if 'imex' in self.cfg.get('solver-time-integrator', 'scheme'):
+            self._be.pointwise.register('pyfr.solvers.bgk.kernels.negdivconfbgknosource')
+            self._be.pointwise.register('pyfr.solvers.bgk.kernels.gtau')
+            self._be.pointwise.register('pyfr.solvers.bgk.kernels.gmfrcptau')
+            self._be.pointwise.register('pyfr.solvers.bgk.kernels.imexsolve')
+
+            # Compute and store g and tau
+            self.g = self._be.matrix((self.nupts, self.nvars, self.neles),
+                                    extent=nonce + 'g', tags={'align'})
+            self.kernels['gtau'] = lambda uin : self._be.kernel(
+                'gtau', tplargs=tplargs, dims=[self.nupts, self.neles],
+                f=self.scal_upts[uin], g=self.g, u=self.umat, M=self.Mmat,
+                tau=self.tau
+            )
+
+            # Take in f and tau and g (stored from gtau kernel) and compute (g-f)/tau
+            self.kernels['gmfrcptau'] = lambda uin: self._be.kernel(
+                'gmfrcptau', tplargs=tplargs, dims=[self.nupts, self.neles],
+                f=self.scal_upts[uin], g=self.g, tau=self.tau
+            )
+
+            # Solve semi-implicit step (f + z*g/tau)/(1 + z/tau), where
+            # z is an extern and g and tau are stored from gtau kernel
+            self.kernels['imexsolve'] = lambda uin: self._be.kernel(
+                'imexsolve', tplargs=tplargs, dims=[self.nupts, self.neles],
+                f=self.scal_upts[uin], g=self.g, tau=self.tau
+            )
+
+            # Compute RHS without collision (-u.grad(f))
+            self.kernels['negdivconf_nosource'] = lambda fout: self._be.kernel(
+                'negdivconfbgknosource', tplargs=tplargs,
+                dims=[self.nupts, self.neles], tdivtconf=self.scal_upts[fout],
+                rcpdjac=self.rcpdjac_at('upts'), ploc=plocupts
+            )

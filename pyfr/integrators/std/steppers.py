@@ -257,3 +257,27 @@ class StdRK45Stepper(StdRKVdH2RStepper):
         606302364029 / 971179775848,
         1097981568119 / 3980877426909
     ]
+
+class StdIMEX11Stepper(BaseStdStepper):
+    stepper_name = 'imex11'
+    stepper_has_errest = False
+    stepper_nregs = 2
+    stepper_order = 1
+
+    @property
+    def _stepper_nfevals(self):
+        return self.nsteps
+
+    def step(self, t, dt):
+        syst = self.system
+        add, rhs_nosource = self._add, syst.rhs_nosource
+        limit, gtau, imex_solve = syst.limit, syst.gtau, syst.imex_solve
+        ut, f = self._regidx
+
+        rhs_nosource(t, ut, f)
+        add(1.0, ut, dt, f)
+        limit(ut)
+        gtau(ut)
+        imex_solve(ut, t+dt, dt)
+
+        return ut

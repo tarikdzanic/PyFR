@@ -256,9 +256,12 @@ class BaseSystem:
             b.prepare(t)
 
         for b in binders:
-            b(t=t)
+            b(t=t, z=0)
 
     def _rhs_graphs(self, uinbank, foutbank):
+        pass
+
+    def _rhs_nosource_graphs(self, uinbank, foutbank):
         pass
 
     def rhs(self, t, uinbank, foutbank):
@@ -266,6 +269,13 @@ class BaseSystem:
         self._prepare_kernels(t, uinbank, foutbank)
 
         for graph in self._rhs_graphs(uinbank, foutbank):
+            self.backend.run_graph(graph)
+
+    def rhs_nosource(self, t, uinbank, foutbank):
+        self._rhs_uin_fout.add((uinbank, foutbank))
+        self._prepare_kernels(t, uinbank, foutbank)
+
+        for graph in self._rhs_nosource_graphs(uinbank, foutbank):
             self.backend.run_graph(graph)
 
     def rhs_wait_times(self):
