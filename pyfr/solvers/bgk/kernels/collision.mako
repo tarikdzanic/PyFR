@@ -19,41 +19,18 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
-    // Apply ES-BGK model if necessary
-    % if Pr != 1:
-    // Compute initial temperature tensor (scaled by 1 - 1/Pr)
-    fpdtype_t T[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'q', 'u', 'M')}; 
-
-    // Get alpha vector
-    fpdtype_t alpha[${ndims+2}], Tvinv[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'Tvinv', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'w', 'T', 'Tvinv', 'u', 'M')};
-    % else:
-    // Get alpha vector
+    // Compute equilibrium distribution function via DVM
     fpdtype_t alpha[${ndims+2}];
-    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+    % if Pr != 1:
+    fpdtype_t Tvinv[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('iterate_alpha_ESBGK', 'w', 'q', 'u', 'M', 'Tvinv', 'alpha')};
+    % else:
+    ${pyfr.expand('iterate_alpha_BGK', 'w', 'q', 'u', 'M', 'alpha')};
     % endif
 
     // Compute collision time based on viscosity model
-    fpdtype_t p = q[${ndims+1}];
-    fpdtype_t theta = p/q[0];
-    % if viscosity_law == 'constant-tau':
-    tau = ${tau_ref/Pr};
-    % elif viscosity_law == 'constant-viscosity':
-    tau = ${tau_ref*P_ref/Pr}/p;
-    % elif viscosity_law == 'power-law':
-    tau = ${tau_ref/Pr}*pow(theta/${theta_ref}, ${omega})/(p/${P_ref});
-    % elif viscosity_law == 'sutherland':
-    // mu = mu_ref*(T/T_ref)^1.5 * (T_ref + T_s)/(T + T_s)
-    fpdtype_t theta_rat = theta/${theta_ref};
-    tau = (${tau_ref*P_ref*(theta_ref + theta_s)/Pr}/p)*theta_rat*sqrt(theta_rat)/(theta + ${theta_s});
-    % endif
+    fpdtype_t theta;
+    ${pyfr.expand('compute_tau', 'q', 'theta', 'tau')};
 
     // Set source term
     fpdtype_t g;
