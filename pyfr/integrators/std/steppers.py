@@ -281,3 +281,57 @@ class StdIMEX11Stepper(BaseStdStepper):
         imex_solve(ut, t+dt, dt)
 
         return ut
+
+class StdIMEX32Stepper(BaseStdStepper):
+    stepper_name = 'imex32'
+    stepper_has_errest = False
+    stepper_nregs = 3
+    stepper_order = 2
+
+    @property
+    def _stepper_nfevals(self):
+        return self.nsteps
+
+    def step(self, t, dt):
+        syst = self.system
+        add, rhs_nosource = self._add, syst.rhs_nosource
+        limit, gtau = syst.limit, syst.gtau
+        imex_solve, gmfrcptau = syst.imex_solve, syst.gmfrcptau
+        r0, r1, r2 = self._regidx
+
+        limit(r0) # limit(fn)
+        gtau(r0) # g1 = g2 = g(f^n)
+        add(0.0, r1, 1.0, r0) # r1 = fn
+        imex_solve(r1, t+0.5*dt, 0.5*dt) # f1 = fn + 0.5*dt*(g1-f1)/tau
+        add(0.0, r2, 1.0, r1) # r2 = f1
+        gmfrcptau(r2) # r2 = (g1 - f1)/tau
+        
+        add(1.0, r1, -dt, r2) # r1 = f1 - dt*(g1 - f1)/tau = fn - 0.5*dt*(g1-f1)/tau
+        imex_solve(r1, t, 0.5*dt) # r1 = f2 = fn - 0.5*dt*(g1-f1)/tau + 0.5*dt*(g2-f2)/tau
+        limit(r1)
+        rhs_nosource(t, r1, r2) # r2 = D(f2)
+        gmfrcptau(r1) # r1 = (g2 - f2)/tau
+
+        # Collect: r0 = fn + dt*D(f2) (will subtract 0.5 later)
+        add(1.0, r0, dt, r2)
+        limit(r0)
+        gtau(r0) # g3
+
+        # r0 = fn + dt*D(f2) + 0.5*(g2 - f2)/tau
+        add(1.0, r0, 0.5*dt, r1)
+        add(0.0, r1, 1.0, r0) # r1 = r0
+        imex_solve(r1, t+dt, 0.5*dt) # r1 = f3
+
+        # r0 = fn + 0.5*dt*D(f2) + 0.5*(g2 - f2)/tau
+        add(1.0, r0, -0.5*dt, r2)
+        rhs_nosource(t, r1, r2) # r2 = D(f3)
+    
+        # r0 = fn + 0.5*dt*D(f2) + 0.5*(g2 - f2)/tau + 0.5*dt*D(f3)
+        add(1.0, r0, 0.5*dt, r2) 
+        gmfrcptau(r1) # r1 = (g3 - f3)/tau
+
+        # r0 = fn + 0.5*dt*D(f2) + 0.5*(g2 - f2)/tau + 0.5*dt*D(f3) + 0.5*(g3 - f3)/tau
+        add(1.0, r0, 0.5*dt, r1) 
+        limit(r0)
+        
+        return r0
