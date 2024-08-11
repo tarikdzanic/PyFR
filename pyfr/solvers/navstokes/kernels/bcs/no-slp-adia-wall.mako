@@ -38,7 +38,7 @@
                                    + ul[0]*${omg**2}*ploc[1];
 
     // Copy all fluid-side gradients across to wall-side gradients
-    ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur')};
+    ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur', 'rote')};
 
     // Correct copied across in-fluid temp gradients to in-wall gradients
     grad_ur[0][3] -= nl[0]*nl[0]*Tl_x + nl[0]*nl[1]*Tl_y;
@@ -70,7 +70,7 @@
                                    + ul[0]*${omg**2}*ploc[2];
 
     // Copy all fluid-side gradients across to wall-side gradients
-    ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur')};
+    ${pyfr.expand('bc_common_grad_copy', 'ul', 'nl', 'grad_ul', 'grad_ur', 'rote')};
 
     // Correct copied across in-fluid temp gradients to in-wall gradients
     grad_ur[0][4] -= nl[0]*nl[0]*Tl_x + nl[0]*nl[1]*Tl_y + nl[0]*nl[2]*Tl_z;
