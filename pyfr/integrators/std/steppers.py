@@ -324,7 +324,7 @@ class StdIMEX32Stepper(BaseStdStepper):
 
         # r0 = fn + 0.5*dt*D(f2) + 0.5*dt*(g2 - f2)/tau
         add(1.0, r0, -0.5*dt, r2)
-        rhs_nosource(t, r1, r2) # r2 = D(f3)
+        rhs_nosource(t + dt, r1, r2) # r2 = D(f3)
     
         # r0 = fn + 0.5*dt*D(f2) + 0.5*dt*(g2 - f2)/tau + 0.5*dt*D(f3)
         add(1.0, r0, 0.5*dt, r2) 
