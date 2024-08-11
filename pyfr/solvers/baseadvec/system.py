@@ -255,10 +255,10 @@ class BaseAdvectionSystem(BaseSystem):
         self.backend.run_kernels(k['eles/gmfrcptau'])
 
     # Solve semi-implicit step (f + z*g/tau)/(1 + z/tau)
-    def imex_solve(self, uinbank, t, z):
+    def imex_solve(self, uinbank, z):
         k, binders = self._get_kernels(uinbank, None)
 
         for b in binders:
-            b(t=t, z=z)
+            b(t=0, z=z)
 
         self.backend.run_kernels(k['eles/imexsolve'])
