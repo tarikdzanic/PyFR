@@ -364,7 +364,7 @@ class BaseElements:
         mag_pnorm = np.einsum('...i,...i', pnorm, pnorm)
 
         # Check that none of these magnitudes are zero
-        if np.any(np.sqrt(mag_pnorm) < 1e-10):
+        if np.any(np.sqrt(mag_pnorm) < 1e-12):
             raise RuntimeError('Zero face normals detected')
 
         return pnorm
