@@ -5,6 +5,7 @@
 <%pyfr:kernel name='entropylocal' ndim='1'
               u='in fpdtype_t[${str(nupts)}][${str(nvars)}]'
               rote='in fpdtype_t[${str(nupts)}]'
+              rotef='in fpdtype_t[${str(nfpts)}]'
               entmin_int='out fpdtype_t[${str(nfaces)}]'
               m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'>
     // Compute minimum entropy across element
@@ -31,7 +32,8 @@
         {
             uf[vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
         }
-        ${pyfr.expand('compute_entropy', 'uf', 'd', 'p', 'e')};
+        ri = rotef[fidx];
+        ${pyfr.expand('compute_entropy', 'uf', 'd', 'p', 'e', 'ri')};
         entmin = fmin(entmin, e);
     }
     % endif

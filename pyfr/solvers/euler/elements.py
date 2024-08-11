@@ -144,16 +144,16 @@ class BaseFluidElements:
             # Compute local entropy bounds
             self.kernels['local_entropy'] = lambda uin: self._be.kernel(
                 'entropylocal', tplargs=eftplargs, dims=[self.neles],
-                u=self.scal_upts[uin], rote=self.rote_at('upts'),
-                entmin_int=self.entmin_int, m0=self.m0
+                u=self.scal_upts[uin], entmin_int=self.entmin_int, m0=self.m0,
+                rote=self.rote_at('upts'), rotef=self.rote_at('fpts')
             )
 
             # Apply entropy filter
             self.kernels['entropy_filter'] = lambda uin: self._be.kernel(
                 'entropyfilter', tplargs=eftplargs, dims=[self.neles],
-                u=self.scal_upts[uin], rote=self.rote_at('upts'),
-                entmin_int=self.entmin_int, vdm=self.vdm_ef,
-                invvdm=self.invvdm, m0=self.m0
+                u=self.scal_upts[uin], entmin_int=self.entmin_int,
+                vdm=self.vdm_ef, invvdm=self.invvdm, m0=self.m0,
+                rote=self.rote_at('upts'), rotef=self.rote_at('fpts')
             )
 
 

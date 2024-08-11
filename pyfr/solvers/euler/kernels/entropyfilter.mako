@@ -27,7 +27,8 @@
         {
             uf[vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
         }
-        ${pyfr.expand('compute_entropy', 'uf', 'd', 'p', 'e')};
+        ri = rotef[fidx];
+        ${pyfr.expand('compute_entropy', 'uf', 'd', 'p', 'e', 'ri')};
         dmin = fmin(dmin, d); pmin = fmin(pmin, p); emin = fmin(emin, e);
     }
     % endif
@@ -89,6 +90,7 @@
 <%pyfr:kernel name='entropyfilter' ndim='1'
               u='inout fpdtype_t[${str(nupts)}][${str(nvars)}]'
               rote='in fpdtype_t[${str(nupts)}]'
+              rotef='in fpdtype_t[${str(nfpts)}]'
               entmin_int='inout fpdtype_t[${str(nfaces)}]'
               vdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'
               invvdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'
@@ -142,7 +144,7 @@
             % endfor
 
             // Set rotational energy
-            ri = rote[uidx];
+            ri = uidx < ${nupts} ? rote[uidx] : rotef[uidx - ${nupts}];
 
             // Compute constraints with current minimum f value
             ${pyfr.expand('apply_filter_single', 'up', 'f', 'd', 'p', 'e', 'ri')};
