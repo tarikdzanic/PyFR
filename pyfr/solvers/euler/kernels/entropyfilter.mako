@@ -18,6 +18,19 @@
         ${pyfr.expand('compute_entropy', 'ui', 'd', 'p', 'e', 'ri')};
         dmin = fmin(dmin, d); pmin = fmin(pmin, p); emin = fmin(emin, e);
     }
+
+    % if not fpts_in_upts:
+    fpdtype_t uf[${nvars}];
+    for (int fidx = 0; fidx < ${nfpts}; fidx++)
+    {
+        for (int vidx = 0; vidx < ${nvars}; vidx++)
+        {
+            uf[vidx] = ${pyfr.dot('m0[fidx][{k}]', 'u[{k}][vidx]', k=nupts)};
+        }
+        ${pyfr.expand('compute_entropy', 'uf', 'd', 'p', 'e')};
+        dmin = fmin(dmin, d); pmin = fmin(pmin, p); emin = fmin(emin, e);
+    }
+    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='apply_filter_full' params='umodes, vdm, uf, f'>
@@ -57,14 +70,16 @@
 % endfor
 
     // Apply filter to local value
-    fpdtype_t v = 1.0;
+    fpdtype_t v = 1.0, v2;
     for (int pidx = 1; pidx < ${order+1}; pidx++)
     {
-        // Utilize exp(-zeta*p**2) = pow(f, p**2)
+        // Utilize exp(-zeta*p**2) = pow(f, p**2) = pow(pow(f, p), p)
         v *= f;
+        v2 = v;
+        for (int zidx = 1; zidx < pidx; zidx++) v2 *= v;
 
         % for vidx in range(nvars):
-        ui[${vidx}] += v*v*up[pidx][${vidx}];
+        ui[${vidx}] += v2*up[pidx][${vidx}];
         % endfor
     }
 
@@ -76,7 +91,8 @@
               rote='in fpdtype_t[${str(nupts)}]'
               entmin_int='inout fpdtype_t[${str(nfaces)}]'
               vdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'
-              invvdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'>
+              invvdm='in broadcast fpdtype_t[${str(nupts)}][${str(nupts)}]'
+              m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'>
     fpdtype_t dmin, pmin, emin;
 
     // Compute minimum entropy from current and adjacent elements
@@ -112,13 +128,18 @@
 
         // Compute f on a rolling basis per solution point
         fpdtype_t up[${order+1}][${nvars}];
+        
+        % if fpts_in_upts:
         for (int uidx = 0; uidx < ${nupts}; uidx++)
+        % else:
+        for (int uidx = 0; uidx < ${nupts + nfpts}; uidx++)
+        % endif
         {
             // Group nodal contributions by common filter factor
-        % for pidx, vidx in pyfr.ndrange(order+1, nvars):
+            % for pidx, vidx in pyfr.ndrange(order+1, nvars):
             up[${pidx}][${vidx}] = (${' + '.join(f'vdm[uidx][{k}]*umodes[{k}][{vidx}]'
                                                    for k, dd in enumerate(ubdegs) if dd == pidx)});
-        % endfor
+            % endfor
 
             // Set rotational energy
             ri = rote[uidx];
