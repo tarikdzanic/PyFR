@@ -4,11 +4,12 @@
 
 <%include file='pyfr.solvers.bgk.kernels.util'/>
 
-<%pyfr:kernel name='collision' ndim='2'
+<%pyfr:kernel name='gtau' ndim='2'
               t='scalar fpdtype_t'
-              f='inout fpdtype_t[${str(nvars)}]'
+              f='in fpdtype_t[${str(nvars)}]'
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
               M='in broadcast fpdtype_t[1][${str(nuvars)}]'
+              g='out fpdtype_t[${str(nvars)}]'
               tau='out fpdtype_t'>
 
     // Navier-Stokes conserved variables
@@ -33,20 +34,19 @@
     ${pyfr.expand('compute_tau', 'q', 'theta', 'tau')};
 
     // Set source term
-    fpdtype_t g;
+    fpdtype_t gi;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
         % if Pr != 1:
-        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'Tvinv', 'g')};
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'Tvinv', 'gi')};
         % else:
-        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'gi')};
         % endif
 
         // Set source
-        f[i] = (g - f[i])/tau;
+        g[i] = gi;
         % if delta:
-        f[i + ${nuvars}] = (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
+        g[i + ${nuvars}] = (${delta/2.0}*theta*gi);
         % endif
     }
-
 </%pyfr:kernel>
