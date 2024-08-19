@@ -211,8 +211,8 @@
 </%pyfr:macro>
 
 <%pyfr:macro name='iterate_DVM_BGK' params='alpha, w, u, M'>
-    fpdtype_t R[${ndims+2}];
-    fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
+    fpdtype_t R[${ndims+2}], da[${ndims+2}];
+    fpdtype_t J[${ndims+2}][${ndims+2}];
     fpdtype_t mmnts[${ndims+2}];
     fpdtype_t gm, Mgm, invdet;
 
@@ -270,22 +270,18 @@
         % endfor
 
         // Compute inverse Jacobian
-        % if ndims == 2:
-        ${pyfr.expand('compute_4x4inverse', 'J', 'Jinv', 'invdet')};
-        % elif ndims == 3:
-        ${pyfr.expand('compute_5x5inverse', 'J', 'Jinv', 'invdet')};
-        % endif
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da')};
 
         // Take Newton iteration
         % for var in range(ndims+2):
-        alpha[${var}] = alpha[${var}] - (${' + '.join('Jinv[{var}][{i}]*R[{i}]'.format(var=var, i=i) for i in range(ndims+2))});
+        alpha[${var}] -= da[${var}];
         % endfor
     }
 </%pyfr:macro>
 
 <%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, w, T, Tvinv, u, M'>
-    fpdtype_t R[${ndims+2}];
-    fpdtype_t J[${ndims+2}][${ndims+2}], Jinv[${ndims+2}][${ndims+2}];
+    fpdtype_t R[${ndims+2}], da[${ndims+2}];
+    fpdtype_t J[${ndims+2}][${ndims+2}];
     fpdtype_t Tv[${ndims}][${ndims}];
     fpdtype_t mmnts[${ndims+2}];
     fpdtype_t gm, Mgm, invdet;
@@ -366,15 +362,11 @@
         % endfor
 
         // Compute inverse Jacobian
-        % if ndims == 2:
-        ${pyfr.expand('compute_4x4inverse', 'J', 'Jinv', 'invdet')};
-        % elif ndims == 3:
-        ${pyfr.expand('compute_5x5inverse', 'J', 'Jinv', 'invdet')};
-        % endif
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da')};
 
         // Take Newton iteration
         % for var in range(ndims+2):
-        alpha[${var}] = alpha[${var}] - (${' + '.join('Jinv[{var}][{i}]*R[{i}]'.format(var=var, i=i) for i in range(ndims+2))});
+        alpha[${var}] -= da[${var}];
         % endfor
 
         // Update inverse temperature tensor

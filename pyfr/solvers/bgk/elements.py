@@ -268,6 +268,9 @@ class BGKElements(BaseAdvectionElements):
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
         theta_ref = P_ref/rho_ref
 
+        # Linear system size for DVM
+        N = self.ndims + 2
+
         # Template parameters for the flux kernels
         tplargs = {
             'ndims': self.ndims, 'nupts': self.nupts,
@@ -279,7 +282,7 @@ class BGKElements(BaseAdvectionElements):
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'Pr' : Pr
+            'Pr': Pr, 'N': N
         }
 
         # Setup viscosity law
