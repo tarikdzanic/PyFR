@@ -236,6 +236,12 @@ class BaseAdvectionSystem(BaseSystem):
 
             return g1, g2
 
+    # Pre-process solution
+    def preproc(self, uinbank):
+        k, _ = self._get_kernels(uinbank, None)
+
+        self.backend.run_kernels(k['eles/macrostate'])
+
     # Apply limiter
     def limit(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)

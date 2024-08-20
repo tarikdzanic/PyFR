@@ -399,14 +399,18 @@ class VTKWriter(BaseWriter):
 
     def _pre_proc_fields_soln(self, name, mesh, soln):
         # Convert from conservative to primitive variables
-        return np.array(self.elementscls.f_to_vis(soln, self.cfg, self.M, self.u, self.psi, self.ndims))
+        npris = len(self.elementscls.privarmap[self.ndims])
+        if soln.shape[0] == npris:
+            return np.array(self.elementscls.con_to_pri(soln, self.cfg))
+        else:
+            return np.array(self.elementscls.f_to_vis(soln, self.cfg, self.M, self.u, self.psi, self.ndims))
 
     def _pre_proc_fields_scal(self, name, mesh, soln):
         return soln
 
     def _post_proc_fields_soln(self, vsoln):
         # Primitive and visualisation variable maps
-        privarmap = self.elementscls.privarmap2[self.ndims]
+        privarmap = self.elementscls.privarmap[self.ndims]
         visvarmap = self.elementscls.visvarmap[self.ndims]
 
         # Prepare the fields

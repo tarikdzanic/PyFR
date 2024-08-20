@@ -120,17 +120,18 @@ class BGKElements(BaseAdvectionElements):
     convarmap = {2: ['1'],
                  3: ['1']}
 
+    convarmap2 = {2: ['rho', 'rhou', 'rhov', 'E'],
+                  3: ['rho', 'rhou', 'rhov', 'rhow', 'E']}
+
     dualcoeffs = convarmap
 
     visvarmap = {
         2: [('density', ['rho']),
             ('velocity', ['u', 'v']),
-            ('pressure', ['p']),
-            ('strain', ['sxy'])],
+            ('pressure', ['p'])],
         3: [('density', ['rho']),
             ('velocity', ['u', 'v', 'w']),
-            ('pressure', ['p']),
-            ('strain', ['sxy', 'sxz', 'syz'])]
+            ('pressure', ['p'])]
     }
 
 
@@ -202,16 +203,6 @@ class BGKElements(BaseAdvectionElements):
         # Compute primitive variables
         cons = BGKElements.f_to_con(f, cfg, M, u, psi, ndims)
         pris = BGKElements.con_to_pri(cons, cfg)
-
-        # Compute and append off-diagonal molecular stresses
-        if ndims == 2:
-            psi2 = [u[:,0]*u[:,1]]
-        elif ndims == 3:
-            psi2 = [u[:,0]*u[:,1], u[:,0]*u[:,2], u[:,1]*u[:,2]]
- 
-        nuvars = len(u)
-        for i in range(len(psi2)):
-            pris.append(np.einsum('i,ijk->jk', M*psi2[i], f[:nuvars,:,:]))
 
         return pris
 

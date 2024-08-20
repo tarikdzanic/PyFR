@@ -17,6 +17,7 @@ class WriterPlugin(PostactionMixin, RegionMixin, BasePlugin):
         # Base output directory and file name
         basedir = self.cfg.getpath(self.cfgsect, 'basedir', '.', abs=True)
         basename = self.cfg.get(self.cfgsect, 'basename')
+        self.macro_only = self.cfg.getbool(self.cfgsect, 'write-macrostate', False)
 
         # Construct the solution writer
         self._writer = NativeWriter(intg, basedir, basename, 'soln')
@@ -26,7 +27,10 @@ class WriterPlugin(PostactionMixin, RegionMixin, BasePlugin):
         self.tout_last = intg.tcurr
 
         # Output field names
-        self.fields = intg.system.elementscls.convarmap[self.ndims]
+        if self.macro_only:
+            self.fields = intg.system.elementscls.convarmap2[self.ndims]
+        else:
+            self.fields = intg.system.elementscls.convarmap[self.ndims]
 
         # Output data type
         self.fpdtype = intg.backend.fpdtype
@@ -72,7 +76,10 @@ class WriterPlugin(PostactionMixin, RegionMixin, BasePlugin):
         # Fetch and (if necessary) subset the solution
         data = dict(self._ele_region_data)
         for idx, etype, rgn in self._ele_regions:
-            data[etype] = intg.soln[idx][..., rgn].astype(self.fpdtype)
+            if self.macro_only:
+                data[etype] = intg.macro_soln[idx][..., rgn].astype(self.fpdtype)
+            else:
+                data[etype] = intg.soln[idx][..., rgn].astype(self.fpdtype)
 
         # Write out the file
         solnfname = self._writer.write(data, intg.tcurr, metadata)

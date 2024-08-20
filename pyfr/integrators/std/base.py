@@ -30,6 +30,9 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
         self._regidx = list(range(self.nregs))
         self._idxcurr = 0
 
+        # Pre-process solution
+        self.system.preproc(self._idxcurr)
+
         # Global degree of freedom count
         self._gndofs = self._get_gndofs()
 
