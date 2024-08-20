@@ -248,9 +248,11 @@ class BGKElements(BaseAdvectionElements):
         self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
         
-        # Allocate space for the collision time vector
-        self.tau = self._be.matrix((self.nupts, self.neles),
+        # Allocate space for the collision time and alpha vector
+        self.tau = self._be.matrix((self.nupts, 1, self.neles),
                                    extent=nonce + 'tau', tags={'align'})
+        self.alpha = self._be.matrix((self.nupts, self.ndims + 2, self.neles),
+                                     extent=nonce + 'alpha', tags={'align'})
 
         # Get solver constants
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
@@ -335,7 +337,8 @@ class BGKElements(BaseAdvectionElements):
     
         self.kernels['collision'] = lambda : self._be.kernel(
             'collision', tplargs=tplargs, dims=[self.nupts, self.neles],
-            f=self._scal_upts_cpy, u=self.umat, M=self.Mmat, tau=self.tau
+            f=self._scal_upts_cpy, u=self.umat, M=self.Mmat, tau=self.tau,
+            alpha=self.alpha
         )
     
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(
@@ -374,11 +377,11 @@ class BGKElements(BaseAdvectionElements):
 
             # Compute and store g and tau
             self.g = self._be.matrix((self.nupts, self.nvars, self.neles),
-                                    extent=nonce + 'g', tags={'align'})
+                                     extent=nonce + 'g', tags={'align'})
             self.kernels['gtau'] = lambda uin : self._be.kernel(
                 'gtau', tplargs=tplargs, dims=[self.nupts, self.neles],
                 f=self.scal_upts[uin], g=self.g, u=self.umat, M=self.Mmat,
-                tau=self.tau
+                tau=self.tau, alpha=self.alpha
             )
 
             # Take in f and tau and g (stored from gtau kernel) and compute (g-f)/tau

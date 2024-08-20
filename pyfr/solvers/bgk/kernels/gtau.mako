@@ -10,7 +10,8 @@
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
               M='in broadcast fpdtype_t[1][${str(nuvars)}]'
               g='out fpdtype_t[${str(nvars)}]'
-              tau='out fpdtype_t'>
+              tau='out fpdtype_t'
+              alpha='out fpdtype_t[${str(ndims+2)}]'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
@@ -21,7 +22,6 @@
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
     // Compute equilibrium distribution function via DVM
-    fpdtype_t alpha[${ndims+2}];
     % if Pr != 1:
     fpdtype_t Tvinv[${ndims}][${ndims}] = {{0}};
     ${pyfr.expand('iterate_alpha_ESBGK', 'w', 'q', 'u', 'M', 'Tvinv', 'alpha')};
