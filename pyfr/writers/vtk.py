@@ -399,7 +399,7 @@ class VTKWriter(BaseWriter):
 
     def _pre_proc_fields_soln(self, name, mesh, soln):
         # Convert from conservative to primitive variables
-        npris = len(self.elementscls.privarmap[self.ndims])
+        npris = len(self.elementscls.privarmap2[self.ndims])
         if soln.shape[0] == npris:
             return np.array(self.elementscls.con_to_pri(soln, self.cfg))
         else:

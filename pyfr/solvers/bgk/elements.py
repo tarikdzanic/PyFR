@@ -114,14 +114,14 @@ class BGKElements(BaseAdvectionElements):
     privarmap = {2: ['rho', 'u', 'v', 'p'],
                  3: ['rho', 'u', 'v', 'w', 'p']}
 
-    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'sxy'],
-                  3: ['rho', 'u', 'v', 'w', 'p', 'sxy', 'sxz', 'syz']}
+    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2'],
+                  3: ['rho', 'u', 'v', 'w', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2']}
 
     convarmap = {2: ['1'],
                  3: ['1']}
 
-    convarmap2 = {2: ['rho', 'rhou', 'rhov', 'E'],
-                  3: ['rho', 'rhou', 'rhov', 'rhow', 'E']}
+    convarmap2 = {2: ['rho', 'rhou', 'rhov', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2'],
+                  3: ['rho', 'rhou', 'rhov', 'rhow', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2']}
 
     dualcoeffs = convarmap
 
@@ -144,7 +144,7 @@ class BGKElements(BaseAdvectionElements):
 
         self.nuvars = len(self.u)
         self.nvars = 2*self.nuvars if self.delta else self.nuvars
-        self.nmvars = self.ndims + 2
+        self.nmvars = self.ndims + 8
 
         super().__init__(basiscls, eles, cfg)
 
@@ -208,16 +208,19 @@ class BGKElements(BaseAdvectionElements):
 
     @staticmethod
     def con_to_pri(cons, cfg):
-        rho, E = cons[0], cons[-1]
+        rho, E = cons[0], cons[4]
 
         # Divide momentum components by rho
-        vs = [rhov/rho for rhov in cons[1:-1]]
+        vs = [rhov/rho for rhov in cons[1:4]]
 
         # Compute the pressure
         gamma = cfg.getfloat('constants', 'gamma')
         p = (gamma - 1)*(E - 0.5*rho*sum(v*v for v in vs))
 
-        return [rho] + vs + [p]
+        if len(cons) > 5:
+            return [rho] + vs + [p] + list(cons[5:])
+        else:
+            return [rho] + vs + [p]
 
     @staticmethod
     def pri_to_con(pris, cfg):
@@ -334,11 +337,15 @@ class BGKElements(BaseAdvectionElements):
 
         plocsrc = self._ploc_in_src_exprs
         plocupts = self.ploc_at('upts') if plocsrc else None
+
+        # Compute and store macroscopic variables
+        self.mvars = self._be.matrix((self.nupts, self.nmvars, self.neles),
+                                     extent=nonce + 'mvars', tags={'align'})
     
         self.kernels['collision'] = lambda : self._be.kernel(
             'collision', tplargs=tplargs, dims=[self.nupts, self.neles],
             f=self._scal_upts_cpy, u=self.umat, M=self.Mmat, tau=self.tau,
-            alpha=self.alpha
+            alpha=self.alpha, mvars=self.mvars
         )
     
         self.kernels['negdivconf'] = lambda fout: self._be.kernel(
@@ -358,9 +365,6 @@ class BGKElements(BaseAdvectionElements):
                 dims=[self.neles*self.nvars], f=self.scal_upts[uin]
             )
         
-        # Compute and store macroscopic variables
-        self.mvars = self._be.matrix((self.nupts, self.nmvars, self.neles),
-                                     extent=nonce + 'mvars', tags={'align'})
 
         self.kernels['macrostate'] = lambda uin: self._be.kernel(
             'macrostate', tplargs=tplargs,
@@ -381,7 +385,7 @@ class BGKElements(BaseAdvectionElements):
             self.kernels['gtau'] = lambda uin : self._be.kernel(
                 'gtau', tplargs=tplargs, dims=[self.nupts, self.neles],
                 f=self.scal_upts[uin], g=self.g, u=self.umat, M=self.Mmat,
-                tau=self.tau, alpha=self.alpha
+                tau=self.tau, alpha=self.alpha, mvars=self.mvars
             )
 
             # Take in f and tau and g (stored from gtau kernel) and compute (g-f)/tau

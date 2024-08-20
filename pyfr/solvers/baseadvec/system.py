@@ -28,7 +28,7 @@ class BaseAdvectionSystem(BaseSystem):
         g1.add_all(k['eles/collision'], deps=k['eles/copy_soln'])
 
         # Compute and store macroscopic state
-        g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
+        # g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
 
         if optimize_memory:
             # Separate interior flux calculation by dimension
@@ -142,7 +142,7 @@ class BaseAdvectionSystem(BaseSystem):
         g1.add_all(k['eles/copy_soln'], deps=k['eles/limiter'])
 
         # Compute and store macroscopic state
-        g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
+        # g1.add_all(k['eles/macrostate'], deps=k['eles/limiter'])
 
         if optimize_memory:
             # Separate interior flux calculation by dimension
@@ -240,7 +240,8 @@ class BaseAdvectionSystem(BaseSystem):
     def preproc(self, uinbank):
         k, _ = self._get_kernels(uinbank, None)
 
-        self.backend.run_kernels(k['eles/macrostate'])
+        # self.backend.run_kernels(k['eles/macrostate'])
+        self.backend.run_kernels(k['eles/collision'])
 
     # Apply limiter
     def limit(self, uinbank):

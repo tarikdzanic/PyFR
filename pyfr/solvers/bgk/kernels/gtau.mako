@@ -11,7 +11,8 @@
               M='in broadcast fpdtype_t[1][${str(nuvars)}]'
               g='out fpdtype_t[${str(nvars)}]'
               tau='out fpdtype_t'
-              alpha='out fpdtype_t[${str(ndims+2)}]'>
+              alpha='out fpdtype_t[${str(ndims+2)}]'
+              mvars='out fpdtype_t[${str(nmvars)}]'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
@@ -33,8 +34,16 @@
     fpdtype_t theta;
     ${pyfr.expand('compute_tau', 'q', 'theta', 'tau')};
 
+    // Compute macroscopic state for collection
+    % for i in range(ndims + 2):
+    mvars[${i}] = w[${i}];
+    % endfor
+    % for i in range(ndims + 2, nmvars):
+    mvars[${i}] = 0.0;
+    % endfor
+
     // Set source term
-    fpdtype_t gi;
+    fpdtype_t gi, df, df2;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
         % if Pr != 1:
@@ -48,5 +57,19 @@
         % if delta:
         g[i + ${nuvars}] = (${delta/2.0}*theta*gi);
         % endif
+
+        // H1, H2
+        mvars[${ndims+2  }] += M[0][i]*f[i]*log(fmax(1E-15, f[i]));
+        mvars[${ndims+2+1}] += M[0][i]*f[i + ${nuvars}]*log(fmax(1E-15, f[i + ${nuvars}]));
+        df = (gi - f[i]);
+        df2 = (g[i + ${nuvars}] - f[i + ${nuvars}]);
+        // dH1, dH2
+        mvars[${ndims+2+2}] += M[0][i]*df*log(fmax(1E-15, f[i]));
+        mvars[${ndims+2+3}] += M[0][i]*df2*log(fmax(1E-15, f[i + ${nuvars}]));
+        // adf1, df1**2
+        mvars[${ndims+2+4}] += M[0][i]*abs(df);
+        mvars[${ndims+2+5}] += M[0][i]*df*df;
     }
+
+
 </%pyfr:kernel>

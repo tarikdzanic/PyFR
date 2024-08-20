@@ -157,17 +157,16 @@ class IntegratePlugin(BasePlugin):
         intvals = np.zeros(len(self.exprs))
 
         # Get the primitive variable names
-        pnames = self.elementscls.privarmap[self.ndims]
-        
+        pnames = self.elementscls.privarmap2[self.ndims]
+
 
         # Iterate over each element type in the simulation
-        for i, (soln, eleinfo) in enumerate(zip(intg.soln, self.eleinfo)):
+        for i, (soln, eleinfo) in enumerate(zip(intg.macro_soln, self.eleinfo)):
             plocs, wts, m0, m4, eset, emask, M, u, psi = eleinfo
 
 
             # Subset and transpose the solution
             soln = soln[..., eset].swapaxes(0, 1)
-            soln = self.elementscls.f_to_con(soln, self.cfg, M, u, psi, self.ndims)
             soln = self.elementscls.con_to_pri(soln, self.cfg)
 
             # Interpolate the solution to the quadrature points
