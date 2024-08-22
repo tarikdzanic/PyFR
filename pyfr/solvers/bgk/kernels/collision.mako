@@ -51,12 +51,6 @@
         ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
         % endif
 
-        // Set source
-        f[i] = (g - f[i])/tau;
-        % if delta:
-        f[i + ${nuvars}] = (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
-        % endif
-
 
         mvars[${ndims+2  }] += M[0][i]*f[i]*log(fmax(1E-15, f[i]));
         mvars[${ndims+2+1}] += M[0][i]*f[i + ${nuvars}]*log(fmax(1E-15, f[i + ${nuvars}]));
@@ -66,6 +60,12 @@
         mvars[${ndims+2+3}] += M[0][i]*df2*log(fmax(1E-15, f[i + ${nuvars}]));
         mvars[${ndims+2+4}] += M[0][i]*abs(df);
         mvars[${ndims+2+5}] += M[0][i]*df*df;
+
+        // Set source
+        f[i] = (g - f[i])/tau;
+        % if delta:
+        f[i + ${nuvars}] = (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
+        % endif
     }
 
 </%pyfr:kernel>
