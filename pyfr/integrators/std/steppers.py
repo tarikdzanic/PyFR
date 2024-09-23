@@ -361,7 +361,7 @@ class StdIMEX43Stepper(BaseStdStepper):
         eta = 0.1291528696059
         zeta = 0.5 - beta - eta - alpha
 
-        # r3 accumulates f4, r4 accumulates fnp1
+        # r3 accumulates f4, r0 accumulates fnp1
         r0, r1, r2, r3 = self._regidx
 
         # Ensure r0 references the bank containing u(t)
@@ -389,7 +389,7 @@ class StdIMEX43Stepper(BaseStdStepper):
         limit(r0)
         gtau(r0) # g3 = g(fn + dt*D(f2))
 
-        # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau 
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau 
         add(1.0, r0, -5.0/6.0*dt, r2, dt/6.0, r1)
 
         add(0.25*dt, r2, 1.0, r0, (1.0-alpha)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
@@ -403,7 +403,7 @@ class StdIMEX43Stepper(BaseStdStepper):
         gtau(r3) # g4 = g(fn + 0.25*dt*D(f2) + 0.25*dt*D(f3)) = g(r0) (Use here that moments are conserved by collision )
         add(1.0, r3, -0.25*dt, r1) 
 
-        # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
         #    + 1/6*dt*(g3 - f3)/tau 
         add(1.0, r0, dt/6.0, r1, dt/6.0, r2)
 
@@ -411,10 +411,10 @@ class StdIMEX43Stepper(BaseStdStepper):
         #    + 0.25*dt*D(f3) + zeta*dt*(g3 - f3)/tau 
         add(1.0, r3, 0.25*dt, r1, zeta*dt, r2)
         imex_solve(r3, alpha*dt) # r3 = f4
-
         rhs_nosource(t+0.5*dt, r3, r1) # r1 = D(f4)
         gmfrcptau(r3) # r3 = (g4 - f4)/tau
-        # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
+
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
         #    + 1/6*dt*(g3 - f3)/tau + 2/3*dt*D(f4)
         add(1.0, r0, 2.0/3.0*dt, r1, 2.0/3.0*dt, r3)
         limit(r0)
