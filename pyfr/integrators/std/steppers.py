@@ -299,6 +299,11 @@ class StdIMEX32Stepper(BaseStdStepper):
         imex_solve, gmfrcptau = syst.imex_solve, syst.gmfrcptau
         r0, r1, r2 = self._regidx
 
+        # Ensure r0 references the bank containing u(t)
+        if r0 != self._idxcurr:
+            r0 = self._idxcurr
+            r1, r2 = set(self._regidx) - {r0}
+
         gtau(r0) # g1 = g2 = g(f^n)
         add(0.0, r1, 1.0, r0) # r1 = fn
         imex_solve(r1, 0.5*dt) # f1 = fn + 0.5*dt*(g1-f1)/tau
@@ -358,6 +363,11 @@ class StdIMEX43Stepper(BaseStdStepper):
 
         # r3 accumulates f4, r4 accumulates fnp1
         r0, r1, r2, r3, r4 = self._regidx
+
+        # Ensure r0 references the bank containing u(t)
+        if r0 != self._idxcurr:
+            r0 = self._idxcurr
+            r1, r2, r3, r4 = set(self._regidx) - {r0}
 
         gtau(r0) # g1 = g2 = g(f^n)
         add(0.0, r1, 1.0, r0) # r1 = fn
