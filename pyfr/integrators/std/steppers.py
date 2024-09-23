@@ -299,7 +299,11 @@ class StdIMEX32Stepper(BaseStdStepper):
         imex_solve, gmfrcptau = syst.imex_solve, syst.gmfrcptau
         r0, r1, r2 = self._regidx
 
-        limit(r0) # limit(fn)
+        # Ensure r0 references the bank containing u(t)
+        if r0 != self._idxcurr:
+            r0 = self._idxcurr
+            r1, r2 = set(self._regidx) - {r0}
+
         gtau(r0) # g1 = g2 = g(f^n)
         add(0.0, r1, 1.0, r0) # r1 = fn
         imex_solve(r1, 0.5*dt) # f1 = fn + 0.5*dt*(g1-f1)/tau
@@ -308,7 +312,6 @@ class StdIMEX32Stepper(BaseStdStepper):
         
         add(1.0, r1, -dt, r2) # r1 = f1 - dt*(g1 - f1)/tau = fn - 0.5*dt*(g1-f1)/tau
         imex_solve(r1, 0.5*dt) # r1 = f2 = fn - 0.5*dt*(g1-f1)/tau + 0.5*dt*(g2-f2)/tau
-        limit(r1)
         rhs_nosource(t, r1, r2) # r2 = D(f2)
         gmfrcptau(r1) # r1 = (g2 - f2)/tau
 
@@ -334,4 +337,86 @@ class StdIMEX32Stepper(BaseStdStepper):
         add(1.0, r0, 0.5*dt, r1) 
         limit(r0)
         
+        return r0
+
+class StdIMEX43Stepper(BaseStdStepper):
+    stepper_name = 'imex43'
+    stepper_has_errest = False
+    stepper_nregs = 4
+    stepper_order = 3
+
+
+    @property
+    def _stepper_nfevals(self):
+        return self.nsteps
+
+    def step(self, t, dt):
+        syst = self.system
+        add, rhs_nosource = self._add, syst.rhs_nosource
+        limit, gtau = syst.limit, syst.gtau
+        imex_solve, gmfrcptau = syst.imex_solve, syst.gmfrcptau
+
+        alpha = 0.24169426078821
+        beta = 0.06042356519705
+        eta = 0.1291528696059
+        zeta = 0.5 - beta - eta - alpha
+
+        # r3 accumulates f4, r0 accumulates fnp1
+        r0, r1, r2, r3 = self._regidx
+
+        # Ensure r0 references the bank containing u(t)
+        if r0 != self._idxcurr:
+            r0 = self._idxcurr
+            r1, r2, r3 = set(self._regidx) - {r0}
+
+        gtau(r0) # g1 = g2 = g(f^n)
+        add(0.0, r1, 1.0, r0) # r1 = fn
+        imex_solve(r1, alpha*dt) # r1 = f1
+        gmfrcptau(r1) # r1 = (g1 - f1)/tau
+
+        # r3 = fn + beta*dt*(g1 - f1)/tau
+        add(0.0, r3, 1.0, r0, beta*dt, r1)
+
+        # r1 = fn - a*dt*(g1 - f1)/tau
+        add(-alpha*dt, r1, 1.0, r0)
+        imex_solve(r1, alpha*dt) # r1 = f2
+        rhs_nosource(t, r1, r2) # r2 = D(f2)
+        gmfrcptau(r1) # r1 = (g2 - f2)/tau
+
+        # r3 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau 
+        add(1.0, r3, 0.25*dt, r2, eta*dt, r1)
+        add(1.0, r0, dt, r2) # r0 = fn + dt*D(f2)
+        limit(r0)
+        gtau(r0) # g3 = g(fn + dt*D(f2))
+
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau 
+        add(1.0, r0, -5.0/6.0*dt, r2, dt/6.0, r1)
+
+        add(0.25*dt, r2, 1.0, r0, (1.0-alpha)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
+        imex_solve(r2, alpha*dt) # r2 = f3
+        rhs_nosource(t+dt, r2, r1) # r1 = D(f3)
+        gmfrcptau(r2) # r2 = (g3 - f3)/tau
+
+        # r0 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau + 0.25*dt*D(f3)
+        add(1.0, r3, 0.25*dt, r1) 
+        limit(r3)
+        gtau(r3) # g4 = g(fn + 0.25*dt*D(f2) + 0.25*dt*D(f3)) = g(r0) (Use here that moments are conserved by collision )
+        add(1.0, r3, -0.25*dt, r1) 
+
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
+        #    + 1/6*dt*(g3 - f3)/tau 
+        add(1.0, r0, dt/6.0, r1, dt/6.0, r2)
+
+        # r3 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau 
+        #    + 0.25*dt*D(f3) + zeta*dt*(g3 - f3)/tau 
+        add(1.0, r3, 0.25*dt, r1, zeta*dt, r2)
+        imex_solve(r3, alpha*dt) # r3 = f4
+        rhs_nosource(t+0.5*dt, r3, r1) # r1 = D(f4)
+        gmfrcptau(r3) # r3 = (g4 - f4)/tau
+
+        # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
+        #    + 1/6*dt*(g3 - f3)/tau + 2/3*dt*D(f4)
+        add(1.0, r0, 2.0/3.0*dt, r1, 2.0/3.0*dt, r3)
+        limit(r0)
+
         return r0
