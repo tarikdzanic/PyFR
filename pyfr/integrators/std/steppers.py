@@ -342,7 +342,7 @@ class StdIMEX32Stepper(BaseStdStepper):
 class StdIMEX43Stepper(BaseStdStepper):
     stepper_name = 'imex43'
     stepper_has_errest = False
-    stepper_nregs = 5
+    stepper_nregs = 4
     stepper_order = 3
 
 
@@ -362,12 +362,12 @@ class StdIMEX43Stepper(BaseStdStepper):
         zeta = 0.5 - beta - eta - alpha
 
         # r3 accumulates f4, r4 accumulates fnp1
-        r0, r1, r2, r3, r4 = self._regidx
+        r0, r1, r2, r3 = self._regidx
 
         # Ensure r0 references the bank containing u(t)
         if r0 != self._idxcurr:
             r0 = self._idxcurr
-            r1, r2, r3, r4 = set(self._regidx) - {r0}
+            r1, r2, r3 = set(self._regidx) - {r0}
 
         gtau(r0) # g1 = g2 = g(f^n)
         add(0.0, r1, 1.0, r0) # r1 = fn
@@ -385,25 +385,27 @@ class StdIMEX43Stepper(BaseStdStepper):
 
         # r3 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau 
         add(1.0, r3, 0.25*dt, r2, eta*dt, r1)
-        add(0.0, r4, 1.0, r0, dt, r2) # r4 = fn + dt*D(f2)
-        add(1.0, r0, 0.25*dt, r2) # r0 = fn + 0.25*dt*D(f2)
-        limit(r4)
-        gtau(r4) # g3 = g(fn + dt*D(f2))
+        add(1.0, r0, dt, r2) # r0 = fn + dt*D(f2)
+        limit(r0)
+        gtau(r0) # g3 = g(fn + dt*D(f2))
 
         # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau 
-        add(1.0, r4, -5.0/6.0*dt, r2, dt/6.0, r1)
-        add(0.75*dt, r2, 1.0, r0, (1.0-alpha)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
-        
+        add(1.0, r0, -5.0/6.0*dt, r2, dt/6.0, r1)
+
+        add(0.25*dt, r2, 1.0, r0, (1.0-alpha)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
         imex_solve(r2, alpha*dt) # r2 = f3
         rhs_nosource(t+dt, r2, r1) # r1 = D(f3)
         gmfrcptau(r2) # r2 = (g3 - f3)/tau
+
+        # r0 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau + 0.25*dt*D(f3)
+        add(1.0, r3, 0.25*dt, r1) 
+        limit(r3)
+        gtau(r3) # g4 = g(fn + 0.25*dt*D(f2) + 0.25*dt*D(f3)) = g(r0) (Use here that moments are conserved by collision )
+        add(1.0, r3, -0.25*dt, r1) 
+
         # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
         #    + 1/6*dt*(g3 - f3)/tau 
-        add(1.0, r4, dt/6.0, r1, dt/6.0, r2)
-
-        add(1.0, r0, 0.25*dt, r1) # r0 = fn + 0.25*dt*D(f2) + 0.25*dt*D(f3)
-        limit(r0)
-        gtau(r0) # g4 = g(fn + 0.25*dt*D(f2) + 0.25*dt*D(f3))
+        add(1.0, r0, dt/6.0, r1, dt/6.0, r2)
 
         # r3 = fn + beta*dt*(g1 - f1)/tau + 0.25*dt*D(f2) + eta*dt*(g2 - f2)/tau 
         #    + 0.25*dt*D(f3) + zeta*dt*(g3 - f3)/tau 
@@ -414,7 +416,7 @@ class StdIMEX43Stepper(BaseStdStepper):
         gmfrcptau(r3) # r3 = (g4 - f4)/tau
         # r4 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau + 1/6*dt*D(f3) 
         #    + 1/6*dt*(g3 - f3)/tau + 2/3*dt*D(f4)
-        add(1.0, r4, 2.0/3.0*dt, r1, 2.0/3.0*dt, r3)
-        limit(r4)
+        add(1.0, r0, 2.0/3.0*dt, r1, 2.0/3.0*dt, r3)
+        limit(r0)
 
-        return r4
+        return r0
