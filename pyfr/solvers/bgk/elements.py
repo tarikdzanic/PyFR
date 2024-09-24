@@ -114,14 +114,14 @@ class BGKElements(BaseAdvectionElements):
     privarmap = {2: ['rho', 'u', 'v', 'p'],
                  3: ['rho', 'u', 'v', 'w', 'p']}
 
-    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2'],
-                  3: ['rho', 'u', 'v', 'w', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2']}
+    privarmap2 = {2: ['rho', 'u', 'v', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2', 'h1g', 'dh1g', 'adh1g'],
+                  3: ['rho', 'u', 'v', 'w', 'p', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2', 'h1g', 'dh1g', 'adh1g']}
 
     convarmap = {2: ['1'],
                  3: ['1']}
 
-    convarmap2 = {2: ['rho', 'rhou', 'rhov', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2'],
-                  3: ['rho', 'rhou', 'rhov', 'rhow', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2']}
+    convarmap2 = {2: ['rho', 'rhou', 'rhov', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2', 'h1g', 'dh1g', 'adh1g'],
+                  3: ['rho', 'rhou', 'rhov', 'rhow', 'E', 'h1', 'h2', 'dh1', 'dh2', 'adf', 'df2', 'h1g', 'dh1g', 'adh1g']}
 
     dualcoeffs = convarmap
 
@@ -144,7 +144,7 @@ class BGKElements(BaseAdvectionElements):
 
         self.nuvars = len(self.u)
         self.nvars = 2*self.nuvars if self.delta else self.nuvars
-        self.nmvars = self.ndims + 8
+        self.nmvars = self.ndims + 11
 
         super().__init__(basiscls, eles, cfg)
 

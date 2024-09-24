@@ -60,6 +60,9 @@
         mvars[${ndims+2+3}] += M[0][i]*df2*log(fmax(1E-15, f[i + ${nuvars}]));
         mvars[${ndims+2+4}] += M[0][i]*abs(df);
         mvars[${ndims+2+5}] += M[0][i]*df*df;
+        mvars[${ndims+2+6}] += M[0][i]*f[i]*log(fmax(1E-15, f[i])/fmax(1E-15, g));
+        mvars[${ndims+2+7}] += M[0][i]*df*log(fmax(1E-15, f[i])/fmax(1E-15, g));
+        mvars[${ndims+2+8}] += M[0][i]*abs(df)*log(fmax(1E-15, f[i])/fmax(1E-15, g));
 
         // Set source
         f[i] = (g - f[i])/tau;
