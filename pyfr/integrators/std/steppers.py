@@ -391,8 +391,7 @@ class StdIMEX43Stepper(BaseStdStepper):
 
         # r0 = fn + 1/6*dt*D(f2) + 1/6*dt*(g2 - f2)/tau 
         add(1.0, r0, -5.0/6.0*dt, r2, dt/6.0, r1)
-
-        add(0.25*dt, r2, 1.0, r0, (1.0-alpha)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
+        add(5.0/6.0*dt, r2, 1.0, r0, ((1.0-alpha) - 1.0/6.0)*dt, r1) # r2 = fn + dt*D(f2) + (1-a)*dt*(g2 - f2)/tau
         imex_solve(r2, alpha*dt) # r2 = f3
         rhs_nosource(t+dt, r2, r1) # r1 = D(f3)
         gmfrcptau(r2) # r2 = (g3 - f3)/tau
