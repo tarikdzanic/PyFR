@@ -25,25 +25,13 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
-    // Apply ES-BGK model if necessary
-    % if Pr != 1:
-    // Compute initial temperature tensor (scaled by 1 - 1/Pr)
-    fpdtype_t T[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'q', 'u', 'M')}; 
-
-    // Get alpha vector
-    fpdtype_t alpha[${ndims+2}], Tvinv[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'Tvinv', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'w', 'T', 'Tvinv', 'u', 'M')};
-    % else:
-    // Get alpha vector
+    // Compute equilibrium distribution function via DVM
     fpdtype_t alpha[${ndims+2}];
-    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+    % if Pr != 1:
+    fpdtype_t Tvinv[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('iterate_alpha_ESBGK', 'w', 'q', 'u', 'M', 'Tvinv', 'alpha')};
+    % else:
+    ${pyfr.expand('iterate_alpha_BGK', 'w', 'q', 'u', 'M', 'alpha')};
     % endif
 
     // Compute mass-preserving scaling factor
