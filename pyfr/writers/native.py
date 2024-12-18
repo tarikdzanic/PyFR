@@ -43,9 +43,11 @@ class NativeWriter:
         else:
             self._write = self._write_serial
 
-    def write(self, data, tcurr, metadata=None):
+    def write(self, data, tcurr, metadata=None, aux=False):
         # Determine the output path
         path = self.fgen.send(tcurr)
+        if aux:
+            path = path.split('.pyfrs')[0] + '-aux.pyfrs'
 
         # Delegate to _write to do the actual outputting
         self._write(path, data, metadata)

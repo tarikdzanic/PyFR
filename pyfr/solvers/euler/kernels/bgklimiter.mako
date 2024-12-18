@@ -6,7 +6,8 @@
               u='inout fpdtype_t[${str(nupts)}][${str(nvars)}]'
               uf='in fpdtype_t[${str(nfpts)}][${str(nvars)}]'
               bounds='in fpdtype_t[${str(nvars*2)}]'
-              m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'>
+              m0='in broadcast fpdtype_t[${str(nfpts)}][${str(nupts)}]'
+              alpha='out fpdtype_t'>
            
       // Compute min/max of variables within element (and flux points)
       fpdtype_t umin[${nvars}];
@@ -47,6 +48,7 @@
       }
       % endfor
       theta = fmax(0.0, theta);
+      alpha = theta;
 
       // Apply limiting
       % for i,j in pyfr.ndrange(nupts, nvars):

@@ -78,8 +78,8 @@ class BaseFluidElements:
                 raise ValueError('Entropy filtering not compatible with '
                                  'adaptive time stepping.')
 
-    def set_backend(self, *args, **kwargs):
-        super().set_backend(*args, **kwargs)
+    def set_backend(self, backend, nscalupts, nonce, intoff):
+        super().set_backend(backend, nscalupts, nonce, intoff)
 
         # Can elide shock-capturing at p = 0
         shock_capturing = self.cfg.get('solver', 'shock-capturing', 'none')
@@ -187,6 +187,9 @@ class BaseFluidElements:
                 'pi': np.pi
             }
 
+            self.alpha = self._be.matrix((1, self.neles),
+                                         extent=nonce + 'alpha', tags={'align'})
+
             # Minimum density/pressure constraints
             bltplargs['d_min'] = self.cfg.getfloat('solver-bgk-limiter',
                                                    'd-min', 1e-6)
@@ -218,7 +221,7 @@ class BaseFluidElements:
             self.kernels['bgk_limiter'] = lambda uin: self._be.kernel(
                 'bgklimiter', tplargs=bltplargs, dims=[self.neles],
                 u=self.scal_upts[uin], uf=self._scal_fpts,
-                bounds=self.bgk_bounds, m0=self.m0
+                bounds=self.bgk_bounds, m0=self.m0, alpha=self.alpha
             )
             
 

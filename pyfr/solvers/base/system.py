@@ -52,6 +52,9 @@ class BaseSystem:
         if hasattr(eles[0], 'entmin_int'):
             self.eles_entmin_int = [e.entmin_int for e in eles]
 
+        if hasattr(eles[0], 'alpha'):
+            self.eles_alpha = [e.alpha for e in eles]
+
         # Save the number of dimensions and field variables
         self.ndims = eles[0].ndims
         self.nvars = eles[0].nvars
@@ -73,7 +76,7 @@ class BaseSystem:
                                   for eles in self.ele_map.values())
 
         # Delete the memory-intensive ele_map
-        del self.ele_map
+        # del self.ele_map
 
         # Save the BC interfaces, but delete the memory-intensive elemap
         for b in self._bc_inters:
@@ -325,6 +328,9 @@ class BaseSystem:
 
     def get_ele_entmin_int(self):
         return [e.get() for e in self.eles_entmin_int]
+
+    def get_ele_alpha(self):
+        return [alpha.get() for alpha in self.eles_alpha]
 
     def _group(self, g, kerns, subs=[]):
         # Eliminate non-existing kernels

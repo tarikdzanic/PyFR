@@ -73,8 +73,13 @@ class WriterPlugin(PostactionMixin, RegionMixin, BaseSolnPlugin):
         for idx, etype, rgn in self._ele_regions:
             data[etype] = intg.soln[idx][..., rgn].astype(self.fpdtype)
 
+        auxdata = dict(self._ele_region_data)
+        for idx, etype, rgn in self._ele_regions:
+            auxdata[etype] = intg.alpha[idx][..., rgn].astype(self.fpdtype)
+
         # Write out the file
         solnfname = self._writer.write(data, intg.tcurr, metadata)
+        solnfname_aux = self._writer.write(auxdata, intg.tcurr, metadata, aux=True)
 
         # If a post-action has been registered then invoke it
         self._invoke_postaction(intg=intg, mesh=intg.system.mesh.fname,

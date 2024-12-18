@@ -363,6 +363,8 @@ class VTKWriter(BaseWriter):
         # Divisor for each type element
         self.etypes_div = defaultdict(lambda: self.divisor)
 
+        self.aux = 'aux' in args.outf
+
         # Choose whether to output subdivided cells or high order VTK cells
         if args.order or args.divisor is None:
             self.ho_output = True
@@ -401,6 +403,8 @@ class VTKWriter(BaseWriter):
                 raise RuntimeError('Invalid field specification')
 
     def _pre_proc_fields_soln(self, soln):
+        if self.aux:
+            return np.array(soln)
         # Convert from conservative to primitive variables
         return np.array(self.elementscls.con_to_pri(soln, self.cfg))
 
@@ -412,10 +416,12 @@ class VTKWriter(BaseWriter):
 
         # Prepare the fields
         fields = []
-        for fnames, vnames in self._vtk_vars:
-            ix = [privarmap.index(vn) for vn in vnames]
-
-            fields.append(vsoln[ix])
+        if self.aux:
+            fields.append(vsoln[0])
+        else:
+            for fnames, vnames in self._vtk_vars:
+                ix = [privarmap.index(vn) for vn in vnames]
+                fields.append(vsoln[ix])
 
         return fields
 
@@ -423,7 +429,10 @@ class VTKWriter(BaseWriter):
         return [vsoln[self._soln_fields.index(v)] for v, _ in self._vtk_vars]
 
     def _get_npts_ncells_nnodes_lin(self, sk):
-        etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
+        try:
+            etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
+        except:
+            etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][1]
 
         # Get the shape and sub division classes
         shapecls = subclass_where(BaseShape, name=etype)
@@ -439,7 +448,10 @@ class VTKWriter(BaseWriter):
         return npts, ncells, nnodes
 
     def _get_npts_ncells_nnodes_ho(self, sk):
-        etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
+        try:
+            etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][2]
+        except:
+            etype, neles = self.soln_inf[sk][0], self.soln_inf[sk][1][1]
 
         # Fallback to subdivision for pyramids
         if etype == 'pyr':
@@ -463,10 +475,15 @@ class VTKWriter(BaseWriter):
         types = [dtype, 'Int32', 'Int32', 'UInt8', 'Int32']
         comps = ['3', '', '', '', '1']
 
-        for fname, varnames in vvars:
-            names.append(fname.title())
+        if self.aux:
+            names.append('Alpha')
             types.append(dtype)
-            comps.append(str(len(varnames)))
+            comps.append('1')
+        else:
+            for fname, varnames in vvars:
+                names.append(fname.title())
+                types.append(dtype)
+                comps.append(str(len(varnames)))
 
         # If a solution has been given the compute the sizes
         if sk:
@@ -634,6 +651,9 @@ class VTKWriter(BaseWriter):
         name = self.mesh_inf[mk][0]
         mesh = self.mesh[mk].astype(self.dtype)
         soln = self.soln[sk].swapaxes(0, 1).astype(self.dtype)
+        
+        if soln.ndim == 2:
+            soln = np.atleast_3d(soln).swapaxes(0,2)
 
         # Handle the case of partial solution files
         if soln.shape[2] != mesh.shape[1]:
@@ -654,6 +674,7 @@ class VTKWriter(BaseWriter):
         # Generate the operator matrices
         mesh_vtu_op = self._get_mesh_op(name, nspts, svpts)
         soln_vtu_op = self._get_soln_op(name, nspts, svpts)
+        
 
         # Calculate node locations of VTU elements
         vpts = mesh_vtu_op @ mesh.reshape(nspts, -1)
@@ -661,6 +682,11 @@ class VTKWriter(BaseWriter):
 
         # Pre-process the solution
         soln = self._pre_proc_fields(soln).swapaxes(0, 1)
+        
+        nupts = soln_vtu_op.shape[0]
+        if soln.shape[1] != nupts:
+            assert soln.shape[1] == 1
+            soln = np.repeat(soln, nupts, axis=0)
 
         # Interpolate the solution to the vis points
         vsoln = soln_vtu_op @ soln.reshape(len(soln), -1)

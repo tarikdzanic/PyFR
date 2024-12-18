@@ -39,9 +39,8 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
     @property
     def soln(self):
         if not self._curr_soln:
-            self.system.postproc(self._idxcurr)
+            # self.system.postproc(self._idxcurr)
             self._curr_soln = self.system.ele_scal_upts(self._idxcurr)
-
         return self._curr_soln
 
     @property
@@ -49,7 +48,7 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
         system = self.system
 
         if not self._curr_grad_soln:
-            system.postproc(self._idxcurr)
+            # system.postproc(self._idxcurr)
             system.compute_grads(self.tcurr, self._idxcurr)
             self._curr_grad_soln = [e.get() for e in system.eles_vect_upts]
 
@@ -77,6 +76,10 @@ class BaseStdIntegrator(BaseCommon, BaseIntegrator):
     @property
     def entmin(self):
         return self.system.get_ele_entmin_int()
+
+    @property
+    def alpha(self):
+        return self.system.get_ele_alpha()
 
     @entmin.setter
     def entmin(self, value):
