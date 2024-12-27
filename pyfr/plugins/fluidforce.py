@@ -47,7 +47,7 @@ class FluidForcePlugin(SurfaceMixin, BaseSolnPlugin):
                 raise ValueError(f'morigin must have {self.ndims} components')
 
         # Get the mesh and elements
-        mesh, elemap = intg.system.mesh, intg.system.ele_map
+        mesh, self.elemap = intg.system.mesh, intg.system.ele_map
 
         # See which ranks have the boundary
         bcranks = comm.gather(bc in mesh, root=root)
@@ -86,7 +86,7 @@ class FluidForcePlugin(SurfaceMixin, BaseSolnPlugin):
             rfpts = defaultdict(list)
 
             for etype, eidx, fidx, flags in mesh[bc].tolist():
-                eles = elemap[etype]
+                eles = self.elemap[etype]
                 itype, proj, norm = eles.basis.faces[fidx]
 
                 ppts, pwts = self._surf_quad(itype, proj, flags='s')
@@ -159,7 +159,13 @@ class FluidForcePlugin(SurfaceMixin, BaseSolnPlugin):
 
             # Compute the pressure
             pidx = 0 if self._ac else -1
-            p = self.elementscls.con_to_pri(ufpts, self.cfg)[pidx]
+
+            ele = self.elemap[etype]
+            plocupts = ele.ploc_at_np('upts')[..., self._eidxs[etype, fidx]]
+            plocfpts = m0 @ plocupts.reshape(nupts, -1)
+            plocfpts = plocfpts.reshape(nfpts, ndims, -1)
+            plocfpts = plocfpts.swapaxes(1, 2)
+            p = self.elementscls.con_to_pri(ufpts, self.cfg, plocfpts)[pidx]
 
             # Get the quadrature weights and normal vectors
             qwts = self._qwts[etype, fidx]
