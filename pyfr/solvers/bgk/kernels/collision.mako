@@ -29,12 +29,9 @@
 
     // Set source term
     fpdtype_t g;
-    fpdtype_t gmax = 0;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
         ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'g')};
-
-        gmax = min(gmax, g);
 
         // Set source
         f[i] = (g - f[i])/tau;
