@@ -16,32 +16,18 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
-    // Compute equilibrium distribution function via DVM
-    fpdtype_t alpha[${ndims+2}];
-    % if Pr != 1:
-    fpdtype_t Tvinv[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('iterate_alpha_ESBGK', 'w', 'q', 'u', 'M', 'Tvinv', 'alpha')};
-    % else:
-    ${pyfr.expand('iterate_alpha_BGK', 'w', 'q', 'u', 'M', 'alpha')};
-    % endif
-
-    // Compute temperature for internal DOFs if necessary
-    % if delta:
-    fpdtype_t theta = q[${ndims+1}]/q[0];
-    % endif
+    // Compute equilibrium distribution function via DVM and rotational temperature
+    fpdtype_t theta_rot, alpha[${navars}];
+    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
 
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
-        % if Pr != 1:
-        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha_es', 'u[i]', 'fr[i]')};
-        % else:
-        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'fr[i]')};
-        % endif
+        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'fr[i]')};
 
         // Apply internal energy effects
         % if delta:
-        fr[i + ${nuvars}] = fr[i]*theta*${delta/2.0};
+        fr[i + ${nuvars}] = theta_rot*fr[i];
         % endif
     }
 </%pyfr:macro>

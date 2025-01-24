@@ -35,7 +35,7 @@ class BGKIntInters(BaseAdvectionIntInters):
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         delta = self.cfg.getfloat('solver', 'delta', 0.0)
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
-                       rsolver=rsolver, c=self.c, delta=delta)
+                       navars=self.navars, rsolver=rsolver, c=self.c, delta=delta)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'intcflux', tplargs=tplargs, dims=[self.ninterfpts],
@@ -54,7 +54,7 @@ class BGKMPIInters(BaseAdvectionMPIInters):
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         delta = self.cfg.getfloat('solver', 'delta', 0.0)
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
-                       rsolver=rsolver, c=self.c, delta=delta)
+                       navars=self.navars, rsolver=rsolver, c=self.c, delta=delta)
 
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'mpicflux', tplargs, dims=[self.ninterfpts],
@@ -79,9 +79,9 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
         reflidxs = reflect(self.cfg, self.ndims)
 
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
-                       c=self.c, u=self.u, bctype=self.type, niters=self.niters,
-                       rsolver=rsolver, pi=np.pi, delta=delta, Pr=Pr,
-                       reflidxs=reflidxs)
+                       navars=self.navars, c=self.c, u=self.u, bctype=self.type,
+                       niters=self.niters, rsolver=rsolver, pi=np.pi, delta=delta,
+                       Pr=Pr, reflidxs=reflidxs)
         
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'bccflux', tplargs=tplargs, dims=[self.ninterfpts],

@@ -25,6 +25,7 @@ class BaseInters:
         self.ndims = next(iter(elemap.values())).ndims
         self.nvars = next(iter(elemap.values())).nvars
         self.nuvars = next(iter(elemap.values())).nuvars
+        self.navars = next(iter(elemap.values())).navars
 
         # Get the number of interfaces
         self.ninters = len(lhs)
