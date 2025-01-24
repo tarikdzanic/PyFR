@@ -78,13 +78,10 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
         # Get reflections for wall BCs
         reflidxs = reflect(self.cfg, self.ndims)
 
-        # Get linear system size for DVM
-        N = self.ndims + 2
-
         tplargs = dict(ndims=self.ndims, nvars=self.nvars, nuvars=self.nuvars,
                        c=self.c, u=self.u, bctype=self.type, niters=self.niters,
                        rsolver=rsolver, pi=np.pi, delta=delta, Pr=Pr,
-                       reflidxs=reflidxs, N=N)
+                       reflidxs=reflidxs)
         
         self.kernels['comm_flux'] = lambda: self._be.kernel(
             'bccflux', tplargs=tplargs, dims=[self.ninterfpts],

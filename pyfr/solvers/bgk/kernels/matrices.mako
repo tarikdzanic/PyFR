@@ -30,30 +30,27 @@ Minv[2][1] = invdet * - ( M[0][0] * M[2][1] - M[0][1] * M[2][0] );
 Minv[2][2] = invdet *   ( M[0][0] * M[1][1] - M[0][1] * M[1][0] );
 </%pyfr:macro>
 
-<%pyfr:macro name='solve_linear_system' params='A, b, x'>
+<%pyfr:macro name='solve_linear_system' params='A, b, x, N'>
 // N must be set outside of macro
-fpdtype_t L[${N}][${N}] = {{0}};
-fpdtype_t y[${N}], tmp;
-
-// Set L to identity 
-% for i in range(N):
-L[${i}][${i}] = 1.0;
-% endfor
+fpdtype_t L[N][N] = {{0}};
+fpdtype_t y[N], tmp;
 
 // Perform LU factorization (overwrite A with U)
-for (int i = 0; i < ${N}; i++) {
-       for (int j = i+1; j < ${N}; j++) {
+for (int i = 0; i < N; i++) {
+       // Set L to identity 
+       L[i][i] = 1.0;
+       for (int j = i+1; j < N; j++) {
               tmp = A[j][i]/A[i][i];
               L[j][i] = tmp;
-              % for k in range(N):
-              A[j][${k}] -= tmp*A[i][${k}];
-              % endfor
+              for (int k = 0; k < N; k++) {
+                     A[j][k] -= tmp*A[i][k];
+              }
        }
 }
 
 // Forward substitution
 y[0] = b[0]/L[0][0];
-for (int i = 1; i < ${N}; i++) {
+for (int i = 1; i < N; i++) {
        tmp = 1.0/L[i][i];
        y[i] = tmp*b[i];
        for (int j = 0; j < i; j++) {
@@ -62,11 +59,11 @@ for (int i = 1; i < ${N}; i++) {
 }
 
 // Backward substitution
-x[${N-1}] = y[${N-1}]/A[${N-1}][${N-1}];
-for (int i = ${N-2}; i > -1; i--) {
+x[N-1] = y[N-1]/A[N-1][N-1];
+for (int i = N-2; i > -1; i--) {
        tmp = 1/A[i][i];
        x[i] = tmp*y[i];
-       for (int j = i+1; j < ${N}; j++) {
+       for (int j = i+1; j < N; j++) {
               x[i] -= tmp*A[i][j]*x[j];
        }
 }

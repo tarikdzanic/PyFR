@@ -25,34 +25,6 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_extended_moments' params='f, u, M, exm'>
-    % for i in range(4*ndims-2):
-    exm[${i}] = 0.0;
-    % endfor
-
-    fpdtype_t fm;
-    for (int i = 0; i < ${nuvars}; i++) {
-        fm = M[0][i]*f[i];
-
-        exm[0] += fm;
-        exm[1] += fm*u[i][0];
-        exm[2] += fm*u[i][1];
-        % if ndims == 2:
-        exm[3] += fm*u[i][0]*u[i][0];
-        exm[4] += fm*u[i][0]*u[i][1];
-        exm[5] += fm*u[i][1]*u[i][1];
-        % elif ndims == 3:
-        exm[3] += fm*u[i][2];
-        exm[4] += fm*u[i][0]*u[i][0];
-        exm[5] += fm*u[i][0]*u[i][1];
-        exm[6] += fm*u[i][0]*u[i][2];
-        exm[7] += fm*u[i][1]*u[i][1];
-        exm[8] += fm*u[i][1]*u[i][2];
-        exm[9] += fm*u[i][2]*u[i][2];
-        % endif
-    }
-</%pyfr:macro>
-
 <%pyfr:macro name='con_to_pri' params='w, q'>
     q[0] = w[0];
     q[1] = w[1]/w[0];
@@ -86,26 +58,30 @@
     % endfor
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_alpha_ellipsoidal' params='q, T, Tvinv, alpha'>
+<%pyfr:macro name='compute_alpha_ellipsoidal' params='q, T, alpha'>
     // Compute inverse temperature tensor
-    fpdtype_t Tv[${ndims}][${ndims}], invdet;
-
-    fpdtype_t theta_pr = ${1.0/Pr}*q[${ndims+1}]/q[0];
-    % for i,j in pyfr.ndrange(ndims, ndims):
-    Tv[${i}][${j}] = T[${i}][${j}]${' + theta_pr' if i == j else ''};
-    % endfor
-
+    fpdtype_t Tinv[${ndims}][${ndims}] = {0}, invdet;
     % if ndims == 2:
-    ${pyfr.expand('compute_2x2inverse', 'Tv', 'Tvinv', 'invdet')};
-    % elif ndims == 3:
-    ${pyfr.expand('compute_3x3inverse', 'Tv', 'Tvinv', 'invdet')};
-    % endif
-    
+    ${pyfr.expand('compute_2x2inverse', 'T', 'Tinv', 'invdet')};
     alpha[0] = q[0]/sqrt(${(2*pi)**ndims}/invdet);
-    alpha[1] = theta_pr;
-    % for i in range(ndims):
-    alpha[${2 + i}] = q[${i+1}];
-    % endfor
+    alpha[1] = Tinv[0][0];
+    alpha[2] = Tinv[0][1];
+    alpha[3] = Tinv[1][1];
+    alpha[4] = q[1];
+    alpha[5] = q[2];
+    % elif ndims == 3:
+    ${pyfr.expand('compute_3x3inverse', 'T', 'Tinv', 'invdet')};
+    alpha[0] = q[0]/sqrt(${(2*pi)**ndims}/invdet);
+    alpha[1] = Tinv[0][0];
+    alpha[2] = Tinv[0][1];
+    alpha[3] = Tinv[0][2];
+    alpha[4] = Tinv[1][1];
+    alpha[5] = Tinv[1][2];
+    alpha[6] = Tinv[2][2];
+    alpha[7] = q[1];
+    alpha[8] = q[2];
+    alpha[9] = q[3];
+    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='compute_Maxwellian_distribution' params='alpha, u, g'>
@@ -120,97 +96,52 @@
     g = alpha[0]*exp(-alpha[1]*dv2);
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_ellipsoidal_distribution' params='alpha, u, Tvinv, g'>
+<%pyfr:macro name='compute_ellipsoidal_distribution' params='alpha, u, g'>
     // Compute pecular velocity
     % if ndims == 2:
-    fpdtype_t c0 = u[0] - alpha[2];
-    fpdtype_t c1 = u[1] - alpha[3];
+    fpdtype_t c0 = u[0] - alpha[4];
+    fpdtype_t c1 = u[1] - alpha[5];
 
-    fpdtype_t dv2 = Tvinv[0][0]*c0*c0 + 2*Tvinv[0][1]*c0*c1 + Tvinv[1][1]*c1*c1;
+    fpdtype_t dv2 = alpha[1]*c0*c0 + 2*alpha[2]*c0*c1 + alpha[3]*c1*c1;
     % elif ndims == 3:
-    fpdtype_t c0 = u[0] - alpha[2];
-    fpdtype_t c1 = u[1] - alpha[3];
-    fpdtype_t c2 = u[2] - alpha[4];
+    fpdtype_t c0 = u[0] - alpha[7];
+    fpdtype_t c1 = u[1] - alpha[8];
+    fpdtype_t c2 = u[2] - alpha[9];
 
-    fpdtype_t dv2 = Tvinv[0][0]*c0*c0 + 2*Tvinv[0][1]*c0*c1 + 2*Tvinv[0][2]*c0*c2 + Tvinv[1][1]*c1*c1 + 2*Tvinv[1][2]*c1*c2 + Tvinv[2][2]*c2*c2;
+    fpdtype_t dv2 = alpha[1]*c0*c0 + 2*alpha[2]*c0*c1 + 2*alpha[3]*c0*c2 + alpha[4]*c1*c1 + 2*alpha[5]*c1*c2 + alpha[6]*c2*c2;
     % endif
 
     // Compute ellipsoidal distribution
     g = alpha[0]*exp(-0.5*dv2);
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_temperature_tensor' params='T, f, q, u, M'>
-    // Compute scaled temperature tensor
+<%pyfr:macro name='compute_equilibrium_distribution' params='alpha, u, g'>
+    % if Pr == 1:
+    ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u', 'g')};
+    % else:
+    ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u', 'g')};
+    % endif
+</%pyfr:macro>
+
+<%pyfr:macro name='compute_ESBGK_temperature_tensor' params='T, f, alpha_bgk, q, u, M'>
+    fpdtype_t rcprho = 1.0/q[0];
+    fpdtype_t cjck, Mrcprho, g_BGK;
+
+    // T is set to zero outside macro
     for (int i = 0; i < ${nuvars}; i++) {
-        fpdtype_t Mf = ${1.0 - 1.0/Pr}*M[0][i]*f[i];
+        Mrcprho = M[0][i]*rcprho;
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha_bgk', 'u[i]', 'g_BGK')};
+
+        // rho*Tk = (1/Pr)*< g_BGK*cj*ck > + (1 - 1/Pr)*< f*cj*ck >
         % for j,k in pyfr.ndrange(ndims, ndims):
-        T[${j}][${k}] += Mf*(u[i][${j}] - q[${j+1}])*(u[i][${k}] - q[${k+1}])/q[0];
+        cjck = (u[i][${j}] - q[${j+1}])*(u[i][${k}] - q[${k+1}]);
+        T[${j}][${k}] += Mrcprho*cjck*(${1.0/Pr}*g_BGK + ${1.0 - 1.0/Pr}*f[i]);
         % endfor
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='compute_temperature_Jacobian' params='T, dTvinvdtheta, theta'>
-    // Compute d/dtheta of T + theta*I where T is symmetric
-    // Use M = det(T)*T^(-1), so that T^(-1) = M/det(T)
-    fpdtype_t det, ddet, rcpdet2;
-    % if ndims == 2:
-    /* 
-    For 2D:
-
-    M[0][0] = T[1][1] + theta;
-    M[0][1] = -T[0][1];
-    M[1][1] = T[0][0] + theta;
-
-    dM[0][0] = 1.0;
-    dM[0][1] = 0.0;
-    dM[1][1] = 1.0;
-    */
-
-    det = (T[0][0] + theta)*(T[1][1] + theta) - T[0][1]*T[0][1];
-    ddet = 2*theta + T[0][0] + T[1][1];
-    rcpdet2 = 1.0/(det*det);
-
-    dTvinvdtheta[0] = rcpdet2*(det - (T[1][1] + theta)*ddet);
-    dTvinvdtheta[1] = rcpdet2*(T[0][1]*ddet);
-    dTvinvdtheta[2] = rcpdet2*(det - (T[0][0] + theta)*ddet);
-    % elif ndims == 3:
-    /* 
-    For 3D:
-
-    */
-    
-    fpdtype_t M[${ndims}][${ndims}] = {{0}};
-    fpdtype_t dM[${ndims}][${ndims}] = {{0}};
-    M[0][0] =   (T[1][1] + theta)*(T[2][2] + theta) - (T[1][2])*(T[1][2]);
-    M[0][1] = - (T[0][1])*(T[2][2] + theta) - (T[0][2])*(T[1][2]);
-    M[0][2] =   (T[0][1])*(T[1][2]) - (T[0][2])*(T[1][1] + theta);
-    M[1][1] =   (T[0][0] + theta)*(T[2][2] + theta) - (T[0][2])*(T[0][2]);
-    M[1][2] = - (T[0][0] + theta)*(T[1][2]) - (T[0][2])*(T[0][1]);
-    M[2][2] =   (T[0][0] + theta)*(T[1][1] + theta) - (T[0][1])*(T[0][1]);
-
-    dM[0][0] = 2*theta + T[1][1] + T[2][2];
-    dM[0][1] = T[0][1];
-    dM[0][2] = -T[0][2];
-    dM[1][1] = 2*theta + T[0][0] + T[2][2];
-    dM[1][2] = T[1][2];
-    dM[2][2] = 2*theta + T[0][0] + T[1][1];
-
-    det  = (T[0][0] + theta)*((T[1][1] + theta)*(T[2][2] + theta) - (T[1][2])*(T[1][2])) 
-	     - (T[0][1])        *((T[0][1])        *(T[2][2] + theta) - (T[1][2])*(T[0][2])) 
-	     + (T[0][2])        *((T[0][1])        *(T[1][2])         - (T[1][1] + theta)*(T[0][2]));
-    ddet = (T[0][0] + theta)*(T[1][1] + T[2][2] + 2*theta) - T[0][1]*T[0][1] - T[0][2]*T[0][2] + (T[1][1] + theta)*(T[2][2] + theta) - T[1][2]*T[1][2];
-    rcpdet2 = 1.0/(det*det);
-
-    dTvinvdtheta[0] = rcpdet2*(dM[0][0]*det - M[0][0]*ddet);
-    dTvinvdtheta[1] = rcpdet2*(dM[0][1]*det - M[0][1]*ddet);
-    dTvinvdtheta[2] = rcpdet2*(dM[0][2]*det - M[0][2]*ddet);
-    dTvinvdtheta[3] = rcpdet2*(dM[1][1]*det - M[1][1]*ddet);
-    dTvinvdtheta[4] = rcpdet2*(dM[1][2]*det - M[1][2]*ddet);
-    dTvinvdtheta[5] = rcpdet2*(dM[2][2]*det - M[2][2]*ddet);
-    % endif
-</%pyfr:macro>
-
 <%pyfr:macro name='iterate_DVM_BGK' params='alpha, w, u, M'>
+    // Use ndims+2 instead of navars here so macro is available for ESBGK use
     fpdtype_t R[${ndims+2}], da[${ndims+2}];
     fpdtype_t J[${ndims+2}][${ndims+2}];
     fpdtype_t mmnts[${ndims+2}];
@@ -266,11 +197,16 @@
 
         // Get defect
         % for var in range(ndims+2):
-        R[${var}] -= w[${var}]; 
+        R[${var}] -= w[${var}];
         % endfor
 
         // Compute inverse Jacobian
-        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da')};
+        % if ndims == 2:
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da', '4')};
+        % elif ndims == 3:
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da', '5')};
+        % endif
+
 
         // Take Newton iteration
         % for var in range(ndims+2):
@@ -279,39 +215,43 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, w, T, Tvinv, u, M'>
-    fpdtype_t R[${ndims+2}], da[${ndims+2}];
-    fpdtype_t J[${ndims+2}][${ndims+2}];
-    fpdtype_t Tv[${ndims}][${ndims}];
-    fpdtype_t mmnts[${ndims+2}];
+<%pyfr:macro name='iterate_DVM_ESBGK' params='alpha, q, T, u, M'>
+    fpdtype_t R[${navars}], da[${navars}];
+    fpdtype_t J[${navars}][${navars}];
+    fpdtype_t mmnts[${navars}];
     fpdtype_t gm, Mgm, invdet;
 
-    // Pre-compute theta*delta/2.0
-    fpdtype_t td2 = ${delta*Pr/2.0}*alpha[1];
-
-    // Compute temperature tensor
-    % for i,j in pyfr.ndrange(ndims, ndims):
-    Tv[${i}][${j}] = T[${i}][${j}]${' + alpha[1]' if i == j else ''};
-    % endfor
-
-    // Allocate temperature tensor Jacobian
-    fpdtype_t dTvinvdtheta[${3 if ndims == 2 else 6}];
+    // Compute "conserved" variable vector for ESBGK
+    fpdtype_t w[${navars}];
+    w[0] = q[0]; 
+    w[1] = q[0]*q[1];
+    w[2] = q[0]*q[2];
+    % if ndims == 2:
+    w[3] = q[0]*q[1]*q[1] + q[0]*T[0][0];
+    w[4] = q[0]*q[1]*q[2] + q[0]*T[0][1];
+    w[5] = q[0]*q[2]*q[2] + q[0]*T[1][1];
+    % elif ndims == 3:
+    w[3] = q[0]*q[3];
+    w[4] = q[0]*q[1]*q[1] + q[0]*T[0][0];
+    w[5] = q[0]*q[1]*q[2] + q[0]*T[0][1];
+    w[6] = q[0]*q[1]*q[3] + q[0]*T[0][2];
+    w[7] = q[0]*q[2]*q[2] + q[0]*T[1][1];
+    w[8] = q[0]*q[2]*q[3] + q[0]*T[1][2];
+    w[9] = q[0]*q[3]*q[3] + q[0]*T[2][2];
+    % endif
    
     for (int iter = 0; iter < ${niters}; iter++) {
         // Zero cost-function and Jacobian
-        % for ivar in range(ndims+2):
+        % for ivar in range(navars):
         R[${ivar}] = 0; 
-        % for jvar in range(ndims+2):
-        J[${ivar}][${jvar}] = 0; 
+        % for jvar in range(navars):
+        J[${ivar}][${jvar}] = 0;
         % endfor
         % endfor
-
-        // Compute Jacobian of temperature tensor w.r.t. temperature
-        ${pyfr.expand('compute_temperature_Jacobian', 'T', 'dTvinvdtheta', 'alpha[1]')};
 
         // Compute discrete Maxwellian
         for (int i = 0; i < ${nuvars}; i++) {
-            ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'Tvinv', 'gm')};
+            ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'gm')};
 
             // Precompute moment factors
             Mgm = M[0][i]*gm;
@@ -319,67 +259,100 @@
             mmnts[1] = Mgm*u[i][0];
             mmnts[2] = Mgm*u[i][1];
             % if ndims == 2:
-            mmnts[3] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1])${' + Mgm*td2' if delta else ''};
+            mmnts[3] = Mgm*u[i][0]*u[i][0];
+            mmnts[4] = Mgm*u[i][0]*u[i][1];
+            mmnts[5] = Mgm*u[i][1]*u[i][1];
             % elif ndims == 3:
             mmnts[3] = Mgm*u[i][2];
-            mmnts[4] = 0.5*Mgm*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2])${' + Mgm*td2' if delta else ''};
+            mmnts[4] = Mgm*u[i][0]*u[i][0];
+            mmnts[5] = Mgm*u[i][0]*u[i][1];
+            mmnts[6] = Mgm*u[i][0]*u[i][2];
+            mmnts[7] = Mgm*u[i][1]*u[i][1];
+            mmnts[8] = Mgm*u[i][1]*u[i][2];
+            mmnts[9] = Mgm*u[i][2]*u[i][2];
             % endif
 
             // Compute Jacobian
             % if ndims == 2:
-            fpdtype_t c0 = u[i][0] - alpha[2];
-            fpdtype_t c1 = u[i][1] - alpha[3];
+            fpdtype_t c0 = u[i][0] - alpha[4];
+            fpdtype_t c1 = u[i][1] - alpha[5];
 
-            % for ivar in range(ndims+2):
+            % for ivar in range(navars):
             R[${ivar}] += mmnts[${ivar}];
 
             J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
-            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0*dTvinvdtheta[0] - c0*c1*dTvinvdtheta[1] - 0.5*c1*c1*dTvinvdtheta[2]);
-            J[${ivar}][2] += mmnts[${ivar}]*(Tvinv[0][0]*c0 + Tvinv[0][1]*c1);
-            J[${ivar}][3] += mmnts[${ivar}]*(Tvinv[0][1]*c0 + Tvinv[1][1]*c1);
+            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0);
+            J[${ivar}][2] += mmnts[${ivar}]*(-c0*c1);
+            J[${ivar}][3] += mmnts[${ivar}]*(-0.5*c1*c1);
+            J[${ivar}][4] += mmnts[${ivar}]*(alpha[1]*c0 + alpha[2]*c1);
+            J[${ivar}][5] += mmnts[${ivar}]*(alpha[2]*c0 + alpha[3]*c1);
             % endfor
             % elif ndims == 3:
-            fpdtype_t c0 = u[i][0] - alpha[2];
-            fpdtype_t c1 = u[i][1] - alpha[3];
-            fpdtype_t c2 = u[i][2] - alpha[4];
+            fpdtype_t c0 = u[i][0] - alpha[7];
+            fpdtype_t c1 = u[i][1] - alpha[8];
+            fpdtype_t c2 = u[i][2] - alpha[9];
 
-            % for ivar in range(ndims+2):
+            % for ivar in range(navars):
             R[${ivar}] += mmnts[${ivar}];
 
             J[${ivar}][0] += mmnts[${ivar}]/alpha[0];
-            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0*dTvinvdtheta[0] - c0*c1*dTvinvdtheta[1] - c0*c2*dTvinvdtheta[2]
-                                             -0.5*c1*c1*dTvinvdtheta[3] - c1*c2*dTvinvdtheta[4] - 0.5*c2*c2*dTvinvdtheta[5]);
-            J[${ivar}][2] += mmnts[${ivar}]*(Tvinv[0][0]*c0 + Tvinv[0][1]*c1 + Tvinv[0][2]*c2);
-            J[${ivar}][3] += mmnts[${ivar}]*(Tvinv[0][1]*c0 + Tvinv[1][1]*c1 + Tvinv[1][2]*c2);
-            J[${ivar}][4] += mmnts[${ivar}]*(Tvinv[0][2]*c0 + Tvinv[1][2]*c1 + Tvinv[2][2]*c2);
+            J[${ivar}][1] += mmnts[${ivar}]*(-0.5*c0*c0);
+            J[${ivar}][2] += mmnts[${ivar}]*(-c0*c1);
+            J[${ivar}][3] += mmnts[${ivar}]*(-c0*c2);
+            J[${ivar}][4] += mmnts[${ivar}]*(-0.5*c1*c1);
+            J[${ivar}][5] += mmnts[${ivar}]*(-c1*c2);
+            J[${ivar}][6] += mmnts[${ivar}]*(-0.5*c2*c2);
+            J[${ivar}][7] += mmnts[${ivar}]*(alpha[1]*c0 + alpha[2]*c1 + alpha[3]*c2);
+            J[${ivar}][8] += mmnts[${ivar}]*(alpha[2]*c0 + alpha[4]*c1 + alpha[5]*c2);
+            J[${ivar}][9] += mmnts[${ivar}]*(alpha[3]*c0 + alpha[5]*c1 + alpha[6]*c2);
             % endfor
             % endif
         }
 
         // Get defect
-        % for var in range(ndims+2):
+        % for var in range(navars):
         R[${var}] -= w[${var}];
         % endfor
 
         // Compute inverse Jacobian
-        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da')};
+        % if ndims == 2:
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da', '6')};
+        % elif ndims == 3:
+        ${pyfr.expand('solve_linear_system', 'J', 'R', 'da', '10')};
+        % endif
 
         // Take Newton iteration
-        % for var in range(ndims+2):
+        % for var in range(navars):
         alpha[${var}] -= da[${var}];
         % endfor
-
-        // Update inverse temperature tensor
-        % for i,j in pyfr.ndrange(ndims, ndims):
-        Tv[${i}][${j}] = T[${i}][${j}]${' + alpha[1]' if i == j else ''};
-        % endfor
-
-        % if ndims == 2:
-        ${pyfr.expand('compute_2x2inverse', 'Tv', 'Tvinv', 'invdet')};
-        % elif ndims == 3:
-        ${pyfr.expand('compute_3x3inverse', 'Tv', 'Tvinv', 'invdet')};
-        % endif
     }
+</%pyfr:macro>
+
+<%pyfr:macro name='iterate_alpha' params='f, w, q, u, M, alpha'>
+    % if Pr == 1:
+    // Get alpha vector
+    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
+
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
+    % else:
+    // Get alpha vector for BGK model
+    fpdtype_t alpha_bgk[${ndims+2}];
+    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha_bgk')};
+
+    // Compute discretely conservative Maxwellian state
+    ${pyfr.expand('iterate_DVM_BGK', 'alpha_bgk', 'w', 'u', 'M')};
+    
+    // Compute ESBGK temperature tensor combination
+    fpdtype_t T[${ndims}][${ndims}] = {{0}};
+    ${pyfr.expand('compute_ESBGK_temperature_tensor', 'T', 'f', 'alpha_bgk', 'q', 'u', 'M')}; 
+
+    // Get alpha vector
+    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'alpha')};
+
+    // Compute discretely conservative equilibrium state
+    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'q', 'T', 'u', 'M')};
+    % endif
 </%pyfr:macro>
 
 <%pyfr:macro name='compute_tau' params='q, theta, tau'>
@@ -397,24 +370,3 @@
     tau = (${tau_ref*P_ref*(theta_ref + theta_s)/Pr}/p)*theta_rat*sqrt(theta_rat)/(theta + ${theta_s});
     % endif
 </%pyfr:macro>
-
-<%pyfr:macro name='iterate_alpha_BGK' params='w, q, u, M, alpha'>
-    // Get alpha vector
-    ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
-</%pyfr:macro>
-
-<%pyfr:macro name='iterate_alpha_ESBGK' params='w, q, u, M, Tvinv, alpha'>
-    // Compute initial temperature tensor (scaled by 1 - 1/Pr)
-    fpdtype_t T[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('compute_temperature_tensor', 'T', 'f', 'q', 'u', 'M')}; 
-
-    // Get alpha vector
-    ${pyfr.expand('compute_alpha_ellipsoidal', 'q', 'T', 'Tvinv', 'alpha')};
-
-    // Compute discretely conservative equilibrium state
-    ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'w', 'T', 'Tvinv', 'u', 'M')};
-</%pyfr:macro>
-
