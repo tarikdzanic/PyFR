@@ -17,14 +17,6 @@ def setup_BGK(cfg, ndims):
     mins = list(offsets - vmax)
     maxs = list(offsets + vmax)
 
-    # Ensure that symmetric velocity space is used for ES-BGK
-    if cfg.getfloat('constants', 'Pr', 1.0) != 1.0:
-        c1 = all(N == Ns[0] for N in Ns)
-        c2 = all(m == mins[0] for m in mins)
-        c3 = all(m == maxs[0] for m in maxs)
-        if not (c1 and c2 and c3):
-            raise ValueError('Symmetric velocity space must be used for ES-BGK.')
-
     # Helper function to create 1D trapezoidal rule
     linwts = lambda N, mass: (np.array([0.5] + list(np.ones(N)[1:-1]) + [0.5]))*mass/(N-1)
 
@@ -247,12 +239,6 @@ class BGKElements(BaseAdvectionElements):
         self.umat = self._be.const_matrix(self.u)
         self.Mmat = self._be.const_matrix(np.reshape(self.M, (1, -1)))
         self.niters = self.cfg.getint('solver', 'niters')
-        
-        # Allocate space for the collision time and alpha vector
-        self.tau = self._be.matrix((self.nupts, 1, self.neles),
-                                   extent=nonce + 'tau', tags={'align'})
-        self.alpha = self._be.matrix((self.nupts, self.ndims + 2, self.neles),
-                                     extent=nonce + 'alpha', tags={'align'})
 
         # Get solver constants
         tau_ref = self.cfg.getfloat('constants', 'tau_ref')
@@ -261,21 +247,28 @@ class BGKElements(BaseAdvectionElements):
         Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
         theta_ref = P_ref/rho_ref
 
-        # Linear system size for DVM
-        N = self.ndims + 2
+        
+        # Allocate space for the collision time and alpha vector
+        self.navars = self.ndims + 2 if Pr == 1 else 4*self.ndims - 2
+        self.tau = self._be.matrix((self.nupts, 1, self.neles),
+                                   extent=nonce + 'tau', tags={'align'})
+        self.alpha = self._be.matrix((self.nupts, self.navars, self.neles),
+                                     extent=nonce + 'alpha', tags={'align'})
+
 
         # Template parameters for the flux kernels
         tplargs = {
             'ndims': self.ndims, 'nupts': self.nupts,
             'nvars': self.nvars, 'nuvars' : self.nuvars,
-            'nmvars' : self.nmvars, 'nverts': len(self.basis.linspts),
+            'nmvars' : self.nmvars, 'navars' : self.navars,
+            'nverts': len(self.basis.linspts),
             'c': self.cfg.items_as('constants', float),
             'jac_exprs': self.basis.jac_exprs,
             'srcex': self._src_exprs, 'pi': np.pi,
             'niters': self.niters, 'delta': self.delta,
             'tau_ref': tau_ref, 'rho_ref': rho_ref, 
             'P_ref': P_ref, 'theta_ref' : theta_ref,
-            'Pr': Pr, 'N': N
+            'Pr': Pr
         }
 
         # Setup viscosity law

@@ -10,7 +10,7 @@
               u='in broadcast fpdtype_t[${str(nuvars)}][${str(ndims)}]'
               M='in broadcast fpdtype_t[1][${str(nuvars)}]'
               tau='out fpdtype_t'
-              alpha='out fpdtype_t[${str(ndims+2)}]'>
+              alpha='out fpdtype_t[${str(navars)}]'>
 
     // Navier-Stokes conserved variables
     fpdtype_t w[${ndims+2}] = {0};
@@ -20,32 +20,24 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
-    // Compute equilibrium distribution function via DVM
-    % if Pr != 1:
-    fpdtype_t Tvinv[${ndims}][${ndims}] = {{0}};
-    ${pyfr.expand('iterate_alpha_ESBGK', 'w', 'q', 'u', 'M', 'Tvinv', 'alpha')};
-    % else:
-    ${pyfr.expand('iterate_alpha_BGK', 'w', 'q', 'u', 'M', 'alpha')};
-    % endif
-
     // Compute collision time based on viscosity model
     fpdtype_t theta;
     ${pyfr.expand('compute_tau', 'q', 'theta', 'tau')};
+
+    // Compute equilibrium distribution function via DVM and rotational temperature
+    fpdtype_t theta_rot;
+    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
 
     // Set source term
     fpdtype_t g;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
-        % if Pr != 1:
-        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'Tvinv', 'g')};
-        % else:
-        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
-        % endif
+        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'g')};
 
         // Set source
         f[i] = (g - f[i])/tau;
         % if delta:
-        f[i + ${nuvars}] = (${delta/2.0}*theta*g - f[i + ${nuvars}])/tau;
+        f[i + ${nuvars}] = (theta_rot*g - f[i + ${nuvars}])/tau;
         % endif
     }
 
