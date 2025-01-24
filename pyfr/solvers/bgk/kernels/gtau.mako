@@ -21,12 +21,13 @@
     fpdtype_t q[${ndims+2}] = {0};
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
-    // Compute equilibrium distribution function via DVM
-    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha')};
-
     // Compute collision time based on viscosity model
     fpdtype_t theta;
     ${pyfr.expand('compute_tau', 'q', 'theta', 'tau')};
+
+    // Compute equilibrium distribution function via DVM and rotational temperature
+    fpdtype_t theta_rot;
+    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
 
     // Set source term
     fpdtype_t gi;
@@ -37,7 +38,7 @@
         // Set source
         g[i] = gi;
         % if delta:
-        g[i + ${nuvars}] = (${delta/2.0}*theta*gi);
+        g[i + ${nuvars}] = theta_rot*gi;
         % endif
     }
 </%pyfr:kernel>
