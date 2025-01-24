@@ -4,7 +4,7 @@
 
 <%pyfr:macro name='compute_2x2inverse' params='M, Minv, invdet'>
 invdet = M[0][0] * M[1][1] 
-	   - M[0][1] * M[1][0] ;
+       - M[0][1] * M[1][0] ;
 invdet = 1 / invdet;
 
 Minv[0][0] = invdet *   ( M[1][1] );
@@ -15,8 +15,8 @@ Minv[1][1] = invdet *   ( M[0][0] );
 
 <%pyfr:macro name='compute_3x3inverse' params='M, Minv, invdet'>
 invdet = M[0][0] * ( M[1][1] * M[2][2] - M[1][2] * M[2][1] ) 
-	   - M[0][1] * ( M[1][0] * M[2][2] - M[1][2] * M[2][0] ) 
-	   + M[0][2] * ( M[1][0] * M[2][1] - M[1][1] * M[2][0] ) ;
+       - M[0][1] * ( M[1][0] * M[2][2] - M[1][2] * M[2][0] ) 
+       + M[0][2] * ( M[1][0] * M[2][1] - M[1][1] * M[2][0] ) ;
 invdet = 1 / invdet;
 
 Minv[0][0] = invdet *   ( M[1][1] * M[2][2] - M[1][2] * M[2][1] );
@@ -34,18 +34,15 @@ Minv[2][2] = invdet *   ( M[0][0] * M[1][1] - M[0][1] * M[1][0] );
 // N must be set outside of macro
 fpdtype_t L[N][N] = {{0}};
 fpdtype_t y[N], tmp;
+int P[N];
 
-// Set L to identity 
+// Set L to identity and initialize permutation vector
 for (int i = 0; i < N; i++) {
-       L[i][i] = 1.0;
-}
-
-// Perform partial pivoting
-int P[N]; // Permutation vector
-for (int i = 0; i < N; i++) {
+    L[i][i] = 1.0;
     P[i] = i;
 }
 
+// Perform partial pivoting
 for (int i = 0; i < N; i++) {
     // Find the row with the largest absolute value in column i
     int max_row = i;
@@ -62,6 +59,7 @@ for (int i = 0; i < N; i++) {
             A[i][k] = A[max_row][k];
             A[max_row][k] = temp;
         }
+
         // Update the permutation vector
         int temp_idx = P[i];
         P[i] = P[max_row];
@@ -71,13 +69,13 @@ for (int i = 0; i < N; i++) {
 
 // Perform LU factorization (overwrite A with U)
 for (int i = 0; i < N; i++) {
-       for (int j = i+1; j < N; j++) {
-              tmp = A[j][i]/A[i][i];
-              L[j][i] = tmp;
-              for (int k = 0; k < N; k++) {
-                     A[j][k] -= tmp*A[i][k];
-              }
-       }
+    for (int j = i+1; j < N; j++) {
+        tmp = A[j][i]/A[i][i];
+        L[j][i] = tmp;
+        for (int k = 0; k < N; k++) {
+            A[j][k] -= tmp*A[i][k];
+        }
+    }
 }
 
 // Get permuted b vector
@@ -89,20 +87,20 @@ for (int i = 0; i < N; i++) {
 // Forward substitution
 y[0] = b_permuted[0]/L[0][0];
 for (int i = 1; i < N; i++) {
-       tmp = 1.0/L[i][i];
-       y[i] = tmp*b_permuted[i];
-       for (int j = 0; j < i; j++) {
-              y[i] -= tmp*L[i][j]*y[j];
-       }
+    tmp = 1.0/L[i][i];
+    y[i] = tmp*b_permuted[i];
+    for (int j = 0; j < i; j++) {
+        y[i] -= tmp*L[i][j]*y[j];
+    }
 }
 
 // Backward substitution
 x[N-1] = y[N-1]/A[N-1][N-1];
 for (int i = N-2; i > -1; i--) {
-       tmp = 1/A[i][i];
-       x[i] = tmp*y[i];
-       for (int j = i+1; j < N; j++) {
-              x[i] -= tmp*A[i][j]*x[j];
-       }
+    tmp = 1/A[i][i];
+    x[i] = tmp*y[i];
+    for (int j = i+1; j < N; j++) {
+        x[i] -= tmp*A[i][j]*x[j];
+    }
 }
 </%pyfr:macro>
