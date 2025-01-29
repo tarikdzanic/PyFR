@@ -27,7 +27,11 @@
 
     // Compute equilibrium distribution function via DVM and rotational temperature
     fpdtype_t theta_rot;
-    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
+    % if Pr == 1:
+    ${pyfr.expand('iterate_alpha_BGK', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
+    % else:
+    ${pyfr.expand('iterate_alpha_ESBGK', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
+    % endif
 
     // Set source term
     fpdtype_t gi;

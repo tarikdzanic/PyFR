@@ -26,8 +26,8 @@
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
     // Compute equilibrium distribution function via DVM and rotational temperature
-    fpdtype_t theta_rot, alpha[${navars}];
-    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
+    fpdtype_t theta_rot, alpha[${ndims+2}];
+    ${pyfr.expand('iterate_alpha_BGK', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
 
     // Compute mass-preserving scaling factor
     fpdtype_t Mw[${nuvars}];
@@ -36,7 +36,7 @@
         un = ${pyfr.dot('u[i][{j}]', 'nl[{j}]', j=ndims)};
 
         // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'Mw[i]')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'Mw[i]')};
 
         // Balance mass flux
         if (un > 0.0) {

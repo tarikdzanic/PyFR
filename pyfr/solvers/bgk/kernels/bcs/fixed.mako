@@ -17,13 +17,13 @@
     ${pyfr.expand('con_to_pri', 'w', 'q')};
 
     // Compute equilibrium distribution function via DVM and rotational temperature
-    fpdtype_t theta_rot, alpha[${navars}];
-    ${pyfr.expand('iterate_alpha', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
+    fpdtype_t theta_rot, alpha[${ndims+2}];
+    ${pyfr.expand('iterate_alpha_BGK', 'f', 'w', 'q', 'u', 'M', 'alpha', 'theta_rot')};
 
     // Set RHS state
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'fr[i]')};
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'fr[i]')};
 
         // Apply internal energy effects
         % if delta:

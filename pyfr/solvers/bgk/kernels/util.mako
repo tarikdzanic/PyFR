@@ -328,14 +328,32 @@
     }
 </%pyfr:macro>
 
-<%pyfr:macro name='iterate_alpha' params='f, w, q, u, M, alpha, theta_rot'>
-    % if Pr == 1:
+<%pyfr:macro name='iterate_alpha_BGK' params='f, w, q, u, M, alpha, theta_rot'>
     // Get alpha vector
     ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha')};
 
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM_BGK', 'alpha', 'w', 'u', 'M')};
-    % else:
+
+    // Compute rotational temperature directly (since in the discrete ESBGK case it is not exactly theta*delta/2)
+    % if delta:
+    fpdtype_t E_trans = 0.0, g;
+    for (int i = 0; i < ${nuvars}; i++) {
+        // Compute equilibrium distribution at i-th velocity point
+        ${pyfr.expand('compute_Maxwellian_distribution', 'alpha', 'u[i]', 'g')};
+
+        // Compute translational energy
+        % if ndims == 2:
+        E_trans += 0.5*M[0][i]*g*(u[i][0]*u[i][0] + u[i][1]*u[i][1]);
+        % elif ndims == 3:
+        E_trans += 0.5*M[0][i]*g*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
+        % endif
+    }
+    theta_rot = (w[${ndims+1}] - E_trans)/w[0];
+    % endif
+</%pyfr:macro>
+
+<%pyfr:macro name='iterate_alpha_ESBGK' params='f, w, q, u, M, alpha, theta_rot'>
     // Get alpha vector for BGK model
     fpdtype_t alpha_bgk[${ndims+2}];
     ${pyfr.expand('compute_alpha_Gaussian', 'q', 'alpha_bgk')};
@@ -352,14 +370,13 @@
 
     // Compute discretely conservative equilibrium state
     ${pyfr.expand('iterate_DVM_ESBGK', 'alpha', 'q', 'T', 'u', 'M')};
-    % endif
 
     // Compute rotational temperature directly (since in the discrete ESBGK case it is not exactly theta*delta/2)
     % if delta:
     fpdtype_t E_trans = 0.0, g;
     for (int i = 0; i < ${nuvars}; i++) {
         // Compute equilibrium distribution at i-th velocity point
-        ${pyfr.expand('compute_equilibrium_distribution', 'alpha', 'u[i]', 'g')};
+        ${pyfr.expand('compute_ellipsoidal_distribution', 'alpha', 'u[i]', 'g')};
 
         // Compute translational energy
         % if ndims == 2:
@@ -368,7 +385,7 @@
         E_trans += 0.5*M[0][i]*g*(u[i][0]*u[i][0] + u[i][1]*u[i][1] + u[i][2]*u[i][2]);
         % endif
     }
-    theta_rot = (w[${ndims+1}] - E_trans)/q[0];
+    theta_rot = (w[${ndims+1}] - E_trans)/w[0];
     % endif
 </%pyfr:macro>
 
