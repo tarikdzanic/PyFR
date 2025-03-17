@@ -73,7 +73,7 @@ class BGKBaseBCInters(BaseAdvectionBCInters):
         rsolver = self.cfg.get('solver-interfaces', 'riemann-solver')
         self.niters = self.cfg.getint('solver', 'niters')
         delta = self.cfg.getfloat('solver', 'delta', 0.0)
-        Pr = self.cfg.getfloat('solver', 'Pr', 1.0)
+        Pr = self.cfg.getfloat('constants', 'Pr', 1.0)
 
         # Get reflections for wall BCs
         reflidxs = reflect(self.cfg, self.ndims)
